@@ -5,6 +5,7 @@ import argparse
 import os
 import re
 import sys
+import random
 
 MAX_DEC = 16777215
 
@@ -14,11 +15,14 @@ SHELL_CONFIG_FILES = [
     os.path.expanduser("~/.profile")
 ]
 
+if sys.platform == "darwin":
+    SHELL_CONFIG_FILES.insert(1, os.path.expanduser("~/.bash_profile"))
+
 TRUECOLOR_LINES = [
     "export COLORTERM=truecolor\n",
     "export TERM=xterm-256color\n"
 ]
-SCRIPT_COMMENT = "# Added by Hexlab for truecolor support\n"
+SCRIPT_COMMENT = "# added by hexlab for truecolor support\n"
 
 HEX_REGEX = re.compile(r"[0-9A-Fa-f]{6}")
 
@@ -31,6 +35,11 @@ def log(level, message):
     }
     stream = level_map.get(level, sys.stderr)
     print(f"[hexlab][{level}] {message}", file=stream)
+
+class HexlabArgumentParser(argparse.ArgumentParser):
+    def error(self, message):
+        log('error', message)
+        sys.exit(2)
 
 def hex_to_rgb(hex_code):
     return tuple(int(hex_code[i:i+2], 16) for i in (0, 2, 4))
@@ -56,25 +65,20 @@ def show_tech_info(hex_code):
     print(f"   Luminance  : {l:.6f}")
     print() 
 
-def valid_hex_type(hex_str):
-    clean_hex = hex_str.upper()
-    if is_valid_hex(clean_hex):
-        return clean_hex
-
-    if hex_str.startswith("#") and is_valid_hex(hex_str.lstrip("#")):
-         raise argparse.ArgumentTypeError(f"Invalid input '{hex_str}'. Do not include '#'. Use: -H {hex_str.lstrip('#').upper()}")
-    else:
-         raise argparse.ArgumentTypeError(f"'{hex_str}' is not a valid 6-digit hex code.")
-
 def manage_truecolor(enable=True):
+    if sys.platform == "win32":
+        log('error', "this feature is only for unix-like shells (bash, zsh, etc.).")
+        log('info', "truecolor on windows depends on your terminal emulator")
+        return
+
     target_file = next((f for f in SHELL_CONFIG_FILES if os.path.exists(f)), None)
     
     if not target_file:
-        log('error', "Could not find ~/.zshrc, ~/.bashrc, or ~/.profile.")
-        log('info', "Truecolor configuration failed. Please create one of these files.")
+        log('error', f"could not find any shell config file to modify.")
+        log('info', "Please create one of: ~/.zshrc, ~/.bash_profile, ~/.bashrc, or ~/.profile.")
         return
 
-    log('info', f"Detected target shell config: {target_file}")
+    log('info', f"detected target shell config: {target_file}")
     
     try:
         with open(target_file, "r") as f:
@@ -86,24 +90,24 @@ def manage_truecolor(enable=True):
 
         if enable:
             if is_enabled:
-                log('info', f"Truecolor is already enabled in {target_file}")
+                log('info', f"truecolor is already enabled in {target_file}")
                 return
             
-            log('info', f"Enabling truecolor in {target_file}")
+            log('info', f"enabling truecolor in {target_file}")
             with open(target_file, "a") as f:
                 f.write(f"\n{SCRIPT_COMMENT}")
                 if not has_colorterm:
                     f.write(TRUECOLOR_LINES[0])
                 if not has_term:
                     f.write(TRUECOLOR_LINES[1])
-            log('info', f"Enabled! Please reload your shell")
+            log('info', f"enabled! please reload your shell")
 
         else:
             if not is_enabled and not any(SCRIPT_COMMENT in line for line in lines):
-                log('info', f"Truecolor is already disabled in {target_file}")
+                log('info', f"truecolor is already disabled in {target_file}")
                 return
 
-            log('info', f"Disabling truecolor in {target_file}")
+            log('info', f"disabling truecolor in {target_file}")
             new_lines = [
                 line for line in lines 
                 if TRUECOLOR_LINES[0].strip() not in line and
@@ -112,23 +116,28 @@ def manage_truecolor(enable=True):
             ]
             with open(target_file, "w") as f:
                 f.writelines(new_lines)
-            log('info', f"Disabled! Please reload your shell")
+            log('info', f"disabled! please reload your shell")
 
     except (IOError, OSError) as e:
         log('error', f"Could not process file {target_file} (check permissions?): {e}")
     except Exception as e:
-        log('error', f"An unexpected error occurred with {target_file}: {e}")
+        log('error', f"an unexpected error occurred with {target_file}: {e}")
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="hexlab: A CLI tool for 24-bit hex color exploration.",
+    parser = HexlabArgumentParser(
+        description="hexlab: A CLI tool for 24-bit hex color exploration",
     )
     
-    parser.add_argument(
+    color_input_group = parser.add_mutually_exclusive_group()
+    color_input_group.add_argument(
         "-H", "--hex",
         dest="hexcode",
-        help="the 6-digit hex code",
-        type=valid_hex_type
+        help="6-digit hex code without # symbol",
+    )
+    color_input_group.add_argument(
+        "-rh", "--random-hex",
+        action="store_true",
+        help="generate a random hex color"
     )
     
     parser.add_argument(
@@ -141,6 +150,7 @@ def main():
         action="store_true",
         help="show the previous color"
     )
+
     parser.add_argument(
         "-N", "--negative",
         action="store_true",
@@ -169,17 +179,31 @@ def main():
         manage_truecolor(enable=False)
         sys.exit(0)
 
-    if not args.hexcode:
-        parser.error("A hex code is required. Use -H <HEXCODE>")
+    clean_hex = None
+    title = "Current Color"
 
-    clean_hex = args.hexcode
+    if args.random_hex:
+        current_dec = random.randint(0, MAX_DEC)
+        clean_hex = f"{current_dec:06X}"
+        title = "Random Color"
+    elif args.hexcode:
+        input_hex = args.hexcode
+        clean_hex = input_hex.upper()
+        
+        if not is_valid_hex(clean_hex):
+            if input_hex.startswith("#") and is_valid_hex(input_hex.lstrip("#")):
+                 parser.error(f"invalid input '{input_hex}'. do not include '#'. use: -H {input_hex.lstrip('#').upper()}")
+            else:
+                 parser.error(f"'{input_hex}' is not a valid 6-digit hex code.")
+    else:
+        parser.error("a hex code is required. use -H <HEXCODE> or -rh/--random-hex")
 
     os.environ["COLORTERM"] = "truecolor"
     os.environ["TERM"] = "xterm-256color"
     
     current_dec = int(clean_hex, 16)
 
-    print_color_block(clean_hex, "Current Color")
+    print_color_block(clean_hex, title)
     show_tech_info(clean_hex)
 
     if args.next:
@@ -204,5 +228,5 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n[hexlab][info] Exiting.", file=sys.stderr)
+        print("\n[hexlab][info] exiting.", file=sys.stderr)
         sys.exit(0)
