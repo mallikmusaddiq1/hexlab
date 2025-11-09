@@ -8,15 +8,19 @@ import sys
 
 MAX_DEC = 16777215
 
-PROFILE_PATH = os.path.expanduser("~/.profile")
-BASHRC_PATH = os.path.expanduser("~/.bashrc")
-ZSHRC_PATH = os.path.expanduser("~/.zshrc")
+SHELL_CONFIG_FILES = [
+    os.path.expanduser("~/.zshrc"),
+    os.path.expanduser("~/.bashrc"),
+    os.path.expanduser("~/.profile")
+]
 
 TRUECOLOR_LINES = [
     "export COLORTERM=truecolor\n",
     "export TERM=xterm-256color\n"
 ]
 SCRIPT_COMMENT = "# Added by Hexlab for truecolor support\n"
+
+HEX_REGEX = re.compile(r"[0-9A-Fa-f]{6}")
 
 def log(level, message):
     level = level.lower()
@@ -32,7 +36,7 @@ def hex_to_rgb(hex_code):
     return tuple(int(hex_code[i:i+2], 16) for i in (0, 2, 4))
 
 def is_valid_hex(h):
-    return re.fullmatch(r"[0-9A-Fa-f]{6}", h) is not None
+    return HEX_REGEX.fullmatch(h) is not None
 
 def lum_comp(c):
     c_norm = c / 255.0
@@ -52,15 +56,19 @@ def show_tech_info(hex_code):
     print(f"   Luminance  : {l:.6f}")
     print() 
 
-def manage_truecolor(enable=True):
-    shell_files_priority = [ZSHRC_PATH, BASHRC_PATH, PROFILE_PATH]
-    target_file = None
-    
-    for f in shell_files_priority:
-        if os.path.exists(f):
-            target_file = f
-            break
+def valid_hex_type(hex_str):
+    clean_hex = hex_str.upper()
+    if is_valid_hex(clean_hex):
+        return clean_hex
 
+    if hex_str.startswith("#") and is_valid_hex(hex_str.lstrip("#")):
+         raise argparse.ArgumentTypeError(f"Invalid input '{hex_str}'. Do not include '#'. Use: -H {hex_str.lstrip('#').upper()}")
+    else:
+         raise argparse.ArgumentTypeError(f"'{hex_str}' is not a valid 6-digit hex code.")
+
+def manage_truecolor(enable=True):
+    target_file = next((f for f in SHELL_CONFIG_FILES if os.path.exists(f)), None)
+    
     if not target_file:
         log('error', "Could not find ~/.zshrc, ~/.bashrc, or ~/.profile.")
         log('info', "Truecolor configuration failed. Please create one of these files.")
@@ -119,35 +127,36 @@ def main():
     parser.add_argument(
         "-H", "--hex",
         dest="hexcode",
-        help="the 6-digit hex code"
+        help="the 6-digit hex code",
+        type=valid_hex_type
     )
     
     parser.add_argument(
         "-n", "--next",
         action="store_true",
-        help="show the next color (#FFFFFF to #000000)."
+        help="show the next color"
     )
     parser.add_argument(
         "-p", "--previous",
         action="store_true",
-        help="show the previous color (#000000 to #FFFFFF)."
+        help="show the previous color"
     )
     parser.add_argument(
         "-N", "--negative",
         action="store_true",
-        help="show the negative (complementary) color."
+        help="show the negative color"
     )
     
     config_group = parser.add_mutually_exclusive_group()
     config_group.add_argument(
         "--enable-truecolor",
         action="store_true",
-        help="adds truecolor export lines to your shell config file."
+        help="adds truecolor export lines to your shell config file"
     )
     config_group.add_argument(
         "--disable-truecolor",
         action="store_true",
-        help="removes truecolor export lines from your shell config file."
+        help="removes truecolor export lines from your shell config file"
     )
 
     args = parser.parse_args()
@@ -163,14 +172,7 @@ def main():
     if not args.hexcode:
         parser.error("A hex code is required. Use -H <HEXCODE>")
 
-    input_hex = args.hexcode
-    clean_hex = input_hex.upper()
-    
-    if not is_valid_hex(clean_hex):
-        if input_hex.startswith("#") and is_valid_hex(input_hex.lstrip("#")):
-             parser.error(f"Invalid input '{input_hex}'. Do not include the '#' symbol. Use: -H {input_hex.lstrip('#').upper()}")
-        else:
-             parser.error(f"'{input_hex}' is not a valid 6-digit hex code.")
+    clean_hex = args.hexcode
 
     os.environ["COLORTERM"] = "truecolor"
     os.environ["TERM"] = "xterm-256color"
