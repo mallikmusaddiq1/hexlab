@@ -8,23 +8,9 @@ import sys
 import random
 
 MAX_DEC = 16777215
+__version__ = "0.0.1"
 
-SHELL_CONFIG_FILES = [
-    os.path.expanduser("~/.zshrc"),
-    os.path.expanduser("~/.bashrc"),
-    os.path.expanduser("~/.profile")
-]
-
-if sys.platform == "darwin":
-    SHELL_CONFIG_FILES.insert(1, os.path.expanduser("~/.bash_profile"))
-
-TRUECOLOR_LINES = [
-    "export COLORTERM=truecolor\n",
-    "export TERM=xterm-256color\n"
-]
-SCRIPT_COMMENT = "# added by hexlab for truecolor support\n"
-
-HEX_REGEX = re.compile(r"[0-9A-Fa-f]{6}")
+HEX_REGEX = re.compile(r"([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})")
 
 def log(level, message):
     level = level.lower()
@@ -35,6 +21,13 @@ def log(level, message):
     }
     stream = level_map.get(level, sys.stderr)
     print(f"[hexlab][{level}] {message}", file=stream)
+
+def ensure_truecolor():
+    if sys.platform == "win32":
+        return
+
+    if os.environ.get("COLORTERM") != "truecolor":
+        os.environ["COLORTERM"] = "truecolor"
 
 class HexlabArgumentParser(argparse.ArgumentParser):
     def error(self, message):
@@ -63,76 +56,25 @@ def show_tech_info(hex_code):
     print(f"   Index      : {index} / {MAX_DEC}")
     print(f"   RGB        : {r}, {g}, {b}")
     print(f"   Luminance  : {l:.6f}")
-    print() 
-
-def manage_truecolor(enable=True):
-    if sys.platform == "win32":
-        log('error', "this feature is only for unix-like shells (bash, zsh, etc.).")
-        log('info', "truecolor on windows depends on your terminal emulator")
-        return
-
-    target_file = next((f for f in SHELL_CONFIG_FILES if os.path.exists(f)), None)
-    
-    if not target_file:
-        log('error', f"could not find any shell config file to modify.")
-        log('info', "Please create one of: ~/.zshrc, ~/.bash_profile, ~/.bashrc, or ~/.profile.")
-        return
-
-    log('info', f"detected target shell config: {target_file}")
-    
-    try:
-        with open(target_file, "r") as f:
-            lines = f.readlines()
-
-        has_colorterm = any(TRUECOLOR_LINES[0].strip() in line for line in lines)
-        has_term = any(TRUECOLOR_LINES[1].strip() in line for line in lines)
-        is_enabled = has_colorterm and has_term
-
-        if enable:
-            if is_enabled:
-                log('info', f"truecolor is already enabled in {target_file}")
-                return
-            
-            log('info', f"enabling truecolor in {target_file}")
-            with open(target_file, "a") as f:
-                f.write(f"\n{SCRIPT_COMMENT}")
-                if not has_colorterm:
-                    f.write(TRUECOLOR_LINES[0])
-                if not has_term:
-                    f.write(TRUECOLOR_LINES[1])
-            log('info', f"enabled! please reload your shell")
-
-        else:
-            if not is_enabled and not any(SCRIPT_COMMENT in line for line in lines):
-                log('info', f"truecolor is already disabled in {target_file}")
-                return
-
-            log('info', f"disabling truecolor in {target_file}")
-            new_lines = [
-                line for line in lines 
-                if TRUECOLOR_LINES[0].strip() not in line and
-                   TRUECOLOR_LINES[1].strip() not in line and
-                   SCRIPT_COMMENT.strip() not in line
-            ]
-            with open(target_file, "w") as f:
-                f.writelines(new_lines)
-            log('info', f"disabled! please reload your shell")
-
-    except (IOError, OSError) as e:
-        log('error', f"Could not process file {target_file} (check permissions?): {e}")
-    except Exception as e:
-        log('error', f"an unexpected error occurred with {target_file}: {e}")
+    print()
 
 def main():
     parser = HexlabArgumentParser(
         description="hexlab: A CLI tool for 24-bit hex color exploration",
+    )
+
+    parser.add_argument(
+        "-v", "--version",
+        action="version",
+        version=f"hexlab {__version__}",
+        help="show program version and exit"
     )
     
     color_input_group = parser.add_mutually_exclusive_group()
     color_input_group.add_argument(
         "-H", "--hex",
         dest="hexcode",
-        help="6-digit hex code without # symbol",
+        help="6-digit hex color code without # symbol",
     )
     color_input_group.add_argument(
         "-rh", "--random-hex",
@@ -150,34 +92,15 @@ def main():
         action="store_true",
         help="show the previous color"
     )
-
     parser.add_argument(
         "-N", "--negative",
         action="store_true",
         help="show the negative color"
     )
-    
-    config_group = parser.add_mutually_exclusive_group()
-    config_group.add_argument(
-        "--enable-truecolor",
-        action="store_true",
-        help="adds truecolor export lines to your shell config file"
-    )
-    config_group.add_argument(
-        "--disable-truecolor",
-        action="store_true",
-        help="removes truecolor export lines from your shell config file"
-    )
 
     args = parser.parse_args()
 
-    if args.enable_truecolor:
-        manage_truecolor(enable=True)
-        sys.exit(0)
-    
-    if args.disable_truecolor:
-        manage_truecolor(enable=False)
-        sys.exit(0)
+    ensure_truecolor()
 
     clean_hex = None
     title = "Current Color"
@@ -188,18 +111,16 @@ def main():
         title = "Random Color"
     elif args.hexcode:
         input_hex = args.hexcode
-        clean_hex = input_hex.upper()
+        clean_hex = input_hex.lstrip("#").upper()
         
         if not is_valid_hex(clean_hex):
-            if input_hex.startswith("#") and is_valid_hex(input_hex.lstrip("#")):
-                 parser.error(f"invalid input '{input_hex}'. do not include '#'. use: -H {input_hex.lstrip('#').upper()}")
-            else:
-                 parser.error(f"'{input_hex}' is not a valid 6-digit hex code.")
+            parser.error(f"'{input_hex}' is not a valid 6-digit hex code")
+        
+        if len(clean_hex) == 3:
+            clean_hex = "".join([c*2 for c in clean_hex])
+            
     else:
-        parser.error("a hex code is required. use -H <HEXCODE> or -rh/--random-hex")
-
-    os.environ["COLORTERM"] = "truecolor"
-    os.environ["TERM"] = "xterm-256color"
+        parser.error("hex code is required. use -H/--hex <HEXCODE> or -rh/--random-hex")
     
     current_dec = int(clean_hex, 16)
 
