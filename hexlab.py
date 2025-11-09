@@ -441,4 +441,4 @@ if __name__ == "__main__":
         sys.exit(0)
     except Exception as e:
         log('error', f"an unexpected error occurred: {e}")
-        sys.exit(1))
+        sys.exit(1)
