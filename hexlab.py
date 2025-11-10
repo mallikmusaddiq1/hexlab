@@ -9,7 +9,7 @@ import random
 import math
 import json
 from typing import Tuple
-from color_names import WEB_COLORS
+from web_color_names import WEB_COLORS
 
 MAX_DEC = 16777215
 __version__ = "0.0.1"
