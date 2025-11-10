@@ -377,7 +377,7 @@ def get_gradient_parser() -> argparse.ArgumentParser:
     )
     
     parser.add_argument(
-        "-s", "--steps",
+        "-sd", "--steps",
         type=int,
         default=10,
         help="total number of steps in the gradient (default: 10)"
@@ -422,7 +422,7 @@ def get_mix_parser() -> argparse.ArgumentParser:
         help="number of random colors to use (default: 2)"
     )
     parser.add_argument(
-        "-s", "--seed",
+        "-sd", "--seed",
         type=int,
         default=None,
         help="random seed for reproducibility"
@@ -495,7 +495,7 @@ def main() -> None:
         )
         
         parser.add_argument(
-            "-s", "--seed",
+            "-sd", "--seed",
             type=int,
             default=None,
             help="random seed for reproducibility"
