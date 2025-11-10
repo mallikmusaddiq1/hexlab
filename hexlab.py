@@ -470,12 +470,12 @@ def main() -> None:
         )
         
         parser.add_argument(
-            "--list-color-names",
+            "-lcn", "--list-color-names",
             nargs='?',
             const='text',
             default=None,
             choices=['text', 'json', 'pretty-json'],
-            help="list all web color names and exit (default: text)"
+            help="list all web color names and exit"
         )
         
         color_input_group = parser.add_mutually_exclusive_group()
