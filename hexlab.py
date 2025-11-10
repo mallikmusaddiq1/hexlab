@@ -47,6 +47,7 @@ def is_valid_hex(h: str) -> bool:
     return HEX_REGEX.fullmatch(h) is not None
 
 def clean_hex_input(hex_str: str) -> str:
+    hex_str = hex_str.replace(" ", "")
     clean_hex = hex_str.lstrip("#").upper()
     if not is_valid_hex(clean_hex):
         log('error', f"'{hex_str}' is not a valid 6-digit hex code")
@@ -274,7 +275,8 @@ def handle_gradient_command(args: argparse.Namespace) -> None:
         colors_hex = [f"{random.randint(0, MAX_DEC):06X}" for _ in range(num_hex)]
     else:
         if not args.hex or len(args.hex) < 2:
-            log('error', "at least 2 hex codes are required for a gradient. use -H <HEXCODE> -H ... -H ...")
+            log('error', "at least 2 hex codes are required for a gradient")
+            log('info', "usage: -H HEX -H ...")
             sys.exit(2)
         
         colors_hex = [clean_hex_input(h) for h in args.hex]
@@ -328,11 +330,15 @@ def handle_mix_command(args: argparse.Namespace) -> None:
         
         colors_hex = [f"{random.randint(0, MAX_DEC):06X}" for _ in range(num_hex)]
     else:
-        if not args.hex or len(args.hex) < 2:
-            log('error', "at least 2 hex codes are required for mixing. use -H <HEXCODE> -H ... -H ...")
+        hex_no_spaces = args.hex.replace(" ", "")
+        hex_strings = hex_no_spaces.split('+')
+
+        if len(hex_strings) < 2:
+            log('error', "at least 2 hex codes are required for mixing")
+            log('info', "usage: input multiple hex codes separated by + symbol")
             sys.exit(2)
         
-        colors_hex = [clean_hex_input(h) for h in args.hex]
+        colors_hex = [clean_hex_input(h) for h in hex_strings]
 
     colors_rgb = [hex_to_rgb(h) for h in colors_hex]
     
@@ -377,7 +383,7 @@ def get_gradient_parser() -> argparse.ArgumentParser:
     )
     
     parser.add_argument(
-        "-sd", "--steps",
+        "-s", "--steps",
         type=int,
         default=10,
         help="total number of steps in the gradient (default: 10)"
@@ -389,7 +395,7 @@ def get_gradient_parser() -> argparse.ArgumentParser:
         help="number of random colors to use (default: 2-5)"
     )
     parser.add_argument(
-        "-s", "--seed",
+        "--seed",
         type=int,
         default=None,
         help="random seed for reproducibility"
@@ -406,8 +412,7 @@ def get_mix_parser() -> argparse.ArgumentParser:
     input_group = parser.add_mutually_exclusive_group(required=True)
     input_group.add_argument(
         "-H", "--hex",
-        action="append",
-        help="use -H <HEX> multiple times for inputs"
+        help="input multiple hex codes separated by + symbol"
     )
     input_group.add_argument(
         "-rm", "--random-mix",
@@ -422,7 +427,7 @@ def get_mix_parser() -> argparse.ArgumentParser:
         help="number of random colors to use (default: 2)"
     )
     parser.add_argument(
-        "-sd", "--seed",
+        "-s", "--seed",
         type=int,
         default=None,
         help="random seed for reproducibility"
@@ -495,7 +500,7 @@ def main() -> None:
         )
         
         parser.add_argument(
-            "-sd", "--seed",
+            "-s", "--seed",
             type=int,
             default=None,
             help="random seed for reproducibility"
@@ -591,13 +596,11 @@ def main() -> None:
             sys.exit(0)
         
         if args.command == 'gradient':
-            log('error', "the 'gradient' command must be the first argument.")
-            log('info', "usage: hexlab gradient -H ... -H ...")
+            log('error', "the 'gradient' command must be the first argument")
             sys.exit(2)
             
         if args.command == 'mix':
-            log('error', "the 'mix' command must be the first argument.")
-            log('info', "usage: hexlab mix -H ... -H ...")
+            log('error', "the 'mix' command must be the first argument")
             sys.exit(2)
         
         ensure_truecolor()
