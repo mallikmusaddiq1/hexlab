@@ -227,7 +227,7 @@ def handle_color_command(args: argparse.Namespace) -> None:
     elif args.color_name:
         named_lower = args.color_name.strip().lower().replace(" ", "")
         if named_lower not in WEB_COLORS:
-            log('error', f"unknown color name '{args.color_name}'")
+            log('error', f"unknown color name '{named_lower}''")
             log('info', "use 'hexlab --list-color-names' to see all options")
             sys.exit(2)
         clean_hex = WEB_COLORS[named_lower]
@@ -374,7 +374,7 @@ def get_gradient_parser() -> argparse.ArgumentParser:
     input_group.add_argument(
         "-H", "--hex",
         action="append",
-        help="use -H <HEX> multiple times for inputs"
+        help="use -H HEX multiple times for inputs"
     )
     input_group.add_argument(
         "-rg", "--random-gradient",
