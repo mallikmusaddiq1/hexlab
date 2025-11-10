@@ -470,7 +470,7 @@ def main() -> None:
         )
         
         parser.add_argument(
-            "-lcn", "--list-color-names",
+            "--list-color-names",
             nargs='?',
             const='text',
             default=None,
