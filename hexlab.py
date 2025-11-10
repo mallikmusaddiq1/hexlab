@@ -157,12 +157,12 @@ def print_color_and_info(hex_code, title, args):
 
     if args.contrast:
         wcag = get_wcag_contrast(l)
-        print( "   Contrast (White): "
+        print( "   Contrast White: "
             f"{wcag['white']['ratio']:.2f}:1 "
             f"(AA: {wcag['white']['levels']['AA']}, "
             f"AAA: {wcag['white']['levels']['AAA']})"
         )
-        print( "   Contrast (Black): "
+        print( "   Contrast Black: "
             f"{wcag['black']['ratio']:.2f}:1 "
             f"(AA: {wcag['black']['levels']['AA']}, "
             f"AAA: {wcag['black']['levels']['AAA']})"
@@ -181,7 +181,8 @@ def handle_color_command(args):
     elif args.hexcode:
         clean_hex = clean_hex_input(args.hexcode)
     else:
-        log('error', "hex code is required. use -H/--hex <HEXCODE> or -rh/--random-hex")
+        log('error', "one of the arguments -H/--hex -rh/--random-hex is required")
+        log('info', "use 'hexlab --help' for more information")
         sys.exit(2)
     
     current_dec = int(clean_hex, 16)
@@ -252,51 +253,128 @@ def handle_gradient_command(args):
     for i, hex_code in enumerate(gradient_colors):
         print_color_block(hex_code, f"Step {i+1}")
 
+def handle_mix_command(args):
+    colors_hex = []
+    
+    if args.random_mix:
+        num_hex = args.total_random_hex
+        if num_hex == 0:
+            num_hex = 2
+        if num_hex < 2:
+            log('error', "--total-random-hex must be at least 2")
+            sys.exit(2)
+        
+        colors_hex = [f"{random.randint(0, MAX_DEC):06X}" for _ in range(num_hex)]
+    else:
+        if not args.hex or len(args.hex) < 2:
+            log('error', "at least 2 hex codes are required for mixing. use -H <HEXCODE> -H ... -H ...")
+            sys.exit(2)
+        
+        colors_hex = [clean_hex_input(h) for h in args.hex]
+
+    colors_rgb = [hex_to_rgb(h) for h in colors_hex]
+    
+    total_r, total_g, total_b = 0, 0, 0
+    for r, g, b in colors_rgb:
+        total_r += r
+        total_g += g
+        total_b += b
+    
+    count = len(colors_rgb)
+    avg_r = total_r // count
+    avg_g = total_g // count
+    avg_b = total_b // count
+    
+    mixed_hex = rgb_to_hex(avg_r, avg_g, avg_b)
+    
+    print()
+    for i, hex_code in enumerate(colors_hex):
+        print_color_block(hex_code, f"Input {i+1}")
+    
+    print("-" * 18)
+    print_color_block(mixed_hex, "Mixed Result")
+    print()
+
+def get_gradient_parser():
+    parser = HexlabArgumentParser(
+        prog="hexlab gradient",
+        description="hexlab gradient: generate color gradients between multiple hex codes",
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    
+    input_group = parser.add_mutually_exclusive_group(required=True)
+    input_group.add_argument(
+        "-H", "--hex",
+        action="append",
+        help="use -H <HEX> multiple times for inputs"
+    )
+    input_group.add_argument(
+        "-rg", "--random-gradient",
+        action="store_true",
+        help="generate gradient from random colors"
+    )
+    
+    parser.add_argument(
+        "-s", "--steps",
+        type=int,
+        default=10,
+        help="total number of steps in the gradient (default: 10)"
+    )
+    parser.add_argument(
+        "-trh", "--total-random-hex",
+        type=int,
+        default=0,
+        help="number of random colors to use (default: 2-5)"
+    )
+    return parser
+
+def get_mix_parser():
+    parser = HexlabArgumentParser(
+        prog="hexlab mix",
+        description="hexlab mix: mix multiple colors together by averaging them",
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    
+    input_group = parser.add_mutually_exclusive_group(required=True)
+    input_group.add_argument(
+        "-H", "--hex",
+        action="append",
+        help="use -H <HEX> multiple times for inputs"
+    )
+    input_group.add_argument(
+        "-rm", "--random-mix",
+        action="store_true",
+        help="generate mix from random colors"
+    )
+    
+    parser.add_argument(
+        "-trh", "--total-random-hex",
+        type=int,
+        default=0,
+        help="number of random colors to use (default: 2)"
+    )
+    return parser
+
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == 'gradient':
-        parser = HexlabArgumentParser(
-            prog="hexlab gradient",
-            description="hexlab gradient: Generate color gradients between multiple hex codes",
-            formatter_class=argparse.RawTextHelpFormatter
-        )
-        
-        input_group = parser.add_mutually_exclusive_group(required=True)
-        input_group.add_argument(
-            "-H", "--hex",
-            action="append",
-            help="6-digit hex code without # symbol, use -H <HEXCODE> multiple times for anchors"
-        )
-        input_group.add_argument(
-            "-rg", "--random-gradient",
-            action="store_true",
-            help="generate gradient from random colors"
-        )
-        
-        parser.add_argument(
-            "-s", "--steps",
-            type=int,
-            default=10,
-            help="total number of steps in the gradient (default: 10)"
-        )
-        parser.add_argument(
-            "-trh", "--total-random-hex",
-            type=int,
-            default=0,
-            help="number of random colors to use (default: 2-5)"
-        )
-        
+        parser = get_gradient_parser()
         args = parser.parse_args(sys.argv[2:])
         ensure_truecolor()
         handle_gradient_command(args)
 
+    elif len(sys.argv) > 1 and sys.argv[1] == 'mix':
+        parser = get_mix_parser()
+        args = parser.parse_args(sys.argv[2:])
+        ensure_truecolor()
+        handle_mix_command(args)
+
     else:
         parser = HexlabArgumentParser(
-            description="hexlab: A CLI tool for 24-bit hex color exploration",
+            description="hexlab: 24-bit hex color exploration tool",
             formatter_class=argparse.RawTextHelpFormatter,
             add_help=False
         )
         
-        # Re-add default help action
         parser.add_argument(
             '-h', '--help',
             action='help',
@@ -314,7 +392,7 @@ def main():
         parser.add_argument(
             "-hf", "--help-full",
             action="store_true",
-            help="show full help message"
+            help="show full help message including subcommands"
         )
         
         color_input_group = parser.add_mutually_exclusive_group()
@@ -390,44 +468,24 @@ def main():
         if args.help_full:
             parser.print_help()
             
-            gradient_parser = HexlabArgumentParser(
-                prog="hexlab gradient",
-                description="hexlab gradient: Generate color gradients between multiple hex codes",
-                formatter_class=argparse.RawTextHelpFormatter,
-                add_help=False
-            )
-            
-            grad_input_group = gradient_parser.add_mutually_exclusive_group(required=True)
-            grad_input_group.add_argument(
-                "-H", "--hex",
-                action="append",
-                help="6-digit hex code without # symbol, use -H <HEXCODE> multiple times for anchors"
-            )
-            grad_input_group.add_argument(
-                "-rg", "--random-gradient",
-                action="store_true",
-                help="generate gradient from random colors"
-            )
-            
-            gradient_parser.add_argument(
-                "-s", "--steps",
-                type=int,
-                default=10,
-                help="total number of steps in the gradient (default: 10)"
-            )
-            gradient_parser.add_argument(
-                "-trh", "--total-random-hex",
-                type=int,
-                default=0,
-                help="number of random colors to use (default: 2-5)"
-            )
+            gradient_parser = get_gradient_parser()
             print("\n")
             gradient_parser.print_help()
+            
+            mix_parser = get_mix_parser()
+            print("\n")
+            mix_parser.print_help()
+            
             sys.exit(0)
         
         if args.command == 'gradient':
-            log('error', "the 'gradient' command must be the first argument")
+            log('error', "the 'gradient' command must be the first argument.")
             log('info', "usage: hexlab gradient -H ... -H ...")
+            sys.exit(2)
+            
+        if args.command == 'mix':
+            log('error', "the 'mix' command must be the first argument.")
+            log('info', "usage: hexlab mix -H ... -H ...")
             sys.exit(2)
         
         ensure_truecolor()
