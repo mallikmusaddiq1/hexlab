@@ -225,7 +225,7 @@ def handle_color_command(args: argparse.Namespace) -> None:
         clean_hex = f"{current_dec:06X}"
         title = "Random Color"
     elif args.color_name:
-        named_lower = args.color_name.strip().lower()
+        named_lower = args.color_name.strip().lower().replace(" ", "")
         if named_lower not in WEB_COLORS:
             log('error', f"unknown color name '{args.color_name}'")
             log('info', "use 'hexlab --list-color-names' to see all options")
