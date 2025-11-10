@@ -389,7 +389,7 @@ def get_gradient_parser() -> argparse.ArgumentParser:
         help="number of random colors to use (default: 2-5)"
     )
     parser.add_argument(
-        "-sd", "--seed",
+        "-s", "--seed",
         type=int,
         default=None,
         help="random seed for reproducibility"
@@ -422,7 +422,7 @@ def get_mix_parser() -> argparse.ArgumentParser:
         help="number of random colors to use (default: 2)"
     )
     parser.add_argument(
-        "-sd", "--seed",
+        "-s", "--seed",
         type=int,
         default=None,
         help="random seed for reproducibility"
@@ -495,7 +495,7 @@ def main() -> None:
         )
         
         parser.add_argument(
-            "-sd", "--seed",
+            "-s", "--seed",
             type=int,
             default=None,
             help="random seed for reproducibility"
