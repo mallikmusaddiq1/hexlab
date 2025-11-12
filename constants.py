@@ -1,3 +1,69 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import re
+
+MAX_DEC = 16777215
+
+__version__ = "0.0.1"
+
+HEX_REGEX = re.compile(r"([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})")
+
+TECH_INFO_KEYS = [
+    'index', 'red_green_blue', 'luminance', 'hue_saturation_lightness',
+    'hsv', 'cmyk', 'contrast', 'xyz', 'lab', 'lightness_chroma_hue',
+    'hue_whiteness_blackness'
+]
+
+SCHEME_KEYS = [
+    'complementary', 'split_complementary', 'analogous', 'triadic',
+    'tetradic_square', 'tetradic_rectangular', 'monochromatic'
+]
+
+SIMULATE_KEYS = [
+    'protanopia', 'deuteranopia', 'tritanopia', 'achromatopsia'
+]
+
+CB_MATRICES = {
+    "Protanopia": [
+        [0.56667, 0.43333, 0],
+        [0.55833, 0.44167, 0],
+        [0, 0.24167, 0.75833]
+    ],
+    "Deuteranopia": [
+        [0.625, 0.375, 0],
+        [0.70, 0.30, 0],
+        [0, 0.30, 0.70]
+    ],
+    "Tritanopia": [
+        [0.95, 0.05, 0],
+        [0, 0.43333, 0.56667],
+        [0, 0.475, 0.525]
+    ],
+}
+
+FORMAT_ALIASES = {
+    'hex': 'hex',
+    'index': 'index',
+    'rgb': 'rgb',
+    'red-green-blue': 'rgb',
+    'hsl': 'hsl',
+    'hue-saturation-lightness': 'hsl',
+    'hsv': 'hsv',
+    'hue-saturation-value': 'hsv',
+    'hwb': 'hwb',
+    'hue-whiteness-blackness': 'hwb',
+    'cmyk': 'cmyk',
+    'cyan-magenta-yellow-key': 'cmyk',
+    'xyz': 'xyz',
+    'ciexyz': 'xyz',
+    'lab': 'lab',
+    'cielab': 'lab',
+    'lch': 'lch',
+    'cielch': 'lch',
+    'name': 'name',
+}
+
 WEB_COLORS = {
     "aliceblue": "F0F8FF", "antiquewhite": "FAEBD7", "aqua": "00FFFF", "aquamarine": "7FFFD4",
     "azure": "F0FFFF", "beige": "F5F5DC", "bisque": "FFE4C4", "black": "000000",
