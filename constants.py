@@ -64,7 +64,7 @@ FORMAT_ALIASES = {
     'name': 'name',
 }
 
-WEB_COLORS = {
+COLOR_NAMES = {
     "aliceblue": "F0F8FF", "antiquewhite": "FAEBD7", "aqua": "00FFFF", "aquamarine": "7FFFD4",
     "azure": "F0FFFF", "beige": "F5F5DC", "bisque": "FFE4C4", "black": "000000",
     "blanchedalmond": "FFEBCD", "blue": "0000FF", "blueviolet": "8A2BE2", "brown": "A52A2A",
