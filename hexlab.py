@@ -21,7 +21,7 @@ HEX_REGEX = re.compile(r"^(?:[0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})$")
 TECH_INFO_KEYS = [
     'index', 'red_green_blue', 'luminance', 'hue_saturation_lightness',
     'hsv', 'cmyk', 'contrast', 'xyz', 'lab', 'lightness_chroma_hue',
-    'hue_whiteness_blackness', 'oklab', 'similar', 'name'
+    'hue_whiteness_blackness', 'oklab', 'cieluv', 'similar', 'name'
 ]
 
 SCHEME_KEYS = [
@@ -72,6 +72,8 @@ FORMAT_ALIASES = {
     'cielch': 'lch',
     'oklab': 'oklab',
     'name': 'name',
+    'luv': 'luv',
+    'cieluv': 'luv'
 }
 
 def _strip_and_unquote(s: str) -> str:
@@ -559,7 +561,7 @@ def _normalize_value_string(s: str) -> str:
     s = s.replace('–', '-')
     s = re.sub(r'deg', ' ', s, flags=re.IGNORECASE)
 
-    if s.lower().startswith(('rgb(', 'hsl(', 'hsv(', 'hwb(', 'cmyk(', 'xyz(', 'lab(', 'lch(', 'oklab(')):
+    if s.lower().startswith(('rgb(', 'hsl(', 'hsv(', 'hwb(', 'cmyk(', 'xyz(', 'lab(', 'lch(', 'oklab(', 'luv(')):
         s = re.sub(r'^[a-zA-Z]+\s*\(', '', s, flags=re.IGNORECASE)
         s = s.rstrip(')')
 
@@ -682,6 +684,10 @@ def parse_lch_string(s: str) -> Tuple[float, float, float]:
 def parse_oklab_string(s: str) -> Tuple[float, float, float]:
     return _parse_3_floats(s, "oklab")
 
+def parse_luv_string(s: str) -> Tuple[float, float, float]:
+    # expects "L U V" where L in [0..100], u and v are floats (can be negative)
+    return _parse_3_floats(s, "luv")
+
 def find_similar_colors(base_lab: Tuple[float, float, float], n: int = 5) -> List[Tuple[str, str, float]]:
 
     similar = []
@@ -711,13 +717,77 @@ def print_color_block(hex_code: str, title: str = "Color") -> None:
     r, g, b = hex_to_rgb(hex_code)
     print(f"{title:<18}: \033[48;2;{r};{g};{b}m        \033[0m #{hex_code}")
 
+def rgb_to_luv(r: int, g: int, b: int) -> Tuple[float, float, float]:
+    # Convert sRGB -> XYZ -> Luv
+    X, Y, Z = rgb_to_xyz(r, g, b)
+    # reference white D65 same as used in lab functions
+    ref_X, ref_Y, ref_Z = 95.047, 100.0, 108.883
+    denom = (X + 15 * Y + 3 * Z)
+    if denom == 0:
+        u_prime = 0.0
+        v_prime = 0.0
+    else:
+        u_prime = (4 * X) / denom
+        v_prime = (9 * Y) / denom
+
+    denom_n = (ref_X + 15 * ref_Y + 3 * ref_Z)
+    u_prime_n = (4 * ref_X) / denom_n
+    v_prime_n = (9 * ref_Y) / denom_n
+
+    # compute L*
+    y_r = Y / ref_Y
+    if y_r > 0.008856:
+        L = (116.0 * (y_r ** (1.0/3.0))) - 16.0
+    else:
+        L = 903.3 * y_r
+
+    if L == 0:
+        u = 0.0
+        v = 0.0
+    else:
+        u = 13.0 * L * (u_prime - u_prime_n)
+        v = 13.0 * L * (v_prime - v_prime_n)
+
+    return L, u, v
+
+def luv_to_rgb(L: float, u: float, v: float) -> Tuple[float, float, float]:
+    # Convert Luv -> XYZ -> sRGB
+    ref_X, ref_Y, ref_Z = 95.047, 100.0, 108.883
+    denom_n = (ref_X + 15 * ref_Y + 3 * ref_Z)
+    u_prime_n = (4 * ref_X) / denom_n
+    v_prime_n = (9 * ref_Y) / denom_n
+
+    if L == 0:
+        X = 0.0
+        Y = 0.0
+        Z = 0.0
+        return xyz_to_rgb(X, Y, Z)
+
+    u_prime = (u / (13.0 * L)) + u_prime_n
+    v_prime = (v / (13.0 * L)) + v_prime_n
+
+    if L > 8.0:
+        Y = ref_Y * (((L + 16.0) / 116.0) ** 3)
+    else:
+        Y = ref_Y * (L / 903.3)
+
+    # avoid division by zero
+    if v_prime == 0:
+        X = 0.0
+        Z = 0.0
+    else:
+        X = Y * (9.0 * u_prime) / (4.0 * v_prime)
+        Z = Y * (12.0 - 3.0 * u_prime - 20.0 * v_prime) / (4.0 * v_prime)
+
+    return xyz_to_rgb(X, Y, Z)
+
 def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) -> None:
     print_color_block(hex_code, title)
     r, g, b = hex_to_rgb(hex_code)
 
     x, y, z, l_lab, a_lab, b_lab = (0.0,) * 6
 
-    needs_xyz = args.xyz or args.lab or args.lightness_chroma_hue or args.oklab or args.similar
+    needs_xyz = args.xyz or args.lab or args.lightness_chroma_hue or args.oklab or args.similar or args.cieluv
     needs_lab = args.lab or args.lightness_chroma_hue or args.similar
 
     if needs_xyz:
@@ -752,8 +822,8 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
         h, w, b_hwb = rgb_to_hwb(r, g, b)
         print(f"   HWB        : {h:.1f}°, {w*100:.1f}%, {b_hwb*100:.1f}%")
     if args.cmyk:
-        c, m, y, k = rgb_to_cmyk(r, g, b)
-        print(f"   CMYK       : {c*100:.1f}%, {m*100:.1f}%, {y*100:.1f}%, {k*100:.1f}%")
+        c, m, y_cmyk, k = rgb_to_cmyk(r, g, b)
+        print(f"   CMYK       : {c*100:.1f}%, {m*100:.1f}%, {y_cmyk*100:.1f}%, {k*100:.1f}%")
     if args.xyz:
         print(f"   XYZ        : {x:.4f}, {y:.4f}, {z:.4f}")
     if args.lab:
@@ -764,6 +834,9 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
     if args.oklab:
         l_ok, a_ok, b_ok = rgb_to_oklab(r, g, b)
         print(f"   OKLAB      : {l_ok:.4f}, {a_ok:.4f}, {b_ok:.4f}")
+    if args.cieluv:
+        l_uv, u_uv, v_uv = rgb_to_luv(r, g, b)
+        print(f"   LUV        : {l_uv:.4f}, {u_uv:.4f}, {v_uv:.4f}")
     if args.contrast:
         if not (args.luminance):
             l = get_luminance(r, g, b)
@@ -1239,6 +1312,9 @@ def _parse_value_to_rgb(clean_val: str, from_fmt: str) -> Tuple[int, int, int]:
     elif from_fmt == 'oklab':
         l, a, b_ok = parse_oklab_string(clean_val)
         r_f, g_f, b_f = oklab_to_rgb(l, a, b_ok)
+    elif from_fmt == 'luv':
+        L, u, v = parse_luv_string(clean_val)
+        r_f, g_f, b_f = luv_to_rgb(L, u, v)
     elif from_fmt == 'index':
         try:
             dec_str = re.findall(r'[-+]?\d+', str(clean_val))[0]
@@ -1296,6 +1372,9 @@ def _format_value_from_rgb(r: int, g: int, b: int, to_fmt: str) -> str:
     elif to_fmt == 'oklab':
         l, a, b_ok = rgb_to_oklab(r, g, b)
         output_value = f"oklab({l:.4f}, {a:.4f}, {b_ok:.4f})"
+    elif to_fmt == 'luv':
+        L, u, v = rgb_to_luv(r, g, b)
+        output_value = f"luv({L:.4f}, {u:.4f}, {v:.4f})"
     elif to_fmt == 'name':
         hex_val = rgb_to_hex(r, g, b)
         found = False
@@ -1563,7 +1642,7 @@ def get_convert_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawTextHelpFormatter,
         add_help=False
     )
-    formats_list = "hex rgb hsl hsv hwb cmyk xyz lab lch oklab index name"
+    formats_list = "hex rgb hsl hsv hwb cmyk xyz lab lch oklab luv index name"
     parser.add_argument(
         '-h', '--help',
         action='help',
@@ -1603,7 +1682,8 @@ def get_convert_parser() -> argparse.ArgumentParser:
              '  -v "xyz(0, 0, 0)"\n'
              '  -v "lab(0, 0, 0)"\n'
              '  -v "lch(0, 0, 0°)"\n'
-             '  -v "oklab(0, 0, 0)"'
+             '  -v "oklab(0, 0, 0)"\n'
+             '  -v "luv(0, 0, 0)"'
     )
     input_group.add_argument(
         "-rv", "--random-value",
@@ -1784,6 +1864,12 @@ def main() -> None:
             "--oklab",
             action="store_true",
             help="show OKLAB values"
+        )
+        info_group.add_argument(
+            "--cieluv", "-luv",
+            action="store_true",
+            dest="cieluv",
+            help="show CIE L*u*v* (LUV) values"
         )
         info_group.add_argument(
             "-wcag", "--contrast",
