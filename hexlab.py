@@ -13,6 +13,7 @@ from constants import COLOR_NAMES as COLOR_NAMES_RAW
 MAX_DEC = 16777215
 MAX_STEPS = 10000
 MAX_RANDOM_COLORS = 100
+DEDUP_DELTA_E = 7.7
 
 __version__ = "0.0.1"
 
@@ -685,7 +686,6 @@ def parse_oklab_string(s: str) -> Tuple[float, float, float]:
     return _parse_3_floats(s, "oklab")
 
 def parse_luv_string(s: str) -> Tuple[float, float, float]:
-    # expects "L U V" where L in [0..100], u and v are floats (can be negative)
     return _parse_3_floats(s, "luv")
 
 def find_similar_colors(base_lab: Tuple[float, float, float], n: int = 5) -> List[Tuple[str, str, float]]:
@@ -708,6 +708,9 @@ def find_similar_colors(base_lab: Tuple[float, float, float], n: int = 5) -> Lis
         lab = xyz_to_lab(x, y, z)
 
         diff = delta_e_ciede2000(base_lab, lab)
+        if diff < DEDUP_DELTA_E:
+            continue
+
         similar.append((name, hex_code, diff))
 
     similar.sort(key=lambda x: x[2])
@@ -718,9 +721,8 @@ def print_color_block(hex_code: str, title: str = "Color") -> None:
     print(f"{title:<18}: \033[48;2;{r};{g};{b}m        \033[0m #{hex_code}")
 
 def rgb_to_luv(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    # Convert sRGB -> XYZ -> Luv
+
     X, Y, Z = rgb_to_xyz(r, g, b)
-    # reference white D65 same as used in lab functions
     ref_X, ref_Y, ref_Z = 95.047, 100.0, 108.883
     denom = (X + 15 * Y + 3 * Z)
     if denom == 0:
@@ -734,7 +736,6 @@ def rgb_to_luv(r: int, g: int, b: int) -> Tuple[float, float, float]:
     u_prime_n = (4 * ref_X) / denom_n
     v_prime_n = (9 * ref_Y) / denom_n
 
-    # compute L*
     y_r = Y / ref_Y
     if y_r > 0.008856:
         L = (116.0 * (y_r ** (1.0/3.0))) - 16.0
@@ -751,7 +752,6 @@ def rgb_to_luv(r: int, g: int, b: int) -> Tuple[float, float, float]:
     return L, u, v
 
 def luv_to_rgb(L: float, u: float, v: float) -> Tuple[float, float, float]:
-    # Convert Luv -> XYZ -> sRGB
     ref_X, ref_Y, ref_Z = 95.047, 100.0, 108.883
     denom_n = (ref_X + 15 * ref_Y + 3 * ref_Z)
     u_prime_n = (4 * ref_X) / denom_n
@@ -771,7 +771,6 @@ def luv_to_rgb(L: float, u: float, v: float) -> Tuple[float, float, float]:
     else:
         Y = ref_Y * (L / 903.3)
 
-    # avoid division by zero
     if v_prime == 0:
         X = 0.0
         Z = 0.0
