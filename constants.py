@@ -156,7 +156,7 @@ COLOR_NAMES = {
     'brownishpurple': '76424E',
     'brownishred': '9E3623',
     'brownishyellow': 'C9B003',
-    'browny572': 'B59F06',
+    'brownyellow': 'B59F06',
     'bruise': '7E4071',
     'bubblegum': 'FF69AF',
     'bubblegumpink': 'FE83CC',
