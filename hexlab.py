@@ -118,7 +118,7 @@ def type_list_format(value: str) -> str:
         return ""
 
     s = _strip_and_unquote(value).lower()
-    s = re.sub(r'[\s_]+', '-', s)
+    s = re.sub(r'[\s_]+', '', s)
     s = re.sub(r'[^0-9a-z-]', '', s)
     return s
 
@@ -1766,7 +1766,7 @@ def main() -> None:
             "-H", "--hex",
             dest="hexcode",
             type=type_hex,
-            help="6-digit hex color code without # symbol",
+            help="6-digit hex color code without # sign",
         )
         color_input_group.add_argument(
             "-rh", "--random-hex",
@@ -1869,7 +1869,7 @@ def main() -> None:
             "--cieluv", "-luv",
             action="store_true",
             dest="cieluv",
-            help="show CIE L*u*v* (LUV) values"
+            help="show CIE 1976 LUV values"
         )
         info_group.add_argument(
             "-wcag", "--contrast",
