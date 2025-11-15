@@ -8,74 +8,7 @@ import random
 import math
 import json
 from typing import Tuple, List
-from constants import COLOR_NAMES as COLOR_NAMES_RAW
-
-MAX_DEC = 16777215
-MAX_STEPS = 10000
-MAX_RANDOM_COLORS = 100
-DEDUP_DELTA_E = 7.7
-
-__version__ = "0.0.1"
-
-HEX_REGEX = re.compile(r"^(?:[0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})$")
-
-TECH_INFO_KEYS = [
-    'index', 'red_green_blue', 'luminance', 'hue_saturation_lightness',
-    'hsv', 'cmyk', 'contrast', 'xyz', 'lab', 'lightness_chroma_hue',
-    'hue_whiteness_blackness', 'oklab', 'cieluv', 'similar', 'name'
-]
-
-SCHEME_KEYS = [
-    'complementary', 'split_complementary', 'analogous', 'triadic',
-    'tetradic_square', 'tetradic_rectangular', 'monochromatic'
-]
-
-SIMULATE_KEYS = [
-    'protanopia', 'deuteranopia', 'tritanopia', 'achromatopsia'
-]
-
-CB_MATRICES = {
-    "Protanopia": [
-        [0.56667, 0.43333, 0],
-        [0.55833, 0.44167, 0],
-        [0, 0.24167, 0.75833]
-    ],
-    "Deuteranopia": [
-        [0.625, 0.375, 0],
-        [0.70, 0.30, 0],
-        [0, 0.30, 0.70]
-    ],
-    "Tritanopia": [
-        [0.95, 0.05, 0],
-        [0, 0.43333, 0.56667],
-        [0, 0.475, 0.525]
-    ],
-}
-
-FORMAT_ALIASES = {
-    'hex': 'hex',
-    'index': 'index',
-    'rgb': 'rgb',
-    'redgreenblue': 'rgb',
-    'hsl': 'hsl',
-    'huesaturationlightness': 'hsl',
-    'hsv': 'hsv',
-    'huesaturationvalue': 'hsv',
-    'hwb': 'hwb',
-    'huewhitenessblackness': 'hwb',
-    'cmyk': 'cmyk',
-    'cyanmagentayellowkey': 'cmyk',
-    'xyz': 'xyz',
-    'ciexyz': 'xyz',
-    'lab': 'lab',
-    'cielab': 'lab',
-    'lch': 'lch',
-    'cielch': 'lch',
-    'oklab': 'oklab',
-    'name': 'name',
-    'luv': 'luv',
-    'cieluv': 'luv'
-}
+from constants import COLOR_NAMES as COLOR_NAMES_RAW, MAX_DEC, MAX_STEPS, DEDUP_DELTA_E, MAX_RANDOM_COLORS, DEDUP_DELTA_E, __version__, HEX_REGEX, TECH_INFO_KEYS, SCHEME_KEYS, SIMULATE_KEYS, CB_MATRICES, FORMAT_ALIASES, SRGB_TO_LINEAR_TH, LINEAR_TO_SRGB_TH, EPS
 
 def _strip_and_unquote(s: str) -> str:
     if s is None:
@@ -128,6 +61,22 @@ def type_colorspace(value: str) -> str:
         return ""
     s = _strip_and_unquote(value)
     return s.lower().replace(" ", "")
+
+def type_harmony_model(value: str) -> str:
+    if not isinstance(value, str):
+        return "hsl"
+    s = _strip_and_unquote(value).lower().replace(" ", "")
+    if s not in ['hsl', 'lch', 'oklch']:
+        raise argparse.ArgumentTypeError(f"invalid harmony model: '{value}'. choices: hsl, lch, oklch")
+    return s
+
+def type_distance_metric(value: str) -> str:
+    if not isinstance(value, str):
+        return "lab"
+    s = _strip_and_unquote(value).lower().replace(" ", "")
+    if s not in ['lab', 'oklab', 'rgb']:
+        raise argparse.ArgumentTypeError(f"invalid distance metric: '{value}'. choices: lab, oklab, rgb")
+    return s
 
 def type_int_safe(value) -> int:
     try:
@@ -226,10 +175,6 @@ def clean_hex_input(hex_str: str) -> str:
         log('error', f"'{hex_str}' (processed to '{clean_hex}') is not valid")
         sys.exit(2)
     return clean_hex
-
-SRGB_TO_LINEAR_TH = 0.04045
-LINEAR_TO_SRGB_TH = 0.0031308
-EPS = 1e-12
 
 def _clamp01(v: float) -> float:
     if v != v:
@@ -449,6 +394,24 @@ def oklab_to_rgb(l: float, a: float, b: float) -> Tuple[float, float, float]:
 
     return _clamp01(r) * 255, _clamp01(g) * 255, _clamp01(b) * 255
 
+def oklab_to_oklch(l: float, a: float, b: float) -> Tuple[float, float, float]:
+    c = math.hypot(a, b)
+    h = math.degrees(math.atan2(b, a)) % 360
+    return l, c, h
+
+def oklch_to_oklab(l: float, c: float, h: float) -> Tuple[float, float, float]:
+    a = c * math.cos(math.radians(h))
+    b = c * math.sin(math.radians(h))
+    return l, a, b
+
+def rgb_to_oklch(r: int, g: int, b: int) -> Tuple[float, float, float]:
+    l, a, b_ok = rgb_to_oklab(r, g, b)
+    return oklab_to_oklch(l, a, b_ok)
+
+def oklch_to_rgb(l: float, c: float, h: float) -> Tuple[float, float, float]:
+    l, a, b_ok = oklch_to_oklab(l, c, h)
+    return oklab_to_rgb(l, a, b_ok)
+
 def rgb_to_hwb(r: int, g: int, b: int) -> Tuple[float, float, float]:
     h, s, v = rgb_to_hsv(r, g, b)
     w = (1 - s) * v
@@ -536,6 +499,14 @@ def delta_e_ciede2000(lab1: Tuple[float, float, float], lab2: Tuple[float, float
 
     return delta_E
 
+def delta_e_euclidean_rgb(r1: int, g1: int, b1: int, r2: int, g2: int, b2: int) -> float:
+    return math.sqrt((r1 - r2)**2 + (g1 - g2)**2 + (b1 - b2)**2)
+
+def delta_e_euclidean_oklab(oklab1: Tuple[float, float, float], oklab2: Tuple[float, float, float]) -> float:
+    l1, a1, b1 = oklab1
+    l2, a2, b2 = oklab2
+    return math.sqrt((l1 - l2)**2 + (a1 - a2)**2 + (b1 - b2)**2)
+
 def get_wcag_contrast(lum: float) -> dict:
     lum_white = 1.0
     lum_black = 0.0
@@ -562,7 +533,7 @@ def _normalize_value_string(s: str) -> str:
     s = s.replace('–', '-')
     s = re.sub(r'deg', ' ', s, flags=re.IGNORECASE)
 
-    if s.lower().startswith(('rgb(', 'hsl(', 'hsv(', 'hwb(', 'cmyk(', 'xyz(', 'lab(', 'lch(', 'oklab(', 'luv(')):
+    if s.lower().startswith(('rgb(', 'hsl(', 'hsv(', 'hwb(', 'cmyk(', 'xyz(', 'lab(', 'lch(', 'oklab(', 'luv(', 'oklch(')):
         s = re.sub(r'^[a-zA-Z]+\s*\(', '', s, flags=re.IGNORECASE)
         s = s.rstrip(')')
 
@@ -685,32 +656,46 @@ def parse_lch_string(s: str) -> Tuple[float, float, float]:
 def parse_oklab_string(s: str) -> Tuple[float, float, float]:
     return _parse_3_floats(s, "oklab")
 
+def parse_oklch_string(s: str) -> Tuple[float, float, float]:
+    return _parse_3_floats(s, "oklch")
+
 def parse_luv_string(s: str) -> Tuple[float, float, float]:
     return _parse_3_floats(s, "luv")
 
-def find_similar_colors(base_lab: Tuple[float, float, float], n: int = 5) -> List[Tuple[str, str, float]]:
+def find_similar_colors(base_lab: Tuple[float, float, float], base_rgb: Tuple[int, int, int], base_oklab: Tuple[float, float, float], n: int = 5, metric: str = 'lab') -> List[Tuple[str, str, float]]:
 
     similar = []
-    try:
-        base_x, base_y, base_z = lab_to_xyz(*base_lab)
-        base_r, base_g, base_b = xyz_to_rgb(base_x, base_y, base_z)
-        base_r_i, base_g_i, base_b_i = _finalize_rgb_vals(base_r, base_g, base_b)
-        base_hex = rgb_to_hex(base_r_i, base_g_i, base_b_i)
-    except Exception:
-        base_hex = None
+    base_r_i, base_g_i, base_b_i = base_rgb
+    base_hex = rgb_to_hex(base_r_i, base_g_i, base_b_i)
 
     for name, hex_code in COLOR_NAMES.items():
-        if base_hex and hex_code.upper() == base_hex.upper():
+        if hex_code.upper() == base_hex.upper():
             continue
 
         r, g, b = hex_to_rgb(hex_code)
-        x, y, z = rgb_to_xyz(r, g, b)
-        lab = xyz_to_lab(x, y, z)
+        diff = 0.0
 
-        diff = delta_e_ciede2000(base_lab, lab)
-        if diff < DEDUP_DELTA_E:
+        if metric == 'lab':
+            x, y, z = rgb_to_xyz(r, g, b)
+            lab = xyz_to_lab(x, y, z)
+            diff = delta_e_ciede2000(base_lab, lab)
+        elif metric == 'oklab':
+            oklab = rgb_to_oklab(r, g, b)
+            diff = delta_e_euclidean_oklab(base_oklab, oklab)
+        elif metric == 'rgb':
+            diff = delta_e_euclidean_rgb(base_r_i, base_g_i, base_b_i, r, g, b)
+        else:
+            x, y, z = rgb_to_xyz(r, g, b)
+            lab = xyz_to_lab(x, y, z)
+            diff = delta_e_ciede2000(base_lab, lab)
+
+        if diff < DEDUP_DELTA_E and metric == 'lab':
             continue
-
+        elif diff < (DEDUP_DELTA_E / 10.0) and metric == 'oklab':
+            continue
+        elif diff < (DEDUP_DELTA_E * 2.5) and metric == 'rgb':
+            continue
+        
         similar.append((name, hex_code, diff))
 
     similar.sort(key=lambda x: x[2])
@@ -785,9 +770,13 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
     r, g, b = hex_to_rgb(hex_code)
 
     x, y, z, l_lab, a_lab, b_lab = (0.0,) * 6
+    l_ok, a_ok, b_ok = (0.0,) * 3
 
-    needs_xyz = args.xyz or args.lab or args.lightness_chroma_hue or args.oklab or args.similar or args.cieluv
+    metric = args.distance_metric if hasattr(args, 'distance_metric') else 'lab'
+
+    needs_xyz = args.xyz or args.lab or args.lightness_chroma_hue or args.similar or args.cieluv
     needs_lab = args.lab or args.lightness_chroma_hue or args.similar
+    needs_oklab = args.oklab or (args.similar and metric == 'oklab') or args.oklch
 
     if needs_xyz:
         x, y, z = rgb_to_xyz(r, g, b)
@@ -795,6 +784,8 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
         if not needs_xyz:
             x, y, z = rgb_to_xyz(r, g, b)
         l_lab, a_lab, b_lab = xyz_to_lab(x, y, z)
+    if needs_oklab:
+        l_ok, a_ok, b_ok = rgb_to_oklab(r, g, b)
 
     if args.index:
         index = int(hex_code, 16)
@@ -830,12 +821,18 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
     if args.lightness_chroma_hue:
         l_lch, c_lch, h_lch = lab_to_lch(l_lab, a_lab, b_lab)
         print(f"   LCH        : {l_lch:.4f}, {c_lch:.4f}, {h_lch:.4f}°")
-    if args.oklab:
-        l_ok, a_ok, b_ok = rgb_to_oklab(r, g, b)
-        print(f"   OKLAB      : {l_ok:.4f}, {a_ok:.4f}, {b_ok:.4f}")
     if args.cieluv:
         l_uv, u_uv, v_uv = rgb_to_luv(r, g, b)
         print(f"   LUV        : {l_uv:.4f}, {u_uv:.4f}, {v_uv:.4f}")
+    if args.oklab:
+        if not needs_oklab:
+            l_ok, a_ok, b_ok = rgb_to_oklab(r, g, b)
+        print(f"   OKLAB      : {l_ok:.4f}, {a_ok:.4f}, {b_ok:.4f}")
+    if args.oklch:
+        if not needs_oklab:
+            l_ok, a_ok, b_ok = rgb_to_oklab(r, g, b)
+        l_oklch, c_oklch, h_oklch = oklab_to_oklch(l_ok, a_ok, b_ok)
+        print(f"   OKLCH      : {l_oklch:.4f}, {c_oklch:.4f}, {h_oklch:.4f}°")
     if args.contrast:
         if not (args.luminance):
             l = get_luminance(r, g, b)
@@ -857,12 +854,22 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
 
     if args.similar:
         print("   Similar Colors:")
-        similar_colors = find_similar_colors((l_lab, a_lab, b_lab))
+        if not needs_lab:
+            if not needs_xyz:
+                x, y, z = rgb_to_xyz(r, g, b)
+            l_lab, a_lab, b_lab = xyz_to_lab(x, y, z)
+        if not needs_oklab and metric == 'oklab':
+            l_ok, a_ok, b_ok = rgb_to_oklab(r, g, b)
+
+        similar_colors = find_similar_colors((l_lab, a_lab, b_lab), (r, g, b), (l_ok, a_ok, b_ok), metric=metric)
         if not similar_colors:
             print("     (No similar colors found in list)")
-        for name, hex_val, diff in similar_colors:
-            s_r, s_g, s_b = hex_to_rgb(hex_val)
-            print(f"     \033[48;2;{s_r};{s_g};{s_b}m  \033[0m #{hex_val} {name:<18} (ΔE: {diff:.2f})")
+        else:
+            metric_map = {'lab': 'ΔE2000', 'oklab': 'ΔE(Oklab)', 'rgb': 'ΔE(RGB)'}
+            metric_label = metric_map.get(metric, 'ΔE')
+            for name, hex_val, diff in similar_colors:
+                s_r, s_g, s_b = hex_to_rgb(hex_val)
+                print(f"     \033[48;2;{s_r};{s_g};{s_b}m  \033[0m #{hex_val} {name:<18} ({metric_label}: {diff:.2f})")
 
     print()
 
@@ -925,6 +932,17 @@ def _get_interpolated_color(c1, c2, t: float, colorspace: str) -> Tuple[float, f
         b_new = b1 + t * (b2 - b1)
         return r_new, g_new, b_new
 
+    if colorspace == 'srgb-linear':
+        r_lin1, g_lin1, b_lin1 = c1
+        r_lin2, g_lin2, b_lin2 = c2
+        r_lin_new = r_lin1 + t * (r_lin2 - r_lin1)
+        g_lin_new = g_lin1 + t * (g_lin2 - g_lin1)
+        b_lin_new = b_lin1 + t * (b_lin2 - b_lin1)
+        r = _linear_to_srgb(r_lin_new) * 255
+        g = _linear_to_srgb(g_lin_new) * 255
+        b = _linear_to_srgb(b_lin_new) * 255
+        return r, g, b
+
     if colorspace == 'lab':
         l1, a1, b1 = c1
         l2, a2, b2 = c2
@@ -945,27 +963,48 @@ def _get_interpolated_color(c1, c2, t: float, colorspace: str) -> Tuple[float, f
     if colorspace == 'lch':
         l1, c1, h1 = c1
         l2, c2, h2 = c2
-
         h1, h2 = h1 % 360, h2 % 360
         h_diff = h2 - h1
         if h_diff > 180:
             h2 -= 360
         elif h_diff < -180:
             h2 += 360
-
         l_new = l1 + t * (l2 - l1)
         c_new = c1 + t * (c2 - c1)
         h_new = (h1 + t * (h2 - h1)) % 360
-
         l_lab, a_lab, b_lab = lch_to_lab(l_new, c_new, h_new)
         x, y, z = lab_to_xyz(l_lab, a_lab, b_lab)
         return xyz_to_rgb(x, y, z)
+
+    if colorspace == 'oklch':
+        l1, c1, h1 = c1
+        l2, c2, h2 = c2
+        h1, h2 = h1 % 360, h2 % 360
+        h_diff = h2 - h1
+        if h_diff > 180:
+            h2 -= 360
+        elif h_diff < -180:
+            h2 += 360
+        l_new = l1 + t * (l2 - l1)
+        c_new = c1 + t * (c2 - c1)
+        h_new = (h1 + t * (h2 - h1)) % 360
+        return oklch_to_rgb(l_new, c_new, h_new)
+
+    if colorspace == 'luv':
+        l1, u1, v1 = c1
+        l2, u2, v2 = c2
+        l_new = l1 + t * (l2 - l1)
+        u_new = u1 + t * (u2 - u1)
+        v_new = v1 + t * (v2 - v1)
+        return luv_to_rgb(l_new, u_new, v_new)
 
     return 0, 0, 0
 
 def _convert_rgb_to_space(r: int, g: int, b: int, colorspace: str) -> Tuple[float, ...]:
     if colorspace == 'srgb':
         return (r, g, b)
+    if colorspace == 'srgb-linear':
+        return (_srgb_to_linear(r), _srgb_to_linear(g), _srgb_to_linear(b))
     if colorspace == 'lab':
         x, y, z = rgb_to_xyz(r, g, b)
         return xyz_to_lab(x, y, z)
@@ -975,6 +1014,10 @@ def _convert_rgb_to_space(r: int, g: int, b: int, colorspace: str) -> Tuple[floa
         x, y, z = rgb_to_xyz(r, g, b)
         l, a, b_lab = xyz_to_lab(x, y, z)
         return lab_to_lch(l, a, b_lab)
+    if colorspace == 'oklch':
+        return rgb_to_oklch(r, g, b)
+    if colorspace == 'luv':
+        return rgb_to_luv(r, g, b)
     return (r, g, b)
 
 def handle_gradient_command(args: argparse.Namespace) -> None:
@@ -1104,11 +1147,17 @@ def handle_mix_command(args: argparse.Namespace) -> None:
 
     if colorspace == 'srgb':
         avg_r_f, avg_g_f, avg_b_f = avg_c1, avg_c2, avg_c3
+    elif colorspace == 'srgb-linear':
+        avg_r_f = _linear_to_srgb(avg_c1) * 255
+        avg_g_f = _linear_to_srgb(avg_c2) * 255
+        avg_b_f = _linear_to_srgb(avg_c3) * 255
     elif colorspace == 'lab':
         avg_x, avg_y, avg_z = lab_to_xyz(avg_c1, avg_c2, avg_c3)
         avg_r_f, avg_g_f, avg_b_f = xyz_to_rgb(avg_x, avg_y, avg_z)
     elif colorspace == 'oklab':
         avg_r_f, avg_g_f, avg_b_f = oklab_to_rgb(avg_c1, avg_c2, avg_c3)
+    elif colorspace == 'luv':
+        avg_r_f, avg_g_f, avg_b_f = luv_to_rgb(avg_c1, avg_c2, avg_c3)
 
     r_i, g_i, b_i = _finalize_rgb_vals(avg_r_f, avg_g_f, avg_b_f)
     mixed_hex = rgb_to_hex(r_i, g_i, b_i)
@@ -1156,15 +1205,47 @@ def handle_scheme_command(args: argparse.Namespace) -> None:
     print_color_block(base_hex, title)
     print()
     r, g, b = hex_to_rgb(base_hex)
-    h, s, l = rgb_to_hsl(r, g, b)
+
+    h, s, l, c = (0.0,) * 4
+    model = args.harmony_model if args.harmony_model else 'hsl'
+
+    if model == 'hsl':
+        h, s, l = rgb_to_hsl(r, g, b)
+    elif model == 'lch':
+        x, y, z = rgb_to_xyz(r, g, b)
+        l_lab, a_lab, b_lab = xyz_to_lab(x, y, z)
+        l, c, h = lab_to_lch(l_lab, a_lab, b_lab)
+    elif model == 'oklch':
+        l, c, h = rgb_to_oklch(r, g, b)
+
     def get_scheme_hex(hue_shift: float) -> str:
         new_h = (h + hue_shift) % 360
-        new_r, new_g, new_b = hsl_to_rgb(new_h, s, l)
+        new_r, new_g, new_b = 0.0, 0.0, 0.0
+        if model == 'hsl':
+            new_r, new_g, new_b = hsl_to_rgb(new_h, s, l)
+        elif model == 'lch':
+            nl, na, nb = lch_to_lab(l, c, new_h)
+            nx, ny, nz = lab_to_xyz(nl, na, nb)
+            new_r, new_g, new_b = xyz_to_rgb(nx, ny, nz)
+        elif model == 'oklch':
+            new_r, new_g, new_b = oklch_to_rgb(l, c, new_h)
         return rgb_to_hex(new_r, new_g, new_b)
+    
     def get_mono_hex(l_shift: float) -> str:
-        new_l = max(0.0, min(1.0, l + l_shift))
-        new_r, new_g, new_b = hsl_to_rgb(h, s, new_l)
+        new_r, new_g, new_b = 0.0, 0.0, 0.0
+        if model == 'hsl':
+            new_l = max(0.0, min(1.0, l + l_shift))
+            new_r, new_g, new_b = hsl_to_rgb(h, s, new_l)
+        elif model == 'lch':
+            new_l = max(0.0, min(100.0, l + (l_shift * 100)))
+            nl, na, nb = lch_to_lab(new_l, c, h)
+            nx, ny, nz = lab_to_xyz(nl, na, nb)
+            new_r, new_g, new_b = xyz_to_rgb(nx, ny, nz)
+        elif model == 'oklch':
+            new_l = max(0.0, min(1.0, l + l_shift))
+            new_r, new_g, new_b = oklch_to_rgb(new_l, c, h)
         return rgb_to_hex(new_r, new_g, new_b)
+
     any_specific_flag = (
         args.complementary or
         args.split_complementary or
@@ -1311,6 +1392,9 @@ def _parse_value_to_rgb(clean_val: str, from_fmt: str) -> Tuple[int, int, int]:
     elif from_fmt == 'oklab':
         l, a, b_ok = parse_oklab_string(clean_val)
         r_f, g_f, b_f = oklab_to_rgb(l, a, b_ok)
+    elif from_fmt == 'oklch':
+        l, c, h = parse_oklch_string(clean_val)
+        r_f, g_f, b_f = oklch_to_rgb(l, c, h)
     elif from_fmt == 'luv':
         L, u, v = parse_luv_string(clean_val)
         r_f, g_f, b_f = luv_to_rgb(L, u, v)
@@ -1371,6 +1455,9 @@ def _format_value_from_rgb(r: int, g: int, b: int, to_fmt: str) -> str:
     elif to_fmt == 'oklab':
         l, a, b_ok = rgb_to_oklab(r, g, b)
         output_value = f"oklab({l:.4f}, {a:.4f}, {b_ok:.4f})"
+    elif to_fmt == 'oklch':
+        l, c, h = rgb_to_oklch(r, g, b)
+        output_value = f"oklch({l:.4f}, {c:.4f}, {h:.4f}°)"
     elif to_fmt == 'luv':
         L, u, v = rgb_to_luv(r, g, b)
         output_value = f"luv({L:.4f}, {u:.4f}, {v:.4f})"
@@ -1445,7 +1532,7 @@ def get_gradient_parser() -> argparse.ArgumentParser:
         "-cs", "--colorspace",
         default="lab",
         type=type_colorspace,
-        choices=['srgb', 'lab', 'lch', 'oklab'],
+        choices=['srgb', 'srgb-linear', 'lab', 'lch', 'oklab', 'oklch', 'luv'],
         help="colorspace for interpolation (default: lab)"
     )
     parser.add_argument(
@@ -1490,7 +1577,7 @@ def get_mix_parser() -> argparse.ArgumentParser:
         "-cs", "--colorspace",
         default="lab",
         type=type_colorspace,
-        choices=['srgb', 'lab', 'oklab'],
+        choices=['srgb', 'srgb-linear', 'lab', 'oklab', 'luv'],
         help="colorspace for mixing (default: lab)"
     )
     parser.add_argument(
@@ -1534,6 +1621,12 @@ def get_scheme_parser() -> argparse.ArgumentParser:
         type=type_int_safe,
         default=None,
         help="random seed for reproducibility"
+    )
+    parser.add_argument(
+        "-hm", "--harmony-model",
+        type=type_harmony_model,
+        default='hsl',
+        help="harmony model: hsl lch oklch (default: hsl)"
     )
     scheme_group = parser.add_argument_group("scheme types")
     scheme_group.add_argument(
@@ -1641,7 +1734,7 @@ def get_convert_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawTextHelpFormatter,
         add_help=False
     )
-    formats_list = "hex rgb hsl hsv hwb cmyk xyz lab lch oklab luv index name"
+    formats_list = "hex rgb hsl hsv hwb cmyk xyz lab lch oklab oklch luv index name"
     parser.add_argument(
         '-h', '--help',
         action='help',
@@ -1681,8 +1774,9 @@ def get_convert_parser() -> argparse.ArgumentParser:
              '  -v "xyz(0, 0, 0)"\n'
              '  -v "lab(0, 0, 0)"\n'
              '  -v "lch(0, 0, 0°)"\n'
+             '  -v "luv(0, 0, 0)"\n'
              '  -v "oklab(0, 0, 0)"\n'
-             '  -v "luv(0, 0, 0)"'
+             '  -v "oklch(0, 0, 0°)"'
     )
     input_group.add_argument(
         "-rv", "--random-value",
@@ -1860,15 +1954,20 @@ def main() -> None:
             help="show CIE 1976 LCH values"
         )
         info_group.add_argument(
+            "--cieluv", "-luv",
+            action="store_true",
+            dest="cieluv",
+            help="show CIE 1976 LUV values"
+        )
+        info_group.add_argument(
             "--oklab",
             action="store_true",
             help="show OKLAB values"
         )
         info_group.add_argument(
-            "--cieluv", "-luv",
+            "--oklch",
             action="store_true",
-            dest="cieluv",
-            help="show CIE 1976 LUV values"
+            help="show OKLCH values"
         )
         info_group.add_argument(
             "-wcag", "--contrast",
@@ -1879,6 +1978,12 @@ def main() -> None:
             "-S", "--similar",
             action="store_true",
             help="find similar colors from the color name list"
+        )
+        info_group.add_argument(
+            "-dm", "--distance-metric",
+            type=type_distance_metric,
+            default='lab',
+            help="distance metric for similar colors: lab, oklab, rgb (default: lab)"
         )
         info_group.add_argument(
             "--name",
