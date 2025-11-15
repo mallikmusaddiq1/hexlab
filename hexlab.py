@@ -8,7 +8,7 @@ import random
 import math
 import json
 from typing import Tuple, List
-from constants import COLOR_NAMES as COLOR_NAMES_RAW, MAX_DEC, MAX_STEPS, DEDUP_DELTA_E, MAX_RANDOM_COLORS, DEDUP_DELTA_E, __version__, HEX_REGEX, TECH_INFO_KEYS, SCHEME_KEYS, SIMULATE_KEYS, CB_MATRICES, FORMAT_ALIASES, SRGB_TO_LINEAR_TH, LINEAR_TO_SRGB_TH, EPS
+from constants import COLOR_NAMES as COLOR_NAMES_RAW, MAX_DEC, MAX_STEPS, DEDUP_DELTA_E_LAB, DEDUP_DELTA_E_OKLAB, DEDUP_DELTA_E_RGB, MAX_RANDOM_COLORS, __version__, HEX_REGEX, TECH_INFO_KEYS, SCHEME_KEYS, SIMULATE_KEYS, CB_MATRICES, FORMAT_ALIASES, SRGB_TO_LINEAR_TH, LINEAR_TO_SRGB_TH, EPS
 
 def _strip_and_unquote(s: str) -> str:
     if s is None:
@@ -689,11 +689,11 @@ def find_similar_colors(base_lab: Tuple[float, float, float], base_rgb: Tuple[in
             lab = xyz_to_lab(x, y, z)
             diff = delta_e_ciede2000(base_lab, lab)
 
-        if diff < DEDUP_DELTA_E and metric == 'lab':
+        if diff < DEDUP_DELTA_E_LAB and metric == 'lab':
             continue
-        elif diff < (DEDUP_DELTA_E / 10.0) and metric == 'oklab':
+        elif diff < DEDUP_DELTA_E_OKLAB and metric == 'oklab':
             continue
-        elif diff < (DEDUP_DELTA_E * 2.5) and metric == 'rgb':
+        elif diff < DEDUP_DELTA_E_RGB and metric == 'rgb':
             continue
         
         similar.append((name, hex_code, diff))
@@ -796,8 +796,6 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
         name = HEX_TO_NAME.get(hex_code.upper())
         if name:
             print(f"   Name       : {name}")
-        else:
-            print(f"   Name       : unknown")
     if args.luminance or args.contrast:
         l = get_luminance(r, g, b)
         if args.luminance:
@@ -1983,12 +1981,12 @@ def main() -> None:
             "-dm", "--distance-metric",
             type=type_distance_metric,
             default='lab',
-            help="distance metric for similar colors: lab, oklab, rgb (default: lab)"
+            help="distance metric for similar colors: lab oklab rgb (default: lab)"
         )
         info_group.add_argument(
             "--name",
             action="store_true",
-            help="show color name if available in --list-color-names otherwise 'unknown'"
+            help="show color name if available in --list-color-names"
         )
         parser.add_argument(
             "command",
