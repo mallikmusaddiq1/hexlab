@@ -13,7 +13,7 @@ from constants import COLOR_NAMES as COLOR_NAMES_RAW, MAX_DEC, MAX_STEPS, DEDUP_
 def _strip_and_unquote(s: str) -> str:
     if s is None:
         return ''
-    s = str(s).strip()
+    s = str(s).strip().replace(" ", "")
     while len(s) >= 2 and s[0] == s[-1] and s[0] in "\"'`":
         s = s[1:-1].strip()
     return s
