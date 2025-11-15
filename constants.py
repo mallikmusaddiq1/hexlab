@@ -4,15 +4,21 @@
 import re
 
 MAX_DEC = 16777215
+MAX_STEPS = 10000
+MAX_RANDOM_COLORS = 100
+DEDUP_DELTA_E = 7.7
+SRGB_TO_LINEAR_TH = 0.04045
+LINEAR_TO_SRGB_TH = 0.0031308
+EPS = 1e-12
 
 __version__ = "0.0.1"
 
-HEX_REGEX = re.compile(r"([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})")
+HEX_REGEX = re.compile(r"^(?:[0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})$")
 
 TECH_INFO_KEYS = [
     'index', 'red_green_blue', 'luminance', 'hue_saturation_lightness',
     'hsv', 'cmyk', 'contrast', 'xyz', 'lab', 'lightness_chroma_hue',
-    'hue_whiteness_blackness'
+    'hue_whiteness_blackness', 'oklab', 'oklch', 'cieluv', 'similar', 'name'
 ]
 
 SCHEME_KEYS = [
@@ -46,22 +52,28 @@ FORMAT_ALIASES = {
     'hex': 'hex',
     'index': 'index',
     'rgb': 'rgb',
-    'red-green-blue': 'rgb',
+    'redgreenblue': 'rgb',
     'hsl': 'hsl',
-    'hue-saturation-lightness': 'hsl',
+    'huesaturationlightness': 'hsl',
     'hsv': 'hsv',
-    'hue-saturation-value': 'hsv',
+    'huesaturationvalue': 'hsv',
     'hwb': 'hwb',
-    'hue-whiteness-blackness': 'hwb',
+    'huewhitenessblackness': 'hwb',
     'cmyk': 'cmyk',
-    'cyan-magenta-yellow-key': 'cmyk',
+    'cyanmagentayellowkey': 'cmyk',
     'xyz': 'xyz',
     'ciexyz': 'xyz',
     'lab': 'lab',
     'cielab': 'lab',
     'lch': 'lch',
     'cielch': 'lch',
+    'oklab': 'oklab',
     'name': 'name',
+    'luv': 'luv',
+    'cieluv': 'luv',
+    'oklch': 'oklch',
+    'cielchok': 'oklch',
+    'srgblinear': 'srgb-linear'
 }
 
 COLOR_NAMES = {
