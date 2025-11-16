@@ -12,6 +12,10 @@ DEDUP_DELTA_E_RGB = 27
 SRGB_TO_LINEAR_TH = 0.04045
 LINEAR_TO_SRGB_TH = 0.0031308
 EPS = 1e-12
+JZAZBZ_P = 1.7728303e-05
+JZAZBZ_D = -0.56
+JZAZBZ_D_INV = 1.0 / (1.0 + JZAZBZ_D) - 1.0
+JZAZBZ_I_0 = 1.6295499532821566e-11
 
 __version__ = "0.0.1"
 
@@ -20,7 +24,8 @@ HEX_REGEX = re.compile(r"^(?:[0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})$")
 TECH_INFO_KEYS = [
     'index', 'red_green_blue', 'luminance', 'hue_saturation_lightness',
     'hsv', 'cmyk', 'contrast', 'xyz', 'lab', 'lightness_chroma_hue',
-    'hue_whiteness_blackness', 'oklab', 'oklch', 'cieluv', 'similar', 'name'
+    'hue_whiteness_blackness', 'oklab', 'oklch', 'cieluv', 'similar', 'name',
+    'apca_contrast', 'cam16ucs', 'jzazbz'
 ]
 
 SCHEME_KEYS = [
@@ -75,8 +80,41 @@ FORMAT_ALIASES = {
     'cieluv': 'luv',
     'oklch': 'oklch',
     'cielchok': 'oklch',
-    'srgblinear': 'srgb-linear'
+    'srgblinear': 'srgb-linear',
+    'cam16ucs': 'cam16ucs',
+    'jzbzaz': 'jzbzaz'
 }
+
+M_CAM16 = [
+    [ 0.401288,  0.650173, -0.051461],
+    [-0.250268,  1.204414,  0.045854],
+    [-0.002079,  0.048952,  0.953127]
+]
+M_CAM16_INV = [
+    [ 1.8620678, -1.0112547,  0.14918678],
+    [ 0.38752654,  0.62144744, -0.00897398],
+    [-0.01584150, -0.03412294,  1.0499644]
+]
+M_JZAZBZ_1 = [
+    [ 0.41478972,  0.579999,  0.0146480],
+    [-0.20151000,  1.120649,  0.0531008],
+    [-0.01660080,  0.264800,  0.6684799]
+]
+M_JZAZBZ_2 = [
+    [ 0.500000,    0.500000,    0.000000],
+    [ 3.524000,   -7.048000,    3.524000],
+    [ 0.199000,    0.703000,   -0.902000]
+]
+M_JZAZBZ_1_INV = [
+    [ 2.4283038,  -1.404410,   -0.0384400],
+    [ 0.4398147,   0.587840,   -0.0284500],
+    [ 0.0353107,  -0.102780,    1.4963800]
+]
+M_JZAZBZ_2_INV = [
+    [ 1.0000,    0.14204,    0.16339],
+    [ 1.0000,   -0.14204,   -0.16339],
+    [ 1.0000,    0.04313,   -1.22500]
+]
 
 COLOR_NAMES = {
     'acidgreen': '8FFE09',
