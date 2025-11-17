@@ -963,14 +963,3 @@ COLOR_NAMES = {
     'yellowybrown': 'AE8B0C',
     'yellowygreen': 'BFF128'
 }
-32',
-    'yellowish': 'FAEE66',
-    'yellowishbrown': '9B7A01',
-    'yellowishgreen': 'B0DD16',
-    'yellowishorange': 'FFAB0F',
-    'yellowishtan': 'FCFC81',
-    'yellowochre': 'CB9D06',
-    'yelloworange': 'FCB001',
-    'yellowybrown': 'AE8B0C',
-    'yellowygreen': 'BFF128'
-}
