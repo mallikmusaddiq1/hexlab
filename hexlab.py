@@ -8,7 +8,7 @@ import random
 import math
 import json
 from typing import Tuple, List
-from constants import COLOR_NAMES as COLOR_NAMES_RAW, MAX_DEC, MAX_STEPS, DEDUP_DELTA_E_LAB, DEDUP_DELTA_E_OKLAB, DEDUP_DELTA_E_RGB, MAX_RANDOM_COLORS, __version__, HEX_REGEX, TECH_INFO_KEYS, SCHEME_KEYS, SIMULATE_KEYS, CB_MATRICES, FORMAT_ALIASES, SRGB_TO_LINEAR_TH, LINEAR_TO_SRGB_TH, EPS, M_CAM16, M_CAM16_INV, M_JZAZBZ_1, M_JZAZBZ_2, M_JZAZBZ_1_INV, M_JZAZBZ_2_INV, JZAZBZ_P, JZAZBZ_D, JZAZBZ_D_INV, JZAZBZ_I_0
+from constants import COLOR_NAMES as COLOR_NAMES_RAW, MAX_DEC, MAX_STEPS, DEDUP_DELTA_E_LAB, DEDUP_DELTA_E_OKLAB, DEDUP_DELTA_E_RGB, MAX_RANDOM_COLORS, __version__, HEX_REGEX, TECH_INFO_KEYS, SCHEME_KEYS, SIMULATE_KEYS, CB_MATRICES, FORMAT_ALIASES, SRGB_TO_LINEAR_TH, LINEAR_TO_SRGB_TH, EPS, M_JZAZBZ_1, M_JZAZBZ_2, M_JZAZBZ_1_INV, M_JZAZBZ_2_INV, JZAZBZ_P, JZAZBZ_D, JZAZBZ_D_INV, JZAZBZ_I_0
 
 def _strip_and_unquote(s: str) -> str:
     if s is None:
@@ -484,74 +484,6 @@ def get_apca_contrast(r1: int, g1: int, b1: int, r2: int, g2: int, b2: int) -> f
 
     return output_apc
 
-def xyz_to_cam16(x: float, y: float, z: float) -> Tuple[float, float, float, float, float, float]:
-    r = x * M_CAM16[0][0] + y * M_CAM16[0][1] + z * M_CAM16[0][2]
-    g = x * M_CAM16[1][0] + y * M_CAM16[1][1] + z * M_CAM16[1][2]
-    b = x * M_CAM16[2][0] + y * M_CAM16[2][1] + z * M_CAM16[2][2]
-
-    r_a = (math.copysign(1.0, r) * 400.0 * (math.pow(math.fabs(r / 100.0), 0.42))) / (math.pow(math.fabs(r / 100.0), 0.42) + 27.13) + 0.1
-    g_a = (math.copysign(1.0, g) * 400.0 * (math.pow(math.fabs(g / 100.0), 0.42))) / (math.pow(math.fabs(g / 100.0), 0.42) + 27.13) + 0.1
-    b_a = (math.copysign(1.0, b) * 400.0 * (math.pow(math.fabs(b / 100.0), 0.42))) / (math.pow(math.fabs(b / 100.0), 0.42) + 27.13) + 0.1
-
-    a = r_a - (12 * g_a / 11) + (b_a / 11)
-    b_cam = (1 / 9) * (r_a + g_a - 2 * b_a)
-    h_rad = math.atan2(b_cam, a)
-    h_deg = math.degrees(h_rad) % 360
-    if h_deg < 0:
-        h_deg += 360
-
-    J = 100 * math.pow((((r_a + g_a + b_a) / 3.0) * 0.1) / 0.19, 0.109 * 1.46)
-    Q = (J / 100) * math.pow(math.hypot(a, b_cam) * 0.73 * 0.41, 0.9) * 100
-    M = Q * 0.22
-    C = Q * 0.38
-    s = 50 * math.sqrt((C / 100) * 0.73)
-
-    return J, C, h_deg, s, Q, M
-
-def cam16_to_xyz(J: float, C: float, h: float) -> Tuple[float, float, float]:
-    t = math.pow(C / (math.pow(J/100, 0.5) * 1.052), 1/0.45) * 0.38
-    h_rad = math.radians(h)
-
-    a = t * math.cos(h_rad)
-    b_cam = t * math.sin(h_rad)
-
-    A = math.pow(J, 1/0.6) * 2.87
-
-    r_a = (A + (11 * a) + b_cam) / 10.0
-    g_a = (A - a + b_cam) / 2.0
-    b_a = (A - a - (9 * b_cam)) / 2.0
-
-    r_c = math.copysign(1.0, r_a - 0.1) * 100.0 * (math.pow( (27.13 * math.fabs(r_a - 0.1)) / (400.0 - math.fabs(r_a - 0.1)) , 1 / 0.42))
-    g_c = math.copysign(1.0, g_a - 0.1) * 100.0 * (math.pow( (27.13 * math.fabs(g_a - 0.1)) / (400.0 - math.fabs(g_a - 0.1)) , 1 / 0.42))
-    b_c = math.copysign(1.0, b_a - 0.1) * 100.0 * (math.pow( (27.13 * math.fabs(b_a - 0.1)) / (400.0 - math.fabs(b_a - 0.1)) , 1 / 0.42))
-
-    x = r_c * M_CAM16_INV[0][0] + g_c * M_CAM16_INV[0][1] + b_c * M_CAM16_INV[0][2]
-    y = r_c * M_CAM16_INV[1][0] + g_c * M_CAM16_INV[1][1] + b_c * M_CAM16_INV[1][2]
-    z = r_c * M_CAM16_INV[2][0] + g_c * M_CAM16_INV[2][1] + b_c * M_CAM16_INV[2][2]
-
-    return x, y, z
-
-def rgb_to_cam16ucs(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    x, y, z = rgb_to_xyz(r, g, b)
-    J, C, h, s, Q, M = xyz_to_cam16(x, y, z)
-    J_star = (1 + 100 * 0.007) * J / (1 + 0.007 * J)
-    M_star = (1 / 0.0228) * math.log(1 + 0.0228 * M)
-    a_star = M_star * math.cos(math.radians(h))
-    b_star = M_star * math.sin(math.radians(h))
-    return J_star, a_star, b_star
-
-def cam16ucs_to_rgb(J_star: float, a_star: float, b_star: float) -> Tuple[float, float, float]:
-    J = J_star / (1 + 100 * 0.007 - J_star * 0.007)
-    M_star = math.hypot(a_star, b_star)
-    M = (math.exp(M_star * 0.0228) - 1) / 0.0228
-    h_rad = math.atan2(b_star, a_star)
-    h_deg = math.degrees(h_rad) % 360
-    if h_deg < 0:
-        h_deg += 360
-    C = (19.0 / 11.0) * M
-    x, y, z = cam16_to_xyz(J, C, h_deg)
-    return xyz_to_rgb(x, y, z)
-
 def xyz_to_jzazbz(x: float, y: float, z: float) -> Tuple[float, float, float]:
     if x == 0.0 and y == 0.0 and z == 0.0:
         return 0.0, 0.0, 0.0
@@ -724,7 +656,7 @@ def _normalize_value_string(s: str) -> str:
     s = s.replace('–', '-')
     s = re.sub(r'deg', ' ', s, flags=re.IGNORECASE)
 
-    if s.lower().startswith(('rgb(', 'hsl(', 'hsv(', 'hwb(', 'cmyk(', 'xyz(', 'lab(', 'lch(', 'oklab(', 'luv(', 'oklch(', 'cam16ucs(', 'jzazbz(')):
+    if s.lower().startswith(('rgb(', 'hsl(', 'hsv(', 'hwb(', 'cmyk(', 'xyz(', 'lab(', 'lch(', 'oklab(', 'luv(', 'oklch(', 'jzazbz(')):
         s = re.sub(r'^[a-zA-Z0-9]+\s*\(', '', s, flags=re.IGNORECASE)
         s = s.rstrip(')')
 
@@ -853,9 +785,6 @@ def parse_oklch_string(s: str) -> Tuple[float, float, float]:
 def parse_luv_string(s: str) -> Tuple[float, float, float]:
     return _parse_3_floats(s, "luv")
 
-def parse_cam16ucs_string(s: str) -> Tuple[float, float, float]:
-    return _parse_3_floats(s, "cam16ucs")
-
 def parse_jzazbz_string(s: str) -> Tuple[float, float, float]:
     return _parse_3_floats(s, "jzazbz")
 
@@ -971,7 +900,7 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
 
     metric = args.distance_metric if hasattr(args, 'distance_metric') else 'lab'
 
-    needs_xyz = args.xyz or args.lab or args.lightness_chroma_hue or args.similar or args.cieluv or args.cam16ucs or args.jzazbz
+    needs_xyz = args.xyz or args.lab or args.lightness_chroma_hue or args.similar or args.cieluv or args.jzazbz
     needs_lab = args.lab or args.lightness_chroma_hue or args.similar
     needs_oklab = args.oklab or (args.similar and metric == 'oklab') or args.oklch
 
@@ -1060,12 +989,6 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
         c_oklch_p = _clean_small_float(c_oklch)
         h_oklch_p = _clean_small_float(h_oklch)
         print(f"   OKLCH      : {l_oklch_p:.4f}, {c_oklch_p:.4f}, {h_oklch_p:.4f}°")
-    if args.cam16ucs:
-        j_star, a_star, b_star = rgb_to_cam16ucs(r, g, b)
-        j_star_p = _clean_small_float(j_star)
-        a_star_p = _clean_small_float(a_star)
-        b_star_p = _clean_small_float(b_star)
-        print(f"   CAM16-UCS  : {j_star_p:.4f}, {a_star_p:.4f}, {b_star_p:.4f}")
     if args.jzazbz:
         jz, az, bz = rgb_to_jzazbz(r, g, b)
         jz_p = _clean_small_float(jz)
@@ -1124,35 +1047,76 @@ def _get_color_name_hex(sanitized_name: str) -> str:
         return None
     return COLOR_NAMES_LOOKUP.get(sanitized_name)
 
+def _get_base_hex_and_title(args: argparse.Namespace, hex_arg: str, random_arg: str, default_title: str, random_title: str) -> Tuple[str, str]:
+    base_hex = None
+    title = default_title
+    is_random = getattr(args, random_arg, False)
+    hex_val_arg = getattr(args, hex_arg, None)
+
+    if is_random:
+        base_hex = f"{random.randint(0, MAX_DEC):06X}"
+        title = random_title
+    elif args.color_name:
+        hexv = _get_color_name_hex(args.color_name)
+        if not hexv:
+            log('error', f"unknown color name '{args.color_name}'")
+            log('info', "use 'hexlab --list-color-names' to see all options")
+            sys.exit(2)
+        base_hex = hexv
+        title = HEX_TO_NAME.get(base_hex.upper(), args.color_name.title())
+    elif hex_val_arg:
+        base_hex = clean_hex_input(hex_val_arg)
+        title = HEX_TO_NAME.get(base_hex.upper(), f"#{base_hex}")
+    elif args.decimal_index is not None:
+        base_hex = f"{args.decimal_index:06X}"
+        title = HEX_TO_NAME.get(base_hex.upper(), f"Index {args.decimal_index}")
+
+    return base_hex, title
+
+def _get_input_colors_hex(args: argparse.Namespace, random_arg: str, random_total_arg: str, command_name: str) -> List[str]:
+    colors_hex = []
+    is_random = getattr(args, random_arg, False)
+
+    if is_random:
+        num_hex = getattr(args, random_total_arg, 0)
+        default_random = 2 if command_name == 'mixing' else random.randint(2, 5)
+        if num_hex == 0:
+            num_hex = default_random
+        num_hex = max(2, min(MAX_RANDOM_COLORS, num_hex))
+        colors_hex = [f"{random.randint(0, MAX_DEC):06X}" for _ in range(num_hex)]
+    else:
+        input_list = []
+        if args.hex:
+            input_list.extend(args.hex)
+        if args.decimal_index:
+            input_list.extend([f"{dec:06X}" for dec in args.decimal_index])
+        if args.color_name:
+            for nm in args.color_name:
+                hexv = _get_color_name_hex(nm)
+                if not hexv:
+                    log('error', f"unknown color name '{nm}'")
+                    log('info', "use 'hexlab --list-color-names' to see all options")
+                    sys.exit(2)
+                input_list.append(hexv)
+
+        if len(input_list) < 2:
+            log('error', f"at least 2 hex codes, decimal indices, or color names are required for {command_name}")
+            log('info', "usage: use -H, -di, or -cn multiple times")
+            sys.exit(2)
+        colors_hex = [clean_hex_input(h) for h in input_list]
+
+    return colors_hex
+
 def handle_color_command(args: argparse.Namespace) -> None:
     if args.all_tech_infos:
         for key in TECH_INFO_KEYS:
             setattr(args, key, True)
-    clean_hex = None
-    title = "Current Color"
     if args.seed is not None:
         random.seed(args.seed)
-    if args.random_hex:
-        current_dec = random.randint(0, MAX_DEC)
-        clean_hex = f"{current_dec:06X}"
-        title = "Random Color"
-    elif args.color_name:
-        hex_val = _get_color_name_hex(args.color_name)
-        if not hex_val:
-            log('error', f"unknown color name '{args.color_name}'")
-            log('info', "use 'hexlab --list-color-names' to see all options")
-            sys.exit(2)
-        clean_hex = hex_val
-        title = HEX_TO_NAME.get(clean_hex.upper())
-        if not title:
-            title = args.color_name.title()
-    elif args.hexcode:
-        clean_hex = clean_hex_input(args.hexcode)
-        title = HEX_TO_NAME.get(clean_hex.upper(), f"#{clean_hex}")
-    elif args.decimal_index is not None:
-        clean_hex = f"{args.decimal_index:06X}"
-        title = HEX_TO_NAME.get(clean_hex.upper(), f"Index {args.decimal_index}")
-    else:
+
+    clean_hex, title = _get_base_hex_and_title(args, 'hexcode', 'random_hex', 'Current Color', 'Random Color')
+
+    if clean_hex is None:
         log('error', "one of the arguments -H/--hex, -di/--decimal-index, -rh/--random-hex, or -cn/--color-name is required")
         log('info', "use 'hexlab --help' for more information")
         sys.exit(2)
@@ -1247,14 +1211,6 @@ def _get_interpolated_color(c1, c2, t: float, colorspace: str) -> Tuple[float, f
         v_new = v1 + t * (v2 - v1)
         return luv_to_rgb(l_new, u_new, v_new)
 
-    if colorspace == 'cam16ucs':
-        j1, a1, b1 = c1
-        j2, a2, b2 = c2
-        j_new = j1 + t * (j2 - j1)
-        a_new = a1 + t * (a2 - a1)
-        b_new = b1 + t * (b2 - b1)
-        return cam16ucs_to_rgb(j_new, a_new, b_new)
-
     if colorspace == 'jzazbz':
         j1, a1, b1 = c1
         j2, a2, b2 = c2
@@ -1283,8 +1239,6 @@ def _convert_rgb_to_space(r: int, g: int, b: int, colorspace: str) -> Tuple[floa
         return rgb_to_oklch(r, g, b)
     if colorspace == 'luv':
         return rgb_to_luv(r, g, b)
-    if colorspace == 'cam16ucs':
-        return rgb_to_cam16ucs(r, g, b)
     if colorspace == 'jzazbz':
         return rgb_to_jzazbz(r, g, b)
     return (r, g, b)
@@ -1299,34 +1253,7 @@ def handle_gradient_command(args: argparse.Namespace) -> None:
         sys.exit(2)
 
     colorspace = args.colorspace
-
-    colors_hex = []
-    if args.random_gradient:
-        num_hex = args.total_random_hex
-        if num_hex == 0:
-            num_hex = random.randint(2, 5)
-        num_hex = max(2, min(MAX_RANDOM_COLORS, num_hex))
-        colors_hex = [f"{random.randint(0, MAX_DEC):06X}" for _ in range(num_hex)]
-    else:
-        input_list = []
-        if args.hex:
-            input_list.extend(args.hex)
-        if args.decimal_index:
-            input_list.extend([f"{dec:06X}" for dec in args.decimal_index])
-        if args.color_name:
-            for nm in args.color_name:
-                hexv = _get_color_name_hex(nm)
-                if not hexv:
-                    log('error', f"unknown color name '{nm}'")
-                    log('info', "use 'hexlab --list-color-names' to see all options")
-                    sys.exit(2)
-                input_list.append(hexv)
-
-        if len(input_list) < 2:
-            log('error', "at least 2 hex codes, decimal indices, or color names are required for a gradient")
-            log('info', "usage: use -H, -di, or -cn multiple times")
-            sys.exit(2)
-        colors_hex = [clean_hex_input(h) for h in input_list]
+    colors_hex = _get_input_colors_hex(args, 'random_gradient', 'total_random_hex', 'gradient')
 
     num_steps = max(1, min(MAX_STEPS, args.steps))
 
@@ -1370,34 +1297,7 @@ def handle_mix_command(args: argparse.Namespace) -> None:
         sys.exit(2)
 
     colorspace = args.colorspace
-
-    colors_hex = []
-    if args.random_mix:
-        num_hex = args.total_random_hex
-        if num_hex == 0:
-            num_hex = 2
-        num_hex = max(2, min(MAX_RANDOM_COLORS, num_hex))
-        colors_hex = [f"{random.randint(0, MAX_DEC):06X}" for _ in range(num_hex)]
-    else:
-        input_list = []
-        if args.hex:
-            input_list.extend(args.hex)
-        if args.decimal_index:
-            input_list.extend([f"{dec:06X}" for dec in args.decimal_index])
-        if args.color_name:
-            for nm in args.color_name:
-                hexv = _get_color_name_hex(nm)
-                if not hexv:
-                    log('error', f"unknown color name '{nm}'")
-                    log('info', "use 'hexlab --list-color-names' to see all options")
-                    sys.exit(2)
-                input_list.append(hexv)
-
-        if len(input_list) < 2:
-            log('error', "at least 2 hex codes, decimal indices, or color names are required for mixing")
-            log('info', "usage: use -H, -di, or -cn multiple times")
-            sys.exit(2)
-        colors_hex = [clean_hex_input(h) for h in input_list]
+    colors_hex = _get_input_colors_hex(args, 'random_mix', 'total_random_hex', 'mixing')
 
     colors_rgb = [hex_to_rgb(h) for h in colors_hex]
 
@@ -1431,8 +1331,6 @@ def handle_mix_command(args: argparse.Namespace) -> None:
         avg_r_f, avg_g_f, avg_b_f = oklab_to_rgb(avg_c1, avg_c2, avg_c3)
     elif colorspace == 'luv':
         avg_r_f, avg_g_f, avg_b_f = luv_to_rgb(avg_c1, avg_c2, avg_c3)
-    elif colorspace == 'cam16ucs':
-        avg_r_f, avg_g_f, avg_b_f = cam16ucs_to_rgb(avg_c1, avg_c2, avg_c3)
     elif colorspace == 'jzazbz':
         avg_r_f, avg_g_f, avg_b_f = jzazbz_to_rgb(avg_c1, avg_c2, avg_c3)
 
@@ -1454,29 +1352,7 @@ def handle_scheme_command(args: argparse.Namespace) -> None:
     if args.seed is not None:
         random.seed(args.seed)
 
-    base_hex = None
-    title = "Base Color"
-
-    if args.random_scheme:
-        base_hex = f"{random.randint(0, MAX_DEC):06X}"
-        title = "Random Base"
-    elif args.color_name:
-
-        hexv = _get_color_name_hex(args.color_name)
-        if not hexv:
-            log('error', f"unknown color name '{args.color_name}'")
-            log('info', "use 'hexlab --list-color-names' to see all options")
-            sys.exit(2)
-        base_hex = hexv
-        title = HEX_TO_NAME.get(base_hex.upper())
-        if not title:
-             title = args.color_name.title()
-    elif args.hex:
-        base_hex = clean_hex_input(args.hex)
-        title = HEX_TO_NAME.get(base_hex.upper(), f"#{base_hex}")
-    elif args.decimal_index is not None:
-        base_hex = f"{args.decimal_index:06X}"
-        title = HEX_TO_NAME.get(base_hex.upper(), f"Index {args.decimal_index}")
+    base_hex, title = _get_base_hex_and_title(args, 'hex', 'random_scheme', 'Base Color', 'Random Base')
 
     if base_hex is None:
         log('error', "no valid color provided for scheme")
@@ -1570,29 +1446,7 @@ def handle_simulate_command(args: argparse.Namespace) -> None:
     if args.seed is not None:
         random.seed(args.seed)
 
-    base_hex = None
-    title = "Base Color"
-
-    if args.random_simulate:
-        base_hex = f"{random.randint(0, MAX_DEC):06X}"
-        title = "Random Base"
-    elif args.color_name:
-
-        hexv = _get_color_name_hex(args.color_name)
-        if not hexv:
-            log('error', f"unknown color name '{args.color_name}'")
-            log('info', "use 'hexlab --list-color-names' to see all options")
-            sys.exit(2)
-        base_hex = hexv
-        title = HEX_TO_NAME.get(base_hex.upper())
-        if not title:
-             title = args.color_name.title()
-    elif args.hex:
-        base_hex = clean_hex_input(args.hex)
-        title = HEX_TO_NAME.get(base_hex.upper(), f"#{base_hex}")
-    elif args.decimal_index is not None:
-        base_hex = f"{args.decimal_index:06X}"
-        title = HEX_TO_NAME.get(base_hex.upper(), f"Index {args.decimal_index}")
+    base_hex, title = _get_base_hex_and_title(args, 'hex', 'random_simulate', 'Base Color', 'Random Base')
 
     if base_hex is None:
         log('error', "no valid color provided for simulate")
@@ -1682,9 +1536,6 @@ def _parse_value_to_rgb(clean_val: str, from_fmt: str) -> Tuple[int, int, int]:
     elif from_fmt == 'luv':
         L, u, v = parse_luv_string(clean_val)
         r_f, g_f, b_f = luv_to_rgb(L, u, v)
-    elif from_fmt == 'cam16ucs':
-        j, a, b = parse_cam16ucs_string(clean_val)
-        r_f, g_f, b_f = cam16ucs_to_rgb(j, a, b)
     elif from_fmt == 'jzazbz':
         j, a, b = parse_jzazbz_string(clean_val)
         r_f, g_f, b_f = jzazbz_to_rgb(j, a, b)
@@ -1782,12 +1633,6 @@ def _format_value_from_rgb(r: int, g: int, b: int, to_fmt: str) -> str:
         u_p = _clean_small_float(u)
         v_p = _clean_small_float(v)
         output_value = f"luv({L_p:.4f}, {u_p:.4f}, {v_p:.4f})"
-    elif to_fmt == 'cam16ucs':
-        j, a, b_cam = rgb_to_cam16ucs(r, g, b)
-        j_p = _clean_small_float(j)
-        a_p = _clean_small_float(a)
-        b_p = _clean_small_float(b_cam)
-        output_value = f"cam16ucs({j_p:.4f}, {a_p:.4f}, {b_p:.4f})"
     elif to_fmt == 'jzazbz':
         j, a, b_jz = rgb_to_jzazbz(r, g, b)
         j_p = _clean_small_float(j)
@@ -1871,7 +1716,7 @@ def get_gradient_parser() -> argparse.ArgumentParser:
         "-cs", "--colorspace",
         default="lab",
         type=type_colorspace,
-        choices=['srgb', 'srgb-linear', 'lab', 'lch', 'oklab', 'oklch', 'luv', 'cam16ucs', 'jzazbz'],
+        choices=['srgb', 'srgb-linear', 'lab', 'lch', 'oklab', 'oklch', 'luv', 'jzazbz'],
         help="colorspace for interpolation (default: lab)"
     )
     parser.add_argument(
@@ -1922,7 +1767,7 @@ def get_mix_parser() -> argparse.ArgumentParser:
         "-cs", "--colorspace",
         default="lab",
         type=type_colorspace,
-        choices=['srgb', 'srgb-linear', 'lab', 'oklab', 'luv', 'cam16ucs', 'jzazbz'],
+        choices=['srgb', 'srgb-linear', 'lab', 'oklab', 'luv', 'jzazbz'],
         help="colorspace for mixing (default: lab)"
     )
     parser.add_argument(
@@ -1971,6 +1816,12 @@ def get_scheme_parser() -> argparse.ArgumentParser:
         type=type_int_safe,
         default=None,
         help="random seed for reproducibility"
+    )
+    parser.add_argument(
+        "-hm", "--harmony-model",
+        type=type_harmony_model,
+        default='hsl',
+        help="harmony model: hsl lch oklch (default: hsl)"
     )
     scheme_group = parser.add_argument_group("scheme types")
     scheme_group.add_argument(
@@ -2083,7 +1934,7 @@ def get_convert_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawTextHelpFormatter,
         add_help=False
     )
-    formats_list = "hex rgb hsl hsv hwb cmyk xyz lab lch oklab oklch luv index name cam16ucs jzazbz"
+    formats_list = "hex rgb hsl hsv hwb cmyk xyz lab lch oklab oklch luv index name jzazbz"
     parser.add_argument(
         '-h', '--help',
         action='help',
@@ -2126,7 +1977,6 @@ def get_convert_parser() -> argparse.ArgumentParser:
              '  -v "luv(0, 0, 0)"\n'
              '  -v "oklab(0, 0, 0)"\n'
              '  -v "oklch(0, 0, 0°)"\n'
-             '  -v "cam16ucs(0, 0, 0)"\n'
              '  -v "jzazbz(0, 0, 0)"'
     )
     input_group.add_argument(
@@ -2337,11 +2187,6 @@ def main() -> None:
             help="show APCA contrast ratio"
         )
         info_group.add_argument(
-            "-cam16", "--cam16ucs",
-            action="store_true",
-            help="show CAM16-UCS values"
-        )
-        info_group.add_argument(
             "-jz", "--jzazbz",
             action="store_true",
             help="show JZAZBZ values"
@@ -2416,11 +2261,11 @@ def main() -> None:
         handle_color_command(args)
 
 if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        log('info', 'exiting.')
-        sys.exit(0)
-    except Exception as e:
-        log('error', f"an unexpected error occurred: {e}")
-        sys.exit(1)
+    main()
+ust be the first argument")
+            sys.exit(2)
+        ensure_truecolor()
+        handle_color_command(args)
+
+if __name__ == "__main__":
+    main()
