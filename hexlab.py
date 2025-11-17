@@ -10,18 +10,21 @@ import json
 from typing import Tuple, List
 from constants import COLOR_NAMES as COLOR_NAMES_RAW, MAX_DEC, MAX_STEPS, DEDUP_DELTA_E_LAB, DEDUP_DELTA_E_OKLAB, DEDUP_DELTA_E_RGB, MAX_RANDOM_COLORS, __version__, HEX_REGEX, TECH_INFO_KEYS, SCHEME_KEYS, SIMULATE_KEYS, CB_MATRICES, FORMAT_ALIASES, SRGB_TO_LINEAR_TH, LINEAR_TO_SRGB_TH, EPS
 
+
 def _strip_and_unquote(s: str) -> str:
     if s is None:
         return ''
-    s = str(s).strip().replace(" ", "")
+    s = str(s).strip().replace(" ", "").lower()
     while len(s) >= 2 and s[0] == s[-1] and s[0] in "\"'`":
         s = s[1:-1].strip()
     return s
+
 
 def _extract_hex_chars(s: str) -> str:
     s = _strip_and_unquote(s)
     chars = re.findall(r'[0-9A-Fa-f]', s, re.IGNORECASE)
     return ''.join(chars).upper()
+
 
 def type_hex(value: str) -> str:
     h = _extract_hex_chars(value)
@@ -29,19 +32,6 @@ def type_hex(value: str) -> str:
         raise argparse.ArgumentTypeError(f"invalid hex value: '{value}' (no hex characters found)")
     return h
 
-def type_decimal_index(value: str) -> int:
-    try:
-        s = _strip_and_unquote(str(value))
-        num_str = re.findall(r'[-+]?\d+', s)
-        if not num_str:
-            raise ValueError("No digits found")
-        dec = int(num_str[0])
-        if not 0 <= dec <= MAX_DEC:
-            dec = max(0, min(MAX_DEC, dec))
-            log('warn', f"decimal index '{value}' out of range, clamped to '{dec}'")
-        return dec
-    except Exception:
-        raise argparse.ArgumentTypeError(f"invalid decimal index value: '{value}'")
 
 def type_color_name(value: str) -> str:
     if not isinstance(value, str):
@@ -50,16 +40,19 @@ def type_color_name(value: str) -> str:
     s = _strip_and_unquote(value)
     return re.sub(r'[^0-9a-z]', '', s.lower())
 
+
 def type_general_string(value: str) -> str:
     if not isinstance(value, str):
         return ""
     return _strip_and_unquote(value)
+
 
 def type_format_alias(value: str) -> str:
     if not isinstance(value, str):
         return ""
     s = _strip_and_unquote(value)
     return re.sub(r'[^0-9a-z]', '', s.lower())
+
 
 def type_list_format(value: str) -> str:
     if not isinstance(value, str):
@@ -70,11 +63,13 @@ def type_list_format(value: str) -> str:
     s = re.sub(r'[^0-9a-z-]', '', s)
     return s
 
+
 def type_colorspace(value: str) -> str:
     if not isinstance(value, str):
         return ""
     s = _strip_and_unquote(value)
     return s.lower().replace(" ", "")
+
 
 def type_harmony_model(value: str) -> str:
     if not isinstance(value, str):
@@ -84,6 +79,7 @@ def type_harmony_model(value: str) -> str:
         raise argparse.ArgumentTypeError(f"invalid harmony model: '{value}'. choices: hsl, lch, oklch")
     return s
 
+
 def type_distance_metric(value: str) -> str:
     if not isinstance(value, str):
         return "lab"
@@ -91,6 +87,7 @@ def type_distance_metric(value: str) -> str:
     if s not in ['lab', 'oklab', 'rgb']:
         raise argparse.ArgumentTypeError(f"invalid distance metric: '{value}'. choices: lab, oklab, rgb")
     return s
+
 
 def type_int_safe(value) -> int:
     try:
@@ -102,13 +99,15 @@ def type_int_safe(value) -> int:
     except Exception:
         raise argparse.ArgumentTypeError(f"invalid integer value: '{value}'")
 
+
 def _normalize_hex_value(v: str) -> str:
     if not isinstance(v, str):
         return ''
     vv = v.replace('#', '').strip().upper()
     if len(vv) == 3:
-        vv = ''.join([c*2 for c in vv])
+        vv = ''.join([c * 2 for c in vv])
     return vv
+
 
 def log(level: str, message: str) -> None:
     level = level.lower()
@@ -120,10 +119,28 @@ def log(level: str, message: str) -> None:
     stream = level_map.get(level, sys.stderr)
     print(f"[hexlab][{level}] {message}", file=stream)
 
+
+def _decimal_index_to_hex(value) -> str:
+    try:
+        s = _strip_and_unquote(str(value))
+        s = s.replace(" ", "")
+        matches = re.findall(r'[-+]?\d+', s)
+        if not matches:
+            raise ValueError("no digits")
+        dec_val = int(matches[0])
+    except Exception:
+        log('error', f"invalid decimal index '{value}'")
+        sys.exit(2)
+    dec_val = max(0, min(MAX_DEC, dec_val))
+    return f"{dec_val:06X}"
+
+
 COLOR_NAMES = {k: _normalize_hex_value(v) for k, v in COLOR_NAMES_RAW.items()}
+
 
 def _norm_name_key(s: str) -> str:
     return re.sub(r'[^0-9a-z]', '', s.lower())
+
 
 HEX_TO_NAME = {}
 for name, hexv in COLOR_NAMES.items():
@@ -139,33 +156,40 @@ for k, v in COLOR_NAMES.items():
     _norm_map[key] = v
 COLOR_NAMES_LOOKUP = _norm_map
 
+
 def ensure_truecolor() -> None:
     if sys.platform == "win32":
         return
     if os.environ.get("COLORTERM") != "truecolor":
         os.environ["COLORTERM"] = "truecolor"
 
+
 class HexlabArgumentParser(argparse.ArgumentParser):
     def error(self, message: str) -> None:
         log('error', message)
         self.exit(2)
 
+
 def hex_to_rgb(hex_code: str) -> Tuple[int, int, int]:
     h = _extract_hex_chars(hex_code)
     if len(h) == 3:
-        h = ''.join([c*2 for c in h])
+        h = ''.join([c * 2 for c in h])
     if len(h) != 6:
         h = h.ljust(6, '0')[:6]
-    return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
 
 def rgb_to_hex(r, g, b):
     return f"{int(round(r)):02X}{int(round(g)):02X}{int(round(b)):02X}"
 
+
 def fmt_hex_for_output(hex_str: str) -> str:
     return f"#{hex_str.upper()}"
 
+
 def is_valid_hex(h: str) -> bool:
     return HEX_REGEX.fullmatch(h) is not None
+
 
 def clean_hex_input(hex_str: str) -> str:
     if not hex_str:
@@ -174,7 +198,7 @@ def clean_hex_input(hex_str: str) -> str:
 
     clean_hex = hex_str
     if len(clean_hex) == 3:
-        clean_hex = "".join([c*2 for c in clean_hex])
+        clean_hex = "".join([c * 2 for c in clean_hex])
 
     if len(clean_hex) < 6:
         padded_hex = clean_hex.ljust(6, '0')
@@ -190,28 +214,25 @@ def clean_hex_input(hex_str: str) -> str:
         sys.exit(2)
     return clean_hex
 
+
 def _clamp01(v: float) -> float:
     if v != v:
         return 0.0
     return max(0.0, min(1.0, v))
 
-def _clean_small_float(v: float) -> float:
-    if not math.isfinite(v):
-        return v
-    if -5e-4 < v < 5e-4:
-        return 0.0
-    return v
 
 def lum_comp(c: int) -> float:
     c_norm = c / 255.0
     c_norm = _clamp01(c_norm)
     return c_norm / 12.92 if c_norm <= SRGB_TO_LINEAR_TH else ((c_norm + 0.055) / 1.055) ** 2.4
 
+
 def get_luminance(r: int, g: int, b: int) -> float:
     return 0.2126 * lum_comp(r) + 0.7152 * lum_comp(g) + 0.0722 * lum_comp(b)
 
+
 def rgb_to_hsl(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    r_f, g_f, b_f = r/255.0, g/255.0, b/255.0
+    r_f, g_f, b_f = r / 255.0, g / 255.0, b / 255.0
     cmax = max(r_f, g_f, b_f)
     cmin = min(r_f, g_f, b_f)
     delta = cmax - cmin
@@ -220,7 +241,7 @@ def rgb_to_hsl(r: int, g: int, b: int) -> Tuple[float, float, float]:
         h = 0.0
         s = 0.0
     else:
-        denom = 1 - abs(2*l - 1)
+        denom = 1 - abs(2 * l - 1)
         s = 0.0 if abs(denom) < EPS else delta / denom
         if cmax == r_f:
             h = 60 * (((g_f - b_f) / delta) % 6)
@@ -230,6 +251,7 @@ def rgb_to_hsl(r: int, g: int, b: int) -> Tuple[float, float, float]:
             h = 60 * ((r_f - g_f) / delta + 4)
         h = (h + 360) % 360
     return (h, s, l)
+
 
 def hsl_to_rgb(h: float, s: float, l: float) -> Tuple[float, float, float]:
     h = h % 360
@@ -254,8 +276,9 @@ def hsl_to_rgb(h: float, s: float, l: float) -> Tuple[float, float, float]:
         r, g, b = (r_p + m), (g_p + m), (b_p + m)
     return _clamp01(r) * 255, _clamp01(g) * 255, _clamp01(b) * 255
 
+
 def rgb_to_hsv(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    r_f, g_f, b_f = r/255.0, g/255.0, b/255.0
+    r_f, g_f, b_f = r / 255.0, g / 255.0, b / 255.0
     cmax = max(r_f, g_f, b_f)
     cmin = min(r_f, g_f, b_f)
     delta = cmax - cmin
@@ -273,6 +296,7 @@ def rgb_to_hsv(r: int, g: int, b: int) -> Tuple[float, float, float]:
             h = 60 * ((r_f - g_f) / delta + 4)
         h = (h + 360) % 360
     return (h, s, v)
+
 
 def hsv_to_rgb(h: float, s: float, v: float) -> Tuple[float, float, float]:
     h = h % 360
@@ -294,6 +318,7 @@ def hsv_to_rgb(h: float, s: float, v: float) -> Tuple[float, float, float]:
     r, g, b = (r_p + m), (g_p + m), (b_p + m)
     return _clamp01(r) * 255, _clamp01(g) * 255, _clamp01(b) * 255
 
+
 def rgb_to_cmyk(r: int, g: int, b: int) -> Tuple[float, float, float, float]:
     if r == 0 and g == 0 and b == 0:
         return 0.0, 0.0, 0.0, 1.0
@@ -307,16 +332,19 @@ def rgb_to_cmyk(r: int, g: int, b: int) -> Tuple[float, float, float, float]:
     y = (1.0 - b_norm - k) / denom
     return (c, m, y, k)
 
+
 def cmyk_to_rgb(c: float, m: float, y: float, k: float) -> Tuple[float, float, float]:
     r = 255 * (1 - _clamp01(c)) * (1 - _clamp01(k))
     g = 255 * (1 - _clamp01(m)) * (1 - _clamp01(k))
     b = 255 * (1 - _clamp01(y)) * (1 - _clamp01(k))
     return r, g, b
 
+
 def _srgb_to_linear(c: int) -> float:
     c_norm = c / 255.0
     c_norm = _clamp01(c_norm)
     return c_norm / 12.92 if c_norm <= SRGB_TO_LINEAR_TH else ((c_norm + 0.055) / 1.055) ** 2.4
+
 
 def rgb_to_xyz(r: int, g: int, b: int) -> Tuple[float, float, float]:
     r_lin = _srgb_to_linear(r)
@@ -327,11 +355,14 @@ def rgb_to_xyz(r: int, g: int, b: int) -> Tuple[float, float, float]:
     z = r_lin * 0.0193339 + g_lin * 0.1191920 + b_lin * 0.9503041
     return x * 100.0, y * 100.0, z * 100.0
 
+
 def _xyz_f(t: float) -> float:
-    return t ** (1/3) if t > 0.008856 else (7.787 * t) + (16.0 / 116.0)
+    return t ** (1 / 3) if t > 0.008856 else (7.787 * t) + (16.0 / 116.0)
+
 
 def _xyz_f_inv(t: float) -> float:
     return t ** 3 if t > 0.20689655 else (t - 16.0 / 116.0) / 7.787
+
 
 def xyz_to_lab(x: float, y: float, z: float) -> Tuple[float, float, float]:
     ref_x, ref_y, ref_z = 95.047, 100.0, 108.883
@@ -343,6 +374,7 @@ def xyz_to_lab(x: float, y: float, z: float) -> Tuple[float, float, float]:
     b = 200.0 * (y_r - z_r)
     return l, a, b
 
+
 def lab_to_xyz(l: float, a: float, b: float) -> Tuple[float, float, float]:
     ref_x, ref_y, ref_z = 95.047, 100.0, 108.883
     y_r = (l + 16.0) / 116.0
@@ -353,9 +385,11 @@ def lab_to_xyz(l: float, a: float, b: float) -> Tuple[float, float, float]:
     z = _xyz_f_inv(z_r) * ref_z
     return x, y, z
 
+
 def _linear_to_srgb(l: float) -> float:
     l = max(l, 0.0)
-    return 12.92 * l if l <= LINEAR_TO_SRGB_TH else 1.055 * (l ** (1/2.4)) - 0.055
+    return 12.92 * l if l <= LINEAR_TO_SRGB_TH else 1.055 * (l ** (1 / 2.4)) - 0.055
+
 
 def xyz_to_rgb(x: float, y: float, z: float) -> Tuple[float, float, float]:
     x_n, y_n, z_n = x / 100.0, y / 100.0, z / 100.0
@@ -367,21 +401,20 @@ def xyz_to_rgb(x: float, y: float, z: float) -> Tuple[float, float, float]:
     b = _linear_to_srgb(b_lin)
     return _clamp01(r) * 255, _clamp01(g) * 255, _clamp01(b) * 255
 
+
 def lab_to_lch(l: float, a: float, b: float) -> Tuple[float, float, float]:
     c = math.hypot(a, b)
-    if c < EPS:
-        return l, 0.0, 0.0
     h = math.degrees(math.atan2(b, a)) % 360
     return l, c, h
+
 
 def lch_to_lab(l: float, c: float, h: float) -> Tuple[float, float, float]:
     a = c * math.cos(math.radians(h))
     b = c * math.sin(math.radians(h))
     return l, a, b
 
+
 def rgb_to_oklab(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    if r == g == b == 0:
-        return 0.0, 0.0, 0.0
     r_lin = _srgb_to_linear(r)
     g_lin = _srgb_to_linear(g)
     b_lin = _srgb_to_linear(b)
@@ -390,9 +423,9 @@ def rgb_to_oklab(r: int, g: int, b: int) -> Tuple[float, float, float]:
     m = 0.2119034982 * r_lin + 0.6806995451 * g_lin + 0.1073969566 * b_lin
     s = 0.0883024619 * r_lin + 0.2817188376 * g_lin + 0.6299787005 * b_lin
 
-    l_ = (l + EPS) ** (1/3) if l >= 0 else -((-l + EPS) ** (1/3))
-    m_ = (m + EPS) ** (1/3) if m >= 0 else -((-m + EPS) ** (1/3))
-    s_ = (s + EPS) ** (1/3) if s >= 0 else -((-s + EPS) ** (1/3))
+    l_ = (l + EPS) ** (1 / 3) if l >= 0 else -((-l + EPS) ** (1 / 3))
+    m_ = (m + EPS) ** (1 / 3) if m >= 0 else -((-m + EPS) ** (1 / 3))
+    s_ = (s + EPS) ** (1 / 3) if s >= 0 else -((-s + EPS) ** (1 / 3))
 
     ok_l = 0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_
     ok_a = 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_
@@ -400,16 +433,17 @@ def rgb_to_oklab(r: int, g: int, b: int) -> Tuple[float, float, float]:
 
     return ok_l, ok_a, ok_b
 
+
 def oklab_to_rgb(l: float, a: float, b: float) -> Tuple[float, float, float]:
     l_ = l + 0.3963377774 * a + 0.2158037573 * b
     m_ = l - 0.1055613458 * a - 0.0638541728 * b
     s_ = l - 0.0894841775 * a - 1.2914855480 * b
 
-    l = l_**3
-    m = m_**3
-    s = s_**3
+    l = l_ ** 3
+    m = m_ ** 3
+    s = s_ ** 3
 
-    r_lin =  4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s
+    r_lin = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s
     g_lin = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s
     b_lin = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s
 
@@ -419,25 +453,28 @@ def oklab_to_rgb(l: float, a: float, b: float) -> Tuple[float, float, float]:
 
     return _clamp01(r) * 255, _clamp01(g) * 255, _clamp01(b) * 255
 
+
 def oklab_to_oklch(l: float, a: float, b: float) -> Tuple[float, float, float]:
     c = math.hypot(a, b)
-    if c < EPS:
-        return l, 0.0, 0.0
     h = math.degrees(math.atan2(b, a)) % 360
     return l, c, h
+
 
 def oklch_to_oklab(l: float, c: float, h: float) -> Tuple[float, float, float]:
     a = c * math.cos(math.radians(h))
     b = c * math.sin(math.radians(h))
     return l, a, b
 
+
 def rgb_to_oklch(r: int, g: int, b: int) -> Tuple[float, float, float]:
     l, a, b_ok = rgb_to_oklab(r, g, b)
     return oklab_to_oklch(l, a, b_ok)
 
+
 def oklch_to_rgb(l: float, c: float, h: float) -> Tuple[float, float, float]:
     l, a, b_ok = oklch_to_oklab(l, c, h)
     return oklab_to_rgb(l, a, b_ok)
+
 
 def rgb_to_hwb(r: int, g: int, b: int) -> Tuple[float, float, float]:
     h, s, v = rgb_to_hsv(r, g, b)
@@ -445,24 +482,26 @@ def rgb_to_hwb(r: int, g: int, b: int) -> Tuple[float, float, float]:
     b_hwb = 1 - v
     return h, w, b_hwb
 
+
 def hwb_to_rgb(h: float, w: float, b: float) -> Tuple[float, float, float]:
     v = 1 - b
     s = 1 - (w / v) if v != 0 else 0
     return hsv_to_rgb(h, s, v)
 
+
 def delta_e_ciede2000(lab1: Tuple[float, float, float], lab2: Tuple[float, float, float]) -> float:
     L1, a1, b1 = lab1
     L2, a2, b2 = lab2
 
-    C1 = math.sqrt(a1**2 + b1**2)
-    C2 = math.sqrt(a2**2 + b2**2)
+    C1 = math.sqrt(a1 ** 2 + b1 ** 2)
+    C2 = math.sqrt(a2 ** 2 + b2 ** 2)
     C_bar = (C1 + C2) / 2
-    G = 0.5 * (1 - math.sqrt((C_bar**7) / (C_bar**7 + 25**7 + EPS)))
+    G = 0.5 * (1 - math.sqrt((C_bar ** 7) / (C_bar ** 7 + 25 ** 7 + EPS)))
 
     a1_prime = (1 + G) * a1
     a2_prime = (1 + G) * a2
-    C1_prime = math.sqrt(a1_prime**2 + b1**2)
-    C2_prime = math.sqrt(a2_prime**2 + b2**2)
+    C1_prime = math.sqrt(a1_prime ** 2 + b1 ** 2)
+    C2_prime = math.sqrt(a2_prime ** 2 + b2 ** 2)
 
     h1_prime_rad = math.atan2(b1, a1_prime)
     h1_prime_rad += 2 * math.pi if h1_prime_rad < 0 else 0
@@ -507,32 +546,35 @@ def delta_e_ciede2000(lab1: Tuple[float, float, float], lab2: Tuple[float, float
         - 0.20 * math.cos(math.radians(4 * h_prime_bar_deg - 63))
     )
 
-    S_L = 1 + (0.015 * (L_prime_bar - 50)**2) / math.sqrt(20 + (L_prime_bar - 50)**2 + EPS)
+    S_L = 1 + (0.015 * (L_prime_bar - 50) ** 2) / math.sqrt(20 + (L_prime_bar - 50) ** 2 + EPS)
     S_C = 1 + 0.045 * C_prime_bar
     S_H = 1 + 0.015 * C_prime_bar * T
 
-    delta_theta_deg = 30 * math.exp(-(((h_prime_bar_deg - 275) / 25)**2))
-    R_C = 2 * math.sqrt((C_prime_bar**7) / (C_prime_bar**7 + 25**7 + EPS))
+    delta_theta_deg = 30 * math.exp(-(((h_prime_bar_deg - 275) / 25) ** 2))
+    R_C = 2 * math.sqrt((C_prime_bar ** 7) / (C_prime_bar ** 7 + 25 ** 7 + EPS))
     R_T = -R_C * math.sin(math.radians(2 * delta_theta_deg))
 
     k_L, k_C, k_H = 1, 1, 1
 
     delta_E = math.sqrt(
-        (delta_L_prime / (k_L * S_L))**2 +
-        (delta_C_prime / (k_C * S_C))**2 +
-        (delta_H_prime / (k_H * S_H))**2 +
+        (delta_L_prime / (k_L * S_L)) ** 2 +
+        (delta_C_prime / (k_C * S_C)) ** 2 +
+        (delta_H_prime / (k_H * S_H)) ** 2 +
         R_T * (delta_C_prime / (k_C * S_C)) * (delta_H_prime / (k_H * S_H))
     )
 
     return delta_E
 
+
 def delta_e_euclidean_rgb(r1: int, g1: int, b1: int, r2: int, g2: int, b2: int) -> float:
-    return math.sqrt((r1 - r2)**2 + (g1 - g2)**2 + (b1 - b2)**2)
+    return math.sqrt((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2)
+
 
 def delta_e_euclidean_oklab(oklab1: Tuple[float, float, float], oklab2: Tuple[float, float, float]) -> float:
     l1, a1, b1 = oklab1
     l2, a2, b2 = oklab2
-    return math.sqrt((l1 - l2)**2 + (a1 - a2)**2 + (b1 - b2)**2)
+    return math.sqrt((l1 - l2) ** 2 + (a1 - a2) ** 2 + (b1 - b2) ** 2)
+
 
 def get_wcag_contrast(lum: float) -> dict:
     lum_white = 1.0
@@ -543,6 +585,7 @@ def get_wcag_contrast(lum: float) -> dict:
         "white": {"ratio": contrast_white},
         "black": {"ratio": contrast_black}
     }
+
     def get_pass_fail(ratio: float) -> dict:
         return {
             "AA-Large": "Pass" if ratio >= 3 else "Fail",
@@ -550,9 +593,11 @@ def get_wcag_contrast(lum: float) -> dict:
             "AAA-Large": "Pass" if ratio >= 4.5 else "Fail",
             "AAA": "Pass" if ratio >= 7 else "Fail",
         }
+
     results["white"]["levels"] = get_pass_fail(contrast_white)
     results["black"]["levels"] = get_pass_fail(contrast_black)
     return results
+
 
 def _normalize_value_string(s: str) -> str:
     s = _strip_and_unquote(s)
@@ -561,13 +606,14 @@ def _normalize_value_string(s: str) -> str:
     s = re.sub(r'deg', ' ', s, flags=re.IGNORECASE)
 
     if s.lower().startswith(('rgb(', 'hsl(', 'hsv(', 'hwb(', 'cmyk(', 'xyz(', 'lab(', 'lch(', 'oklab(', 'luv(', 'oklch(')):
-        s = re.sub(r'^[a-zA-Z0-9]+\s*\(', '', s, flags=re.IGNORECASE)
+        s = re.sub(r'^[a-zA-Z]+\s*\(', '', s, flags=re.IGNORECASE)
         s = s.rstrip(')')
 
     s = s.replace(',', ' ')
     s = s.replace('/', ' ')
     s = re.sub(r'\s+', ' ', s)
     return s.strip()
+
 
 def _parse_numerical_string(s: str) -> List[float]:
     s = _normalize_value_string(s)
@@ -581,6 +627,7 @@ def _parse_numerical_string(s: str) -> List[float]:
     except Exception:
         raise ValueError(f"could not parse numerical values from '{s}'")
 
+
 def _safe_float(s: str) -> float:
     try:
         v = float(s)
@@ -592,6 +639,7 @@ def _safe_float(s: str) -> float:
         sys.exit(2)
     return v
 
+
 def _finalize_rgb_vals(r: float, g: float, b: float) -> Tuple[int, int, int]:
     r_i = int(round(r))
     g_i = int(round(g))
@@ -600,6 +648,7 @@ def _finalize_rgb_vals(r: float, g: float, b: float) -> Tuple[int, int, int]:
     g_i = max(0, min(255, g_i))
     b_i = max(0, min(255, b_i))
     return r_i, g_i, b_i
+
 
 def parse_rgb_string(s: str) -> Tuple[int, int, int]:
     try:
@@ -610,17 +659,19 @@ def parse_rgb_string(s: str) -> Tuple[int, int, int]:
     if len(nums) < 3:
         log('error', f"invalid rgb string: {s}")
         sys.exit(2)
+
     def _to_8bit(val: float) -> int:
-        # FIX: treat only strict 0–1 as normalized, so 1 => 1, not 255
         if 0.0 < val < 1.0:
             v = val * 255.0
         else:
             v = val
         return max(0, min(255, int(round(v))))
+
     r = _to_8bit(nums[0])
     g = _to_8bit(nums[1])
     b = _to_8bit(nums[2])
     return r, g, b
+
 
 def _parse_h_ss_string(s: str, model_name: str) -> Tuple[float, float, float]:
     s_norm = _normalize_value_string(s)
@@ -639,14 +690,18 @@ def _parse_h_ss_string(s: str, model_name: str) -> Tuple[float, float, float]:
     v_f = v_f / 100.0 if '%' in v_val or v_f > 1.0 else v_f
     return h, _clamp01(s_f), _clamp01(v_f)
 
+
 def parse_hsl_string(s: str) -> Tuple[float, float, float]:
     return _parse_h_ss_string(s, "hsl")
+
 
 def parse_hsv_string(s: str) -> Tuple[float, float, float]:
     return _parse_h_ss_string(s, "hsv")
 
+
 def parse_hwb_string(s: str) -> Tuple[float, float, float]:
     return _parse_h_ss_string(s, "hwb")
+
 
 def parse_cmyk_string(s: str) -> Tuple[float, float, float, float]:
     s_norm = _normalize_value_string(s)
@@ -661,6 +716,7 @@ def parse_cmyk_string(s: str) -> Tuple[float, float, float, float]:
         vals.append(_clamp01(v))
     return tuple(vals)
 
+
 def _parse_3_floats(s: str, model_name: str) -> Tuple[float, float, float]:
     try:
         nums = _parse_numerical_string(s)
@@ -672,23 +728,30 @@ def _parse_3_floats(s: str, model_name: str) -> Tuple[float, float, float]:
         sys.exit(2)
     return float(nums[0]), float(nums[1]), float(nums[2])
 
+
 def parse_xyz_string(s: str) -> Tuple[float, float, float]:
     return _parse_3_floats(s, "xyz")
+
 
 def parse_lab_string(s: str) -> Tuple[float, float, float]:
     return _parse_3_floats(s, "lab")
 
+
 def parse_lch_string(s: str) -> Tuple[float, float, float]:
     return _parse_3_floats(s, "lch")
+
 
 def parse_oklab_string(s: str) -> Tuple[float, float, float]:
     return _parse_3_floats(s, "oklab")
 
+
 def parse_oklch_string(s: str) -> Tuple[float, float, float]:
     return _parse_3_floats(s, "oklch")
 
+
 def parse_luv_string(s: str) -> Tuple[float, float, float]:
     return _parse_3_floats(s, "luv")
+
 
 def find_similar_colors(base_lab: Tuple[float, float, float], base_rgb: Tuple[int, int, int], base_oklab: Tuple[float, float, float], n: int = 5, metric: str = 'lab') -> List[Tuple[str, str, float]]:
 
@@ -729,9 +792,11 @@ def find_similar_colors(base_lab: Tuple[float, float, float], base_rgb: Tuple[in
     similar.sort(key=lambda x: x[2])
     return similar[:n]
 
+
 def print_color_block(hex_code: str, title: str = "Color") -> None:
     r, g, b = hex_to_rgb(hex_code)
     print(f"{title:<18}: \033[48;2;{r};{g};{b}m        \033[0m #{hex_code}")
+
 
 def rgb_to_luv(r: int, g: int, b: int) -> Tuple[float, float, float]:
 
@@ -751,7 +816,7 @@ def rgb_to_luv(r: int, g: int, b: int) -> Tuple[float, float, float]:
 
     y_r = Y / ref_Y
     if y_r > 0.008856:
-        L = (116.0 * (y_r ** (1.0/3.0))) - 16.0
+        L = (116.0 * (y_r ** (1.0 / 3.0))) - 16.0
     else:
         L = 903.3 * y_r
 
@@ -763,6 +828,7 @@ def rgb_to_luv(r: int, g: int, b: int) -> Tuple[float, float, float]:
         v = 13.0 * L * (v_prime - v_prime_n)
 
     return L, u, v
+
 
 def luv_to_rgb(L: float, u: float, v: float) -> Tuple[float, float, float]:
     ref_X, ref_Y, ref_Z = 95.047, 100.0, 108.883
@@ -792,6 +858,7 @@ def luv_to_rgb(L: float, u: float, v: float) -> Tuple[float, float, float]:
         Z = Y * (12.0 - 3.0 * u_prime - 20.0 * v_prime) / (4.0 * v_prime)
 
     return xyz_to_rgb(X, Y, Z)
+
 
 def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) -> None:
     print_color_block(hex_code, title)
@@ -827,82 +894,52 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
     if args.luminance or args.contrast:
         l = get_luminance(r, g, b)
         if args.luminance:
-            l_p = _clean_small_float(l)
-            print(f"   Luminance  : {l_p:.6f}")
+            print(f"   Luminance  : {l:.6f}")
     if args.hue_saturation_lightness:
         h, s, l_hsl = rgb_to_hsl(r, g, b)
-        h_p = _clean_small_float(h)
-        s_p = _clean_small_float(s*100)
-        l_h_p = _clean_small_float(l_hsl*100)
-        print(f"   HSL        : {h_p:.1f}°, {s_p:.1f}%, {l_h_p:.1f}%")
+        print(f"   HSL        : {h:.1f}°, {s * 100:.1f}%, {l_hsl * 100:.1f}%")
     if args.hsv:
         h, s, v = rgb_to_hsv(r, g, b)
-        h_p = _clean_small_float(h)
-        s_p = _clean_small_float(s*100)
-        v_p = _clean_small_float(v*100)
-        print(f"   HSV        : {h_p:.1f}°, {s_p:.1f}%, {v_p:.1f}%")
+        print(f"   HSV        : {h:.1f}°, {s * 100:.1f}%, {v * 100:.1f}%")
     if args.hue_whiteness_blackness:
         h, w, b_hwb = rgb_to_hwb(r, g, b)
-        h_p = _clean_small_float(h)
-        w_p = _clean_small_float(w*100)
-        b_h_p = _clean_small_float(b_hwb*100)
-        print(f"   HWB        : {h_p:.1f}°, {w_p:.1f}%, {b_h_p:.1f}%")
+        print(f"   HWB        : {h:.1f}°, {w * 100:.1f}%, {b_hwb * 100:.1f}%")
     if args.cmyk:
         c, m, y_cmyk, k = rgb_to_cmyk(r, g, b)
-        c_p = _clean_small_float(c*100)
-        m_p = _clean_small_float(m*100)
-        y_p = _clean_small_float(y_cmyk*100)
-        k_p = _clean_small_float(k*100)
-        print(f"   CMYK       : {c_p:.1f}%, {m_p:.1f}%, {y_p:.1f}%, {k_p:.1f}%")
+        print(f"   CMYK       : {c * 100:.1f}%, {m * 100:.1f}%, {y_cmyk * 100:.1f}%, {k * 100:.1f}%")
     if args.xyz:
-        x_p = _clean_small_float(x)
-        y_p = _clean_small_float(y)
-        z_p = _clean_small_float(z)
-        print(f"   XYZ        : {x_p:.4f}, {y_p:.4f}, {z_p:.4f}")
+        print(f"   XYZ        : {x:.4f}, {y:.4f}, {z:.4f}")
     if args.lab:
-        l_lab_p = _clean_small_float(l_lab)
-        a_lab_p = _clean_small_float(a_lab)
-        b_lab_p = _clean_small_float(b_lab)
-        print(f"   LAB        : {l_lab_p:.4f}, {a_lab_p:.4f}, {b_lab_p:.4f}")
+        print(f"   LAB        : {l_lab:.4f}, {a_lab:.4f}, {b_lab:.4f}")
     if args.lightness_chroma_hue:
         l_lch, c_lch, h_lch = lab_to_lch(l_lab, a_lab, b_lab)
-        l_lch_p = _clean_small_float(l_lch)
-        c_lch_p = _clean_small_float(c_lch)
-        h_lch_p = _clean_small_float(h_lch)
-        print(f"   LCH        : {l_lch_p:.4f}, {c_lch_p:.4f}, {h_lch_p:.4f}°")
+        print(f"   LCH        : {l_lch:.4f}, {c_lch:.4f}, {h_lch:.4f}°")
     if args.cieluv:
         l_uv, u_uv, v_uv = rgb_to_luv(r, g, b)
-        l_uv_p = _clean_small_float(l_uv)
-        u_uv_p = _clean_small_float(u_uv)
-        v_uv_p = _clean_small_float(v_uv)
-        print(f"   LUV        : {l_uv_p:.4f}, {u_uv_p:.4f}, {v_uv_p:.4f}")
+        print(f"   LUV        : {l_uv:.4f}, {u_uv:.4f}, {v_uv:.4f}")
     if args.oklab:
         if not needs_oklab:
             l_ok, a_ok, b_ok = rgb_to_oklab(r, g, b)
-        l_ok_p = _clean_small_float(l_ok)
-        a_ok_p = _clean_small_float(a_ok)
-        b_ok_p = _clean_small_float(b_ok)
-        print(f"   OKLAB      : {l_ok_p:.4f}, {a_ok_p:.4f}, {b_ok_p:.4f}")
+        print(f"   OKLAB      : {l_ok:.4f}, {a_ok:.4f}, {b_ok:.4f}")
     if args.oklch:
         if not needs_oklab:
             l_ok, a_ok, b_ok = rgb_to_oklab(r, g, b)
         l_oklch, c_oklch, h_oklch = oklab_to_oklch(l_ok, a_ok, b_ok)
-        l_oklch_p = _clean_small_float(l_oklch)
-        c_oklch_p = _clean_small_float(c_oklch)
-        h_oklch_p = _clean_small_float(h_oklch)
-        print(f"   OKLCH      : {l_oklch_p:.4f}, {c_oklch_p:.4f}, {h_oklch_p:.4f}°")
+        print(f"   OKLCH      : {l_oklch:.4f}, {c_oklch:.4f}, {h_oklch:.4f}°")
     if args.contrast:
         if not (args.luminance):
             l = get_luminance(r, g, b)
         wcag = get_wcag_contrast(l)
-        print( "   Contrast White: "
+        print(
+            "   Contrast White: "
             f"{wcag['white']['ratio']:.2f}:1 "
             f"(AA-Large: {wcag['white']['levels']['AA-Large']}, "
             f"AA: {wcag['white']['levels']['AA']}, "
             f"AAA-Large: {wcag['white']['levels']['AAA-Large']}, "
             f"AAA: {wcag['white']['levels']['AAA']})"
         )
-        print( "   Contrast Black: "
+        print(
+            "   Contrast Black: "
             f"{wcag['black']['ratio']:.2f}:1 "
             f"(AA-Large: {wcag['black']['levels']['AA-Large']}, "
             f"AA: {wcag['black']['levels']['AA']}, "
@@ -931,82 +968,44 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
 
     print()
 
+
 def _get_color_name_hex(sanitized_name: str) -> str:
     if not sanitized_name:
         return None
     return COLOR_NAMES_LOOKUP.get(sanitized_name)
 
-def _get_base_hex_and_title(args: argparse.Namespace, hex_arg: str, random_arg: str, default_title: str, random_title: str) -> Tuple[str, str]:
-    base_hex = None
-    title = default_title
-    is_random = getattr(args, random_arg, False)
-    hex_val_arg = getattr(args, hex_arg, None)
-
-    if is_random:
-        base_hex = f"{random.randint(0, MAX_DEC):06X}"
-        title = random_title
-    elif args.color_name:
-        hexv = _get_color_name_hex(args.color_name)
-        if not hexv:
-            log('error', f"unknown color name '{args.color_name}'")
-            log('info', "use 'hexlab --list-color-names' to see all options")
-            sys.exit(2)
-        base_hex = hexv
-        title = HEX_TO_NAME.get(base_hex.upper(), args.color_name.title())
-    elif hex_val_arg:
-        base_hex = clean_hex_input(hex_val_arg)
-        title = HEX_TO_NAME.get(base_hex.upper(), f"#{base_hex}")
-    elif args.decimal_index is not None:
-        base_hex = f"{args.decimal_index:06X}"
-        title = HEX_TO_NAME.get(base_hex.upper(), f"Index {args.decimal_index}")
-
-    return base_hex, title
-
-def _get_input_colors_hex(args: argparse.Namespace, random_arg: str, random_total_arg: str, command_name: str) -> List[str]:
-    colors_hex = []
-    is_random = getattr(args, random_arg, False)
-
-    if is_random:
-        num_hex = getattr(args, random_total_arg, 0)
-        default_random = 2 if command_name == 'mixing' else random.randint(2, 5)
-        if num_hex == 0:
-            num_hex = default_random
-        num_hex = max(2, min(MAX_RANDOM_COLORS, num_hex))
-        colors_hex = [f"{random.randint(0, MAX_DEC):06X}" for _ in range(num_hex)]
-    else:
-        input_list = []
-        if args.hex:
-            input_list.extend(args.hex)
-        if args.decimal_index:
-            input_list.extend([f"{dec:06X}" for dec in args.decimal_index])
-        if args.color_name:
-            for nm in args.color_name:
-                hexv = _get_color_name_hex(nm)
-                if not hexv:
-                    log('error', f"unknown color name '{nm}'")
-                    log('info', "use 'hexlab --list-color-names' to see all options")
-                    sys.exit(2)
-                input_list.append(hexv)
-
-        if len(input_list) < 2:
-            log('error', f"at least 2 hex codes, decimal indices, or color names are required for {command_name}")
-            log('info', "usage: use -H, -di, or -cn multiple times")
-            sys.exit(2)
-        colors_hex = [clean_hex_input(h) for h in input_list]
-
-    return colors_hex
 
 def handle_color_command(args: argparse.Namespace) -> None:
     if args.all_tech_infos:
         for key in TECH_INFO_KEYS:
             setattr(args, key, True)
+    clean_hex = None
+    title = "Current Color"
     if args.seed is not None:
         random.seed(args.seed)
-
-    clean_hex, title = _get_base_hex_and_title(args, 'hexcode', 'random_hex', 'Current Color', 'Random Color')
-
-    if clean_hex is None:
-        log('error', "one of the arguments -H/--hex, -di/--decimal-index, -rh/--random-hex, or -cn/--color-name is required")
+    if args.random_hex:
+        current_dec = random.randint(0, MAX_DEC)
+        clean_hex = f"{current_dec:06X}"
+        title = "Random Color"
+    elif args.color_name:
+        hex_val = _get_color_name_hex(args.color_name)
+        if not hex_val:
+            log('error', f"unknown color name '{args.color_name}'")
+            log('info', "use 'hexlab --list-color-names' to see all options")
+            sys.exit(2)
+        clean_hex = hex_val
+        title = HEX_TO_NAME.get(clean_hex.upper())
+        if not title:
+            title = args.color_name.title()
+    elif args.hexcode:
+        clean_hex = clean_hex_input(args.hexcode)
+        title = HEX_TO_NAME.get(clean_hex.upper(), f"#{clean_hex}")
+    elif getattr(args, "decimal_index", None) is not None:
+        clean_hex = _decimal_index_to_hex(args.decimal_index)
+        idx = int(clean_hex, 16)
+        title = HEX_TO_NAME.get(clean_hex.upper(), f"Index {idx}")
+    else:
+        log('error', "one of the arguments -H/--hex, -rh/--random-hex, -di/--decimal-index, or -cn/--color-name is required")
         log('info', "use 'hexlab --help' for more information")
         sys.exit(2)
 
@@ -1024,6 +1023,7 @@ def handle_color_command(args: argparse.Namespace) -> None:
         neg_dec = MAX_DEC - current_dec
         neg_hex = f"{neg_dec:06X}"
         print_color_and_info(neg_hex, "Negative Color", args)
+
 
 def _get_interpolated_color(c1, c2, t: float, colorspace: str) -> Tuple[float, float, float]:
     if colorspace == 'srgb':
@@ -1102,6 +1102,7 @@ def _get_interpolated_color(c1, c2, t: float, colorspace: str) -> Tuple[float, f
 
     return 0, 0, 0
 
+
 def _convert_rgb_to_space(r: int, g: int, b: int, colorspace: str) -> Tuple[float, ...]:
     if colorspace == 'srgb':
         return (r, g, b)
@@ -1122,17 +1123,47 @@ def _convert_rgb_to_space(r: int, g: int, b: int, colorspace: str) -> Tuple[floa
         return rgb_to_luv(r, g, b)
     return (r, g, b)
 
+
 def handle_gradient_command(args: argparse.Namespace) -> None:
     if args.seed is not None:
         random.seed(args.seed)
 
-    if not args.random_gradient and not args.hex and not args.color_name and not args.decimal_index:
-        log('error', "at least one -H/--hex, -di/--decimal-index, -cn/--color-name, or -rg/--random-gradient is required")
+    if not args.random_gradient and not args.hex and not args.color_name and not getattr(args, "decimal_index", None):
+        log('error', "at least one -H/--hex, -cn/--color-name, -di/--decimal-index, or -rg/--random-gradient is required")
         log('info', "use 'hexlab gradient -h' for more information")
         sys.exit(2)
 
     colorspace = args.colorspace
-    colors_hex = _get_input_colors_hex(args, 'random_gradient', 'total_random_hex', 'gradient')
+
+    colors_hex = []
+    if args.random_gradient:
+        num_hex = args.total_random_hex
+        if num_hex == 0:
+            num_hex = random.randint(2, 5)
+        num_hex = max(2, min(MAX_RANDOM_COLORS, num_hex))
+        colors_hex = [f"{random.randint(0, MAX_DEC):06X}" for _ in range(num_hex)]
+    else:
+        input_list = []
+        if args.hex:
+            input_list.extend(args.hex)
+        if args.color_name:
+            for nm in args.color_name:
+                hexv = _get_color_name_hex(nm)
+                if not hexv:
+                    log('error', f"unknown color name '{nm}'")
+                    log('info', "use 'hexlab --list-color-names' to see all options")
+                    sys.exit(2)
+                input_list.append(hexv)
+        if getattr(args, "decimal_index", None):
+            for di in args.decimal_index:
+                hexv = _decimal_index_to_hex(di)
+                input_list.append(hexv)
+
+        if len(input_list) < 2:
+            log('error', "at least 2 hex codes, color names, or decimal indexes are required for a gradient")
+            log('info', "usage: use -H HEX, -cn NAME, or -di INDEX multiple times")
+            sys.exit(2)
+        colors_hex = [clean_hex_input(h) for h in input_list]
 
     num_steps = max(1, min(MAX_STEPS, args.steps))
 
@@ -1164,19 +1195,49 @@ def handle_gradient_command(args: argparse.Namespace) -> None:
         gradient_colors.append(rgb_to_hex(r_f, g_f, b_f))
 
     for i, hex_code in enumerate(gradient_colors):
-        print_color_block(hex_code, f"Step {i+1}")
+        print_color_block(hex_code, f"Step {i + 1}")
+
 
 def handle_mix_command(args: argparse.Namespace) -> None:
     if args.seed is not None:
         random.seed(args.seed)
 
-    if not args.random_mix and not args.hex and not args.color_name and not args.decimal_index:
-        log('error', "at least one -H/--hex, -di/--decimal-index, -cn/--color-name, or -rm/--random-mix is required")
+    if not args.random_mix and not args.hex and not args.color_name and not getattr(args, "decimal_index", None):
+        log('error', "at least one -H/--hex, -cn/--color-name, -di/--decimal-index, or -rm/--random-mix is required")
         log('info', "use 'hexlab mix -h' for more information")
         sys.exit(2)
 
     colorspace = args.colorspace
-    colors_hex = _get_input_colors_hex(args, 'random_mix', 'total_random_hex', 'mixing')
+
+    colors_hex = []
+    if args.random_mix:
+        num_hex = args.total_random_hex
+        if num_hex == 0:
+            num_hex = 2
+        num_hex = max(2, min(MAX_RANDOM_COLORS, num_hex))
+        colors_hex = [f"{random.randint(0, MAX_DEC):06X}" for _ in range(num_hex)]
+    else:
+        input_list = []
+        if args.hex:
+            input_list.extend(args.hex)
+        if args.color_name:
+            for nm in args.color_name:
+                hexv = _get_color_name_hex(nm)
+                if not hexv:
+                    log('error', f"unknown color name '{nm}'")
+                    log('info', "use 'hexlab --list-color-names' to see all options")
+                    sys.exit(2)
+                input_list.append(hexv)
+        if getattr(args, "decimal_index", None):
+            for di in args.decimal_index:
+                hexv = _decimal_index_to_hex(di)
+                input_list.append(hexv)
+
+        if len(input_list) < 2:
+            log('error', "at least 2 hex codes, color names, or decimal indexes are required for mixing")
+            log('info', "usage: use -H HEX, -cn NAME, or -di INDEX multiple times")
+            sys.exit(2)
+        colors_hex = [clean_hex_input(h) for h in input_list]
 
     colors_rgb = [hex_to_rgb(h) for h in colors_hex]
 
@@ -1216,11 +1277,12 @@ def handle_mix_command(args: argparse.Namespace) -> None:
 
     print()
     for i, hex_code in enumerate(colors_hex):
-        print_color_block(hex_code, f"Input {i+1}")
+        print_color_block(hex_code, f"Input {i + 1}")
 
     print("-" * 18)
     print_color_block(mixed_hex, "Mixed Result")
     print()
+
 
 def handle_scheme_command(args: argparse.Namespace) -> None:
     if args.all_schemes:
@@ -1229,7 +1291,29 @@ def handle_scheme_command(args: argparse.Namespace) -> None:
     if args.seed is not None:
         random.seed(args.seed)
 
-    base_hex, title = _get_base_hex_and_title(args, 'hex', 'random_scheme', 'Base Color', 'Random Base')
+    base_hex = None
+    title = "Base Color"
+
+    if args.random_scheme:
+        base_hex = f"{random.randint(0, MAX_DEC):06X}"
+        title = "Random Base"
+    elif args.color_name:
+        hexv = _get_color_name_hex(args.color_name)
+        if not hexv:
+            log('error', f"unknown color name '{args.color_name}'")
+            log('info', "use 'hexlab --list-color-names' to see all options")
+            sys.exit(2)
+        base_hex = hexv
+        title = HEX_TO_NAME.get(base_hex.upper())
+        if not title:
+            title = args.color_name.title()
+    elif args.hex:
+        base_hex = clean_hex_input(args.hex)
+        title = HEX_TO_NAME.get(base_hex.upper(), f"#{base_hex}")
+    elif getattr(args, "decimal_index", None) is not None:
+        base_hex = _decimal_index_to_hex(args.decimal_index)
+        idx = int(base_hex, 16)
+        title = HEX_TO_NAME.get(base_hex.upper(), f"Index {idx}")
 
     if base_hex is None:
         log('error', "no valid color provided for scheme")
@@ -1316,6 +1400,7 @@ def handle_scheme_command(args: argparse.Namespace) -> None:
             print_color_block(get_mono_hex(0.2), "Mono       +20%L")
     print()
 
+
 def handle_simulate_command(args: argparse.Namespace) -> None:
     if args.all_simulates:
         for key in SIMULATE_KEYS:
@@ -1323,7 +1408,30 @@ def handle_simulate_command(args: argparse.Namespace) -> None:
     if args.seed is not None:
         random.seed(args.seed)
 
-    base_hex, title = _get_base_hex_and_title(args, 'hex', 'random_simulate', 'Base Color', 'Random Base')
+    base_hex = None
+    title = "Base Color"
+
+    if args.random_simulate:
+        base_hex = f"{random.randint(0, MAX_DEC):06X}"
+        title = "Random Base"
+    elif args.color_name:
+
+        hexv = _get_color_name_hex(args.color_name)
+        if not hexv:
+            log('error', f"unknown color name '{args.color_name}'")
+            log('info', "use 'hexlab --list-color-names' to see all options")
+            sys.exit(2)
+        base_hex = hexv
+        title = HEX_TO_NAME.get(base_hex.upper())
+        if not title:
+            title = args.color_name.title()
+    elif args.hex:
+        base_hex = clean_hex_input(args.hex)
+        title = HEX_TO_NAME.get(base_hex.upper(), f"#{base_hex}")
+    elif getattr(args, "decimal_index", None) is not None:
+        base_hex = _decimal_index_to_hex(args.decimal_index)
+        idx = int(base_hex, 16)
+        title = HEX_TO_NAME.get(base_hex.upper(), f"Index {idx}")
 
     if base_hex is None:
         log('error', "no valid color provided for simulate")
@@ -1333,6 +1441,7 @@ def handle_simulate_command(args: argparse.Namespace) -> None:
     print_color_block(base_hex, title)
     print()
     r, g, b = hex_to_rgb(base_hex)
+
     def apply_matrix(r: int, g: int, b: int, m: List[List[float]]) -> Tuple[int, int, int]:
         r_lin = _srgb_to_linear(r)
         g_lin = _srgb_to_linear(g)
@@ -1345,6 +1454,7 @@ def handle_simulate_command(args: argparse.Namespace) -> None:
         bb_srgb_norm = _linear_to_srgb(bb_lin)
         rr, gg, bb = _finalize_rgb_vals(rr_srgb_norm * 255, gg_srgb_norm * 255, bb_srgb_norm * 255)
         return rr, gg, bb
+
     no_specific_flag = not (
         args.protanopia or
         args.deuteranopia or
@@ -1371,6 +1481,7 @@ def handle_simulate_command(args: argparse.Namespace) -> None:
         sim_hex = rgb_to_hex(gray_255, gray_255, gray_255)
         print_color_block(sim_hex, "Achromatopsia")
     print()
+
 
 def _parse_value_to_rgb(clean_val: str, from_fmt: str) -> Tuple[int, int, int]:
     r_f, g_f, b_f = 0.0, 0.0, 0.0
@@ -1434,6 +1545,7 @@ def _parse_value_to_rgb(clean_val: str, from_fmt: str) -> Tuple[int, int, int]:
     r_i, g_i, b_i = _finalize_rgb_vals(r_f, g_f, b_f)
     return r_i, g_i, b_i
 
+
 def _format_value_from_rgb(r: int, g: int, b: int, to_fmt: str) -> str:
     output_value = ""
     if to_fmt == 'hex':
@@ -1442,71 +1554,40 @@ def _format_value_from_rgb(r: int, g: int, b: int, to_fmt: str) -> str:
         output_value = f"rgb({r}, {g}, {b})"
     elif to_fmt == 'hsl':
         h, s, l = rgb_to_hsl(r, g, b)
-        h_p = _clean_small_float(h)
-        s_p = _clean_small_float(s*100)
-        l_p = _clean_small_float(l*100)
-        output_value = f"hsl({h_p:.1f}°, {s_p*1.0:.1f}%, {l_p*1.0:.1f}%)"
+        output_value = f"hsl({h:.1f}°, {s * 100:.1f}%, {l * 100:.1f}%)"
     elif to_fmt == 'hsv':
         h, s, v = rgb_to_hsv(r, g, b)
-        h_p = _clean_small_float(h)
-        s_p = _clean_small_float(s*100)
-        v_p = _clean_small_float(v*100)
-        output_value = f"hsv({h_p:.1f}°, {s_p*1.0:.1f}%, {v_p*1.0:.1f}%)"
+        output_value = f"hsv({h:.1f}°, {s * 100:.1f}%, {v * 100:.1f}%)"
     elif to_fmt == 'hwb':
         h, w, b_hwb = rgb_to_hwb(r, g, b)
-        h_p = _clean_small_float(h)
-        w_p = _clean_small_float(w*100)
-        b_p = _clean_small_float(b_hwb*100)
-        output_value = f"hwb({h_p:.1f}°, {w_p*1.0:.1f}%, {b_p*1.0:.1f}%)"
+        output_value = f"hwb({h:.1f}°, {w * 100:.1f}%, {b_hwb * 100:.1f}%)"
     elif to_fmt == 'cmyk':
         c, m, y, k = rgb_to_cmyk(r, g, b)
-        c_p = _clean_small_float(c*100)
-        m_p = _clean_small_float(m*100)
-        y_p = _clean_small_float(y*100)
-        k_p = _clean_small_float(k*100)
-        output_value = f"cmyk({c_p:.1f}%, {m_p:.1f}%, {y_p:.1f}%, {k_p:.1f}%)"
+        output_value = f"cmyk({c * 100:.1f}%, {m * 100:.1f}%, {y * 100:.1f}%, {k * 100:.1f}%)"
     elif to_fmt == 'index':
         hex_val = rgb_to_hex(r, g, b)
         output_value = str(int(hex_val, 16))
     elif to_fmt == 'xyz':
         x, y, z = rgb_to_xyz(r, g, b)
-        x_p = _clean_small_float(x)
-        y_p = _clean_small_float(y)
-        z_p = _clean_small_float(z)
-        output_value = f"xyz({x_p:.4f}, {y_p:.4f}, {z_p:.4f})"
+        output_value = f"xyz({x:.4f}, {y:.4f}, {z:.4f})"
     elif to_fmt == 'lab':
         x, y, z = rgb_to_xyz(r, g, b)
         l, a, b_lab = xyz_to_lab(x, y, z)
-        l_p = _clean_small_float(l)
-        a_p = _clean_small_float(a)
-        b_p = _clean_small_float(b_lab)
-        output_value = f"lab({l_p:.4f}, {a_p:.4f}, {b_p:.4f})"
+        output_value = f"lab({l:.4f}, {a:.4f}, {b_lab:.4f})"
     elif to_fmt == 'lch':
         x, y, z = rgb_to_xyz(r, g, b)
         l, a, b_lab = xyz_to_lab(x, y, z)
-        l_lch, c, h = lab_to_lch(l, a, b_lab)
-        l_p = _clean_small_float(l_lch)
-        c_p = _clean_small_float(c)
-        h_p = _clean_small_float(h)
-        output_value = f"lch({l_p:.4f}, {c_p:.4f}, {h_p:.4f}°)"
+        l, c, h = lab_to_lch(l, a, b_lab)
+        output_value = f"lch({l:.4f}, {c:.4f}, {h:.4f}°)"
     elif to_fmt == 'oklab':
         l, a, b_ok = rgb_to_oklab(r, g, b)
-        l_p = _clean_small_float(l)
-        a_p = _clean_small_float(a)
-        b_p = _clean_small_float(b_ok)
-        output_value = f"oklab({l_p:.4f}, {a_p:.4f}, {b_p:.4f})"
+        output_value = f"oklab({l:.4f}, {a:.4f}, {b_ok:.4f})"
     elif to_fmt == 'oklch':
         l, c, h = rgb_to_oklch(r, g, b)
-        l_p = _clean_small_float(l)
-        c_p = _clean_small_float(c)
-        h_p = _clean_small_float(h)
-        output_value = f"oklch({l_p:.4f}, {c_p:.4f}, {h_p:.4f}°)"
+        output_value = f"oklch({l:.4f}, {c:.4f}, {h:.4f}°)"
     elif to_fmt == 'luv':
         L, u, v = rgb_to_luv(r, g, b)
-        L_p = _clean_small_float(L)
-        u_p = _clean_small_float(u)
-        v_p = _clean_small_float(v)
-        output_value = f"luv({L_p:.4f}, {u_p:.4f}, {v_p:.4f})"
+        output_value = f"luv({L:.4f}, {u:.4f}, {v:.4f})"
     elif to_fmt == 'name':
         hex_val = rgb_to_hex(r, g, b)
         found = False
@@ -1519,6 +1600,7 @@ def _format_value_from_rgb(r: int, g: int, b: int, to_fmt: str) -> str:
             output_value = f"unknown #{hex_val}"
     return output_value
 
+
 def handle_convert_command(args: argparse.Namespace) -> None:
     if args.seed is not None:
         random.seed(args.seed)
@@ -1529,12 +1611,6 @@ def handle_convert_command(args: argparse.Namespace) -> None:
         log('error', f"invalid format specified: {e} (original input: '{vars(args).get('from_format') or vars(args).get('to_format')}')")
         log('info', f"use 'hexlab convert -h' to see all formats")
         sys.exit(2)
-
-    # Hard block any leftover jzazbz alias from constants
-    if from_fmt == 'jzazbz' or to_fmt == 'jzazbz':
-        log('error', "format 'jzazbz' is no longer supported")
-        sys.exit(2)
-
     r, g, b = (0, 0, 0)
     if args.random_value:
         dec_val = random.randint(0, MAX_DEC)
@@ -1550,6 +1626,7 @@ def handle_convert_command(args: argparse.Namespace) -> None:
     else:
         print(output_value_str)
 
+
 def get_gradient_parser() -> argparse.ArgumentParser:
     parser = HexlabArgumentParser(
         prog="hexlab gradient",
@@ -1564,12 +1641,6 @@ def get_gradient_parser() -> argparse.ArgumentParser:
         help="use -H HEX multiple times for inputs"
     )
     input_group.add_argument(
-        "-di", "--decimal-index",
-        action="append",
-        type=type_decimal_index,
-        help="use -di INDEX multiple times for inputs"
-    )
-    input_group.add_argument(
         "-rg", "--random-gradient",
         action="store_true",
         help="generate gradient from random colors"
@@ -1579,6 +1650,12 @@ def get_gradient_parser() -> argparse.ArgumentParser:
         action="append",
         type=type_color_name,
         help="use -cn NAME multiple times for inputs by name from --list-color-names"
+    )
+    parser.add_argument(
+        "-di", "--decimal-index",
+        action="append",
+        type=type_general_string,
+        help="use -di INDEX multiple times for inputs by decimal index"
     )
     parser.add_argument(
         "-S", "--steps",
@@ -1607,6 +1684,7 @@ def get_gradient_parser() -> argparse.ArgumentParser:
     )
     return parser
 
+
 def get_mix_parser() -> argparse.ArgumentParser:
     parser = HexlabArgumentParser(
         prog="hexlab mix",
@@ -1621,12 +1699,6 @@ def get_mix_parser() -> argparse.ArgumentParser:
         help="use -H HEX multiple times for inputs"
     )
     input_group.add_argument(
-        "-di", "--decimal-index",
-        action="append",
-        type=type_decimal_index,
-        help="use -di INDEX multiple times for inputs"
-    )
-    input_group.add_argument(
         "-rm", "--random-mix",
         action="store_true",
         help="generate mix from random colors"
@@ -1636,6 +1708,12 @@ def get_mix_parser() -> argparse.ArgumentParser:
         action="append",
         type=type_color_name,
         help="use -cn NAME multiple times for inputs by name from --list-color-names"
+    )
+    parser.add_argument(
+        "-di", "--decimal-index",
+        action="append",
+        type=type_general_string,
+        help="use -di INDEX multiple times for inputs by decimal index"
     )
     parser.add_argument(
         "-cs", "--colorspace",
@@ -1658,6 +1736,7 @@ def get_mix_parser() -> argparse.ArgumentParser:
     )
     return parser
 
+
 def get_scheme_parser() -> argparse.ArgumentParser:
     parser = HexlabArgumentParser(
         prog="hexlab scheme",
@@ -1671,11 +1750,6 @@ def get_scheme_parser() -> argparse.ArgumentParser:
         help="base hex code for the scheme"
     )
     input_group.add_argument(
-        "-di", "--decimal-index",
-        type=type_decimal_index,
-        help="base decimal index for the scheme"
-    )
-    input_group.add_argument(
         "-rs", "--random-scheme",
         action="store_true",
         help="generate a scheme from a random color"
@@ -1685,11 +1759,22 @@ def get_scheme_parser() -> argparse.ArgumentParser:
         type=type_color_name,
         help="base color name from --list-color-names"
     )
+    input_group.add_argument(
+        "-di", "--decimal-index",
+        type=type_general_string,
+        help="base color decimal index for the scheme"
+    )
     parser.add_argument(
         "-s", "--seed",
         type=type_int_safe,
         default=None,
         help="random seed for reproducibility"
+    )
+    parser.add_argument(
+        "-hm", "--harmony-model",
+        type=type_harmony_model,
+        default='hsl',
+        help="harmony model: hsl lch oklch (default: hsl)"
     )
     scheme_group = parser.add_argument_group("scheme types")
     scheme_group.add_argument(
@@ -1734,6 +1819,7 @@ def get_scheme_parser() -> argparse.ArgumentParser:
     )
     return parser
 
+
 def get_simulate_parser() -> argparse.ArgumentParser:
     parser = HexlabArgumentParser(
         prog="hexlab simulate",
@@ -1747,11 +1833,6 @@ def get_simulate_parser() -> argparse.ArgumentParser:
         help="base hex code for simulation"
     )
     input_group.add_argument(
-        "-di", "--decimal-index",
-        type=type_decimal_index,
-        help="base decimal index for simulation"
-    )
-    input_group.add_argument(
         "-rs", "--random-simulate",
         action="store_true",
         help="simulate with a random color"
@@ -1760,6 +1841,11 @@ def get_simulate_parser() -> argparse.ArgumentParser:
         "-cn", "--color-name",
         type=type_color_name,
         help="base color name from --list-color-names"
+    )
+    input_group.add_argument(
+        "-di", "--decimal-index",
+        type=type_general_string,
+        help="base color decimal index for simulation"
     )
     parser.add_argument(
         "-s", "--seed",
@@ -1794,6 +1880,7 @@ def get_simulate_parser() -> argparse.ArgumentParser:
         help="simulate achromatopsia total-blind"
     )
     return parser
+
 
 def get_convert_parser() -> argparse.ArgumentParser:
     parser = HexlabArgumentParser(
@@ -1864,6 +1951,7 @@ def get_convert_parser() -> argparse.ArgumentParser:
     )
     return parser
 
+
 def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] == 'gradient':
         parser = get_gradient_parser()
@@ -1892,7 +1980,6 @@ def main() -> None:
         handle_convert_command(args)
     else:
         parser = HexlabArgumentParser(
-            prog="hexlab",
             description="hexlab: 24-bit hex color exploration tool",
             formatter_class=argparse.RawTextHelpFormatter,
             add_help=False
@@ -1931,11 +2018,6 @@ def main() -> None:
             help="6-digit hex color code without # sign",
         )
         color_input_group.add_argument(
-            "-di", "--decimal-index",
-            type=type_decimal_index,
-            help="color decimal index",
-        )
-        color_input_group.add_argument(
             "-rh", "--random-hex",
             action="store_true",
             help="generate a random hex color"
@@ -1945,172 +2027,183 @@ def main() -> None:
             type=type_color_name,
             help="color names from 'hexlab --list-color-names'"
         )
-        parser.add_argument(
-            "-s", "--seed",
-            type=type_int_safe,
-            default=None,
-            help="random seed for reproducibility"
+        color_input_group.add_argument(
+            "-di", "--decimal-index",
+            dest="decimal_index",
+            type=type_general_string,
+            help=f"decimal index of the color (0 to {MAX_DEC})"
         )
-        mod_group = parser.add_argument_group("color modifications")
-        mod_group.add_argument(
-            "-n", "--next",
-            action="store_true",
-            help="show the next color"
-        )
-        mod_group.add_argument(
-            "-p", "--previous",
-            action="store_true",
-            help="show the previous color"
-        )
-        mod_group.add_argument(
-            "-N", "--negative",
-            action="store_true",
-            help="show the inverse color"
-        )
-        info_group = parser.add_argument_group("technical information flags")
-        info_group.add_argument(
-            '-all', '--all-tech-infos',
-            action="store_true",
-            help="show all technical information"
-        )
-        info_group.add_argument(
-            "-i", "--index",
-            action="store_true",
-            help="show decimal index"
-        )
-        info_group.add_argument(
-            "-rgb", "--red-green-blue",
-            action="store_true",
-            help="show RGB values"
-        )
-        info_group.add_argument(
-            "-l", "--luminance",
-            action="store_true",
-            help="show relative luminance"
-        )
-        info_group.add_argument(
-            "-hsl", "--hue-saturation-lightness",
-            action="store_true",
-            help="show HSL values"
-        )
-        info_group.add_argument(
-            "-hsv", "--hue-saturation-value",
-            action="store_true",
-            dest="hsv",
-            help="show HSV values"
-        )
-        info_group.add_argument(
-            "-hwb", "--hue-whiteness-blackness",
-            action="store_true",
-            help="show HWB values"
-        )
-        info_group.add_argument(
-            "-cmyk", "--cyan-magenta-yellow-key",
-            action="store_true",
-            dest="cmyk",
-            help="show CMYK values"
-        )
-        info_group.add_argument(
-            "-xyz", "--ciexyz",
-            dest="xyz",
-            action="store_true",
-            help="show CIE 1931 XYZ values"
-        )
-        info_group.add_argument(
-            "-lab", "--cielab",
-            dest="lab",
-            action="store_true",
-            help="show CIE 1976 LAB values"
-        )
-        info_group.add_argument(
-            "-lch", "--lightness-chroma-hue",
-            action="store_true",
-            help="show CIE 1976 LCH values"
-        )
-        info_group.add_argument(
-            "--oklab",
-            action="store_true",
-            help="show OKLAB values"
-        )
-        info_group.add_argument(
-            "--cieluv", "-luv",
-            action="store_true",
-            dest="cieluv",
-            help="show CIE 1976 LUV values"
-        )
-        info_group.add_argument(
-            "-wcag", "--contrast",
-            action="store_true",
-            help="show WCAG contrast ratio"
-        )
-        info_group.add_argument(
-            "-S", "--similar",
-            action="store_true",
-            help="find similar colors from the color name list"
-        )
-        info_group.add_argument(
-            "-dm", "--distance-metric",
-            type=type_distance_metric,
-            default='lab',
-            help="distance metric for similar colors: lab oklab rgb (default: lab)"
-        )
-        info_group.add_argument(
-            "--name",
-            action="store_true",
-            help="show color name if available in --list-color-names otherwise 'unknown'"
-        )
-        parser.add_argument(
-            "command",
-            nargs='?',
-            help=argparse.SUPPRESS
-        )
-        args = parser.parse_args()
-        if args.list_color_names:
-            fmt = args.list_color_names
-            color_keys = sorted(list(COLOR_NAMES.keys()))
-            if fmt == 'text':
-                for name in color_keys:
-                    print(name)
-            elif fmt == 'json':
-                print(json.dumps(color_keys))
-            elif fmt == 'pretty-json':
-                print(json.dumps(color_keys, indent=4))
-            sys.exit(0)
-        if args.help_full:
-            parser.print_help()
-            gradient_parser = get_gradient_parser()
-            print("\n")
-            gradient_parser.print_help()
-            mix_parser = get_mix_parser()
-            print("\n")
-            mix_parser.print_help()
-            scheme_parser = get_scheme_parser()
-            print("\n")
-            scheme_parser.print_help()
-            simulate_parser = get_simulate_parser()
-            print("\n")
-            simulate_parser.print_help()
-            convert_parser = get_convert_parser()
-            print("\n")
-            convert_parser.print_help()
-            sys.exit(0)
-        if args.command == 'gradient':
-            log('error', "the 'gradient' command must be the first argument")
-            sys.exit(2)
-        if args.command == 'mix':
-            log('error', "the 'mix' command must be the first argument")
-            sys.exit(2)
-        if args.command == 'scheme':
-            log('error', "the 'scheme' command must be the first argument")
-            sys.exit(2)
-        if args.command == 'simulate':
-            log('error', "the 'simulate' command must be the first argument")
-            sys.exit(2)
-        if args.command == 'convert':
-            log('error', "the 'convert' command must be the first argument")
-            sys.exit(2)
-        ensure_truecolor()
-        handle_color_command(args)
-
-if __name__ == "__main__":
+        parser.add_argument(  
+            "-s", "--seed",  
+            type=type_int_safe,  
+            default=None,  
+            help="random seed for reproducibility"  
+        )  
+        mod_group = parser.add_argument_group("color modifications")  
+        mod_group.add_argument(  
+            "-n", "--next",  
+            action="store_true",  
+            help="show the next color"  
+        )  
+        mod_group.add_argument(  
+            "-p", "--previous",  
+            action="store_true",  
+            help="show the previous color"  
+        )  
+        mod_group.add_argument(  
+            "-N", "--negative",  
+            action="store_true",  
+            help="show the inverse color"  
+        )  
+        info_group = parser.add_argument_group("technical information flags")  
+        info_group.add_argument(  
+            '-all', '--all-tech-infos',  
+            action="store_true",  
+            help="show all technical information"  
+        )  
+        info_group.add_argument(  
+            "-i", "--index",  
+            action="store_true",  
+            help="show decimal index"  
+        )  
+        info_group.add_argument(  
+            "-rgb", "--red-green-blue",  
+            action="store_true",  
+            help="show RGB values"  
+        )  
+        info_group.add_argument(  
+            "-l", "--luminance",  
+            action="store_true",  
+            help="show relative luminance"  
+        )  
+        info_group.add_argument(  
+            "-hsl", "--hue-saturation-lightness",  
+            action="store_true",  
+            help="show HSL values"  
+        )  
+        info_group.add_argument(  
+            "-hsv", "--hue-saturation-value",  
+            action="store_true",  
+            dest="hsv",  
+            help="show HSV values"  
+        )  
+        info_group.add_argument(  
+            "-hwb", "--hue-whiteness-blackness",  
+            action="store_true",  
+            help="show HWB values"  
+        )  
+        info_group.add_argument(  
+            "-cmyk", "--cyan-magenta-yellow-key",  
+            action="store_true",  
+            dest="cmyk",  
+            help="show CMYK values"  
+        )  
+        info_group.add_argument(  
+            "-xyz", "--ciexyz",  
+            dest="xyz",  
+            action="store_true",  
+            help="show CIE 1931 XYZ values"  
+        )  
+        info_group.add_argument(  
+            "-lab", "--cielab",  
+            dest="lab",  
+            action="store_true",  
+            help="show CIE 1976 LAB values"  
+        )  
+        info_group.add_argument(  
+            "-lch", "--lightness-chroma-hue",  
+            action="store_true",  
+            help="show CIE 1976 LCH values"  
+        )  
+        info_group.add_argument(  
+            "--cieluv", "-luv",  
+            action="store_true",  
+            dest="cieluv",  
+            help="show CIE 1976 LUV values"  
+        )  
+        info_group.add_argument(  
+            "--oklab",  
+            action="store_true",  
+            help="show OKLAB values"  
+        )  
+        info_group.add_argument(  
+            "--oklch",  
+            action="store_true",  
+            help="show OKLCH values"  
+        )  
+        info_group.add_argument(  
+            "-wcag", "--contrast",  
+            action="store_true",  
+            help="show WCAG contrast ratio"  
+        )  
+        info_group.add_argument(  
+            "-S", "--similar",  
+            action="store_true",  
+            help="find similar colors from the color name list"  
+        )  
+        info_group.add_argument(  
+            "-dm", "--distance-metric",  
+            type=type_distance_metric,  
+            default='lab',  
+            help="distance metric for similar colors: lab oklab rgb (default: lab)"  
+        )  
+        info_group.add_argument(  
+            "--name",  
+            action="store_true",  
+            help="show color name if available in --list-color-names"  
+        )  
+        parser.add_argument(  
+            "command",  
+            nargs='?',  
+            help=argparse.SUPPRESS  
+        )  
+        args = parser.parse_args()  
+        if args.list_color_names:  
+            fmt = args.list_color_names  
+            color_keys = sorted(list(COLOR_NAMES.keys()))  
+            if fmt == 'text':  
+                for name in color_keys:  
+                    print(name)  
+            elif fmt == 'json':  
+                print(json.dumps(color_keys))  
+            elif fmt == 'pretty-json':  
+                print(json.dumps(color_keys, indent=4))  
+            sys.exit(0)  
+        if args.help_full:  
+            parser.print_help()  
+            gradient_parser = get_gradient_parser()  
+            print("\n")  
+            gradient_parser.print_help()  
+            mix_parser = get_mix_parser()  
+            print("\n")  
+            mix_parser.print_help()  
+            scheme_parser = get_scheme_parser()  
+            print("\n")  
+            scheme_parser.print_help()  
+            simulate_parser = get_simulate_parser()  
+            print("\n")  
+            simulate_parser.print_help()  
+            convert_parser = get_convert_parser()  
+            print("\n")  
+            convert_parser.print_help()  
+            sys.exit(0)  
+        if args.command == 'gradient':  
+            log('error', "the 'gradient' command must be the first argument")  
+            sys.exit(2)  
+        if args.command == 'mix':  
+            log('error', "the 'mix' command must be the first argument")  
+            sys.exit(2)  
+        if args.command == 'scheme':  
+            log('error', "the 'scheme' command must be the first argument")  
+            sys.exit(2)  
+        if args.command == 'simulate':  
+            log('error', "the 'simulate' command must be the first argument")  
+            sys.exit(2)  
+        if args.command == 'convert':  
+            log('error', "the 'convert' command must be the first argument")  
+            sys.exit(2)  
+        ensure_truecolor()  
+        handle_color_command(args)  
+  
+if __name__ == "__main__":  
     main()
