@@ -8,7 +8,7 @@ import random
 import math
 import json
 from typing import Tuple, List
-from constants import COLOR_NAMES as COLOR_NAMES_RAW, MAX_DEC, MAX_STEPS, DEDUP_DELTA_E_LAB, DEDUP_DELTA_E_OKLAB, DEDUP_DELTA_E_RGB, MAX_RANDOM_COLORS, __version__, HEX_REGEX, TECH_INFO_KEYS, SCHEME_KEYS, SIMULATE_KEYS, CB_MATRICES, FORMAT_ALIASES, SRGB_TO_LINEAR_TH, LINEAR_TO_SRGB_TH, EPS, M_JZAZBZ_1, M_JZAZBZ_2, M_JZAZBZ_1_INV, M_JZAZBZ_2_INV, JZAZBZ_P, JZAZBZ_D, JZAZBZ_D_INV, JZAZBZ_I_0
+from constants import COLOR_NAMES as COLOR_NAMES_RAW, MAX_DEC, MAX_STEPS, DEDUP_DELTA_E_LAB, DEDUP_DELTA_E_OKLAB, DEDUP_DELTA_E_RGB, MAX_RANDOM_COLORS, __version__, HEX_REGEX, TECH_INFO_KEYS, SCHEME_KEYS, SIMULATE_KEYS, CB_MATRICES, FORMAT_ALIASES, SRGB_TO_LINEAR_TH, LINEAR_TO_SRGB_TH, EPS
 
 def _strip_and_unquote(s: str) -> str:
     if s is None:
@@ -450,102 +450,6 @@ def hwb_to_rgb(h: float, w: float, b: float) -> Tuple[float, float, float]:
     s = 1 - (w / v) if v != 0 else 0
     return hsv_to_rgb(h, s, v)
 
-def _srgb_to_linear_apca(c: int) -> float:
-    c_norm = c / 255.0
-    if c_norm <= 0.03928:
-        return c_norm / 12.92
-    return ((c_norm + 0.055) / 1.055) ** 2.4
-
-def get_apca_contrast(r1: int, g1: int, b1: int, r2: int, g2: int, b2: int) -> float:
-    y1 = _srgb_to_linear_apca(r1) * 0.2126729 + _srgb_to_linear_apca(g1) * 0.7151522 + _srgb_to_linear_apca(b1) * 0.0721750
-    y2 = _srgb_to_linear_apca(r2) * 0.2126729 + _srgb_to_linear_apca(g2) * 0.7151522 + _srgb_to_linear_apca(b2) * 0.0721750
-
-    y_text = max(y1, y2)
-    y_bg = min(y1, y2)
-
-    s_ape = 0.0
-    output_apc = 0.0
-
-    if y_bg <= 0.0005:
-        y_bg = 0.0005
-    if y_text <= 0.0005:
-        y_text = 0.0005
-
-    norm_clamp = 0.000001
-    s_ap = (y_text ** 0.556) - (y_bg ** 0.568)
-    if s_ap < norm_clamp:
-        output_apc = 0.0
-    else:
-        s_ape = (s_ap * 1.14)
-    if s_ape >= 0.1:
-        output_apc = (s_ape - 0.027) * 100.0
-    else:
-        output_apc = 0.0
-
-    return output_apc
-
-def xyz_to_jzazbz(x: float, y: float, z: float) -> Tuple[float, float, float]:
-    if x == 0.0 and y == 0.0 and z == 0.0:
-        return 0.0, 0.0, 0.0
-    x_d65 = (x * 0.9672 + y * 0.0126 - z * 0.0126) / 100.0
-    y_d65 = (x * -0.0126 + y * 1.0373 + z * -0.0126) / 100.0
-    z_d65 = (x * 0.0000 + y * 0.0253 + z * 0.9182) / 100.0
-
-    l_p = x_d65 * M_JZAZBZ_1[0][0] + y_d65 * M_JZAZBZ_1[0][1] + z_d65 * M_JZAZBZ_1[0][2]
-    m_p = x_d65 * M_JZAZBZ_1[1][0] + y_d65 * M_JZAZBZ_1[1][1] + z_d65 * M_JZAZBZ_1[1][2]
-    s_p = x_d65 * M_JZAZBZ_1[2][0] + y_d65 * M_JZAZBZ_1[2][1] + z_d65 * M_JZAZBZ_1[2][2]
-
-    l_p = max(0.0, l_p)
-    m_p = max(0.0, m_p)
-    s_p = max(0.0, s_p)
-
-    l_pp = math.pow((0.44 * l_p + 0.56 * m_p) / 0.612023, 0.25)
-    m_pp = math.pow((0.56 * l_p + 0.44 * m_p) / 0.612023, 0.25)
-    s_pp = math.pow(s_p / 0.219369, 0.25)
-
-    i = (l_pp + m_pp) * 0.5
-    az = (l_pp - m_pp) * 2.894
-    bz = (i - s_pp) * 1.846
-
-    jz = (i - JZAZBZ_P) / (math.pow(1 + JZAZBZ_D, 0.25) - JZAZBZ_P)
-
-    return jz, az, bz
-
-def jzazbz_to_xyz(jz: float, az: float, bz: float) -> Tuple[float, float, float]:
-    i = (jz * (math.pow(1 + JZAZBZ_D, 0.25) - JZAZBZ_P)) + JZAZBZ_P
-    s_pp = i - (bz / 1.846)
-
-    l_pp = i + (az / 5.788)
-    m_pp = i - (az / 5.788)
-
-    A = 0.612023 * (l_pp ** 4)
-    B = 0.612023 * (m_pp ** 4)
-    l_p = (14.0 * B - 11.0 * A) / 3.0
-    m_p = (14.0 * A - 11.0 * B) / 3.0
-    s_p = 0.219369 * (s_pp ** 4)
-
-    l_p = max(0.0, l_p)
-    m_p = max(0.0, m_p)
-    s_p = max(0.0, s_p)
-
-    x_d65 = l_p * M_JZAZBZ_1_INV[0][0] + m_p * M_JZAZBZ_1_INV[0][1] + s_p * M_JZAZBZ_1_INV[0][2]
-    y_d65 = l_p * M_JZAZBZ_1_INV[1][0] + m_p * M_JZAZBZ_1_INV[1][1] + s_p * M_JZAZBZ_1_INV[1][2]
-    z_d65 = l_p * M_JZAZBZ_1_INV[2][0] + m_p * M_JZAZBZ_1_INV[2][1] + s_p * M_JZAZBZ_1_INV[2][2]
-
-    x = (x_d65 * 1.0339 - y_d65 * 0.0130 + z_d65 * 0.0130) * 100.0
-    y = (x_d65 * 0.0130 + y_d65 * 0.9626 - z_d65 * 0.0130) * 100.0
-    z = (x_d65 * 0.0000 - y_d65 * 0.0276 + z_d65 * 1.0891) * 100.0
-
-    return x, y, z
-
-def rgb_to_jzazbz(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    x, y, z = rgb_to_xyz(r, g, b)
-    return xyz_to_jzazbz(x, y, z)
-
-def jzazbz_to_rgb(jz: float, az: float, bz: float) -> Tuple[float, float, float]:
-    x, y, z = jzazbz_to_xyz(jz, az, bz)
-    return xyz_to_rgb(x, y, z)
-
 def delta_e_ciede2000(lab1: Tuple[float, float, float], lab2: Tuple[float, float, float]) -> float:
     L1, a1, b1 = lab1
     L2, a2, b2 = lab2
@@ -656,7 +560,7 @@ def _normalize_value_string(s: str) -> str:
     s = s.replace('–', '-')
     s = re.sub(r'deg', ' ', s, flags=re.IGNORECASE)
 
-    if s.lower().startswith(('rgb(', 'hsl(', 'hsv(', 'hwb(', 'cmyk(', 'xyz(', 'lab(', 'lch(', 'oklab(', 'luv(', 'oklch(', 'jzazbz(')):
+    if s.lower().startswith(('rgb(', 'hsl(', 'hsv(', 'hwb(', 'cmyk(', 'xyz(', 'lab(', 'lch(', 'oklab(', 'luv(', 'oklch(')):
         s = re.sub(r'^[a-zA-Z0-9]+\s*\(', '', s, flags=re.IGNORECASE)
         s = s.rstrip(')')
 
@@ -707,7 +611,8 @@ def parse_rgb_string(s: str) -> Tuple[int, int, int]:
         log('error', f"invalid rgb string: {s}")
         sys.exit(2)
     def _to_8bit(val: float) -> int:
-        if 0.0 <= val <= 1.0:
+        # FIX: treat only strict 0–1 as normalized, so 1 => 1, not 255
+        if 0.0 < val < 1.0:
             v = val * 255.0
         else:
             v = val
@@ -784,9 +689,6 @@ def parse_oklch_string(s: str) -> Tuple[float, float, float]:
 
 def parse_luv_string(s: str) -> Tuple[float, float, float]:
     return _parse_3_floats(s, "luv")
-
-def parse_jzazbz_string(s: str) -> Tuple[float, float, float]:
-    return _parse_3_floats(s, "jzazbz")
 
 def find_similar_colors(base_lab: Tuple[float, float, float], base_rgb: Tuple[int, int, int], base_oklab: Tuple[float, float, float], n: int = 5, metric: str = 'lab') -> List[Tuple[str, str, float]]:
 
@@ -900,7 +802,7 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
 
     metric = args.distance_metric if hasattr(args, 'distance_metric') else 'lab'
 
-    needs_xyz = args.xyz or args.lab or args.lightness_chroma_hue or args.similar or args.cieluv or args.jzazbz
+    needs_xyz = args.xyz or args.lab or args.lightness_chroma_hue or args.similar or args.cieluv
     needs_lab = args.lab or args.lightness_chroma_hue or args.similar
     needs_oklab = args.oklab or (args.similar and metric == 'oklab') or args.oklch
 
@@ -922,7 +824,7 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
         name = HEX_TO_NAME.get(hex_code.upper())
         if name:
             print(f"   Name       : {name}")
-    if args.luminance or args.contrast or args.apca_contrast:
+    if args.luminance or args.contrast:
         l = get_luminance(r, g, b)
         if args.luminance:
             l_p = _clean_small_float(l)
@@ -989,12 +891,6 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
         c_oklch_p = _clean_small_float(c_oklch)
         h_oklch_p = _clean_small_float(h_oklch)
         print(f"   OKLCH      : {l_oklch_p:.4f}, {c_oklch_p:.4f}, {h_oklch_p:.4f}°")
-    if args.jzazbz:
-        jz, az, bz = rgb_to_jzazbz(r, g, b)
-        jz_p = _clean_small_float(jz)
-        az_p = _clean_small_float(az)
-        bz_p = _clean_small_float(bz)
-        print(f"   JZAZBZ     : {jz_p:.4f}, {az_p:.4f}, {bz_p:.4f}")
     if args.contrast:
         if not (args.luminance):
             l = get_luminance(r, g, b)
@@ -1013,13 +909,6 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
             f"AAA-Large: {wcag['black']['levels']['AAA-Large']}, "
             f"AAA: {wcag['black']['levels']['AAA']})"
         )
-    if args.apca_contrast:
-        apca_white = get_apca_contrast(r, g, b, 255, 255, 255)
-        apca_black = get_apca_contrast(r, g, b, 0, 0, 0)
-        apca_white_p = _clean_small_float(apca_white)
-        apca_black_p = _clean_small_float(apca_black)
-        print(f"   APCA White : {apca_white_p:+.1f} LC")
-        print(f"   APCA Black : {apca_black_p:+.1f} LC")
 
     if args.similar:
         print("   Similar Colors:")
@@ -1211,14 +1100,6 @@ def _get_interpolated_color(c1, c2, t: float, colorspace: str) -> Tuple[float, f
         v_new = v1 + t * (v2 - v1)
         return luv_to_rgb(l_new, u_new, v_new)
 
-    if colorspace == 'jzazbz':
-        j1, a1, b1 = c1
-        j2, a2, b2 = c2
-        j_new = j1 + t * (j2 - j1)
-        a_new = a1 + t * (a2 - a1)
-        b_new = b1 + t * (b2 - b1)
-        return jzazbz_to_rgb(j_new, a_new, b_new)
-
     return 0, 0, 0
 
 def _convert_rgb_to_space(r: int, g: int, b: int, colorspace: str) -> Tuple[float, ...]:
@@ -1239,8 +1120,6 @@ def _convert_rgb_to_space(r: int, g: int, b: int, colorspace: str) -> Tuple[floa
         return rgb_to_oklch(r, g, b)
     if colorspace == 'luv':
         return rgb_to_luv(r, g, b)
-    if colorspace == 'jzazbz':
-        return rgb_to_jzazbz(r, g, b)
     return (r, g, b)
 
 def handle_gradient_command(args: argparse.Namespace) -> None:
@@ -1331,8 +1210,6 @@ def handle_mix_command(args: argparse.Namespace) -> None:
         avg_r_f, avg_g_f, avg_b_f = oklab_to_rgb(avg_c1, avg_c2, avg_c3)
     elif colorspace == 'luv':
         avg_r_f, avg_g_f, avg_b_f = luv_to_rgb(avg_c1, avg_c2, avg_c3)
-    elif colorspace == 'jzazbz':
-        avg_r_f, avg_g_f, avg_b_f = jzazbz_to_rgb(avg_c1, avg_c2, avg_c3)
 
     r_i, g_i, b_i = _finalize_rgb_vals(avg_r_f, avg_g_f, avg_b_f)
     mixed_hex = rgb_to_hex(r_i, g_i, b_i)
@@ -1536,9 +1413,6 @@ def _parse_value_to_rgb(clean_val: str, from_fmt: str) -> Tuple[int, int, int]:
     elif from_fmt == 'luv':
         L, u, v = parse_luv_string(clean_val)
         r_f, g_f, b_f = luv_to_rgb(L, u, v)
-    elif from_fmt == 'jzazbz':
-        j, a, b = parse_jzazbz_string(clean_val)
-        r_f, g_f, b_f = jzazbz_to_rgb(j, a, b)
     elif from_fmt == 'index':
         try:
             dec_str = re.findall(r'[-+]?\d+', str(clean_val))[0]
@@ -1633,12 +1507,6 @@ def _format_value_from_rgb(r: int, g: int, b: int, to_fmt: str) -> str:
         u_p = _clean_small_float(u)
         v_p = _clean_small_float(v)
         output_value = f"luv({L_p:.4f}, {u_p:.4f}, {v_p:.4f})"
-    elif to_fmt == 'jzazbz':
-        j, a, b_jz = rgb_to_jzazbz(r, g, b)
-        j_p = _clean_small_float(j)
-        a_p = _clean_small_float(a)
-        b_p = _clean_small_float(b_jz)
-        output_value = f"jzazbz({j_p:.4f}, {a_p:.4f}, {b_p:.4f})"
     elif to_fmt == 'name':
         hex_val = rgb_to_hex(r, g, b)
         found = False
@@ -1661,6 +1529,12 @@ def handle_convert_command(args: argparse.Namespace) -> None:
         log('error', f"invalid format specified: {e} (original input: '{vars(args).get('from_format') or vars(args).get('to_format')}')")
         log('info', f"use 'hexlab convert -h' to see all formats")
         sys.exit(2)
+
+    # Hard block any leftover jzazbz alias from constants
+    if from_fmt == 'jzazbz' or to_fmt == 'jzazbz':
+        log('error', "format 'jzazbz' is no longer supported")
+        sys.exit(2)
+
     r, g, b = (0, 0, 0)
     if args.random_value:
         dec_val = random.randint(0, MAX_DEC)
@@ -1716,7 +1590,7 @@ def get_gradient_parser() -> argparse.ArgumentParser:
         "-cs", "--colorspace",
         default="lab",
         type=type_colorspace,
-        choices=['srgb', 'srgb-linear', 'lab', 'lch', 'oklab', 'oklch', 'luv', 'jzazbz'],
+        choices=['srgb', 'srgb-linear', 'lab', 'lch', 'oklab', 'oklch', 'luv'],
         help="colorspace for interpolation (default: lab)"
     )
     parser.add_argument(
@@ -1767,7 +1641,7 @@ def get_mix_parser() -> argparse.ArgumentParser:
         "-cs", "--colorspace",
         default="lab",
         type=type_colorspace,
-        choices=['srgb', 'srgb-linear', 'lab', 'oklab', 'luv', 'jzazbz'],
+        choices=['srgb', 'srgb-linear', 'lab', 'oklab', 'luv'],
         help="colorspace for mixing (default: lab)"
     )
     parser.add_argument(
@@ -1816,12 +1690,6 @@ def get_scheme_parser() -> argparse.ArgumentParser:
         type=type_int_safe,
         default=None,
         help="random seed for reproducibility"
-    )
-    parser.add_argument(
-        "-hm", "--harmony-model",
-        type=type_harmony_model,
-        default='hsl',
-        help="harmony model: hsl lch oklch (default: hsl)"
     )
     scheme_group = parser.add_argument_group("scheme types")
     scheme_group.add_argument(
@@ -1934,7 +1802,7 @@ def get_convert_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawTextHelpFormatter,
         add_help=False
     )
-    formats_list = "hex rgb hsl hsv hwb cmyk xyz lab lch oklab oklch luv index name jzazbz"
+    formats_list = "hex rgb hsl hsv hwb cmyk xyz lab lch oklab oklch luv index name"
     parser.add_argument(
         '-h', '--help',
         action='help',
@@ -1976,8 +1844,7 @@ def get_convert_parser() -> argparse.ArgumentParser:
              '  -v "lch(0, 0, 0°)"\n'
              '  -v "luv(0, 0, 0)"\n'
              '  -v "oklab(0, 0, 0)"\n'
-             '  -v "oklch(0, 0, 0°)"\n'
-             '  -v "jzazbz(0, 0, 0)"'
+             '  -v "oklch(0, 0, 0°)"'
     )
     input_group.add_argument(
         "-rv", "--random-value",
@@ -2161,35 +2028,20 @@ def main() -> None:
             help="show CIE 1976 LCH values"
         )
         info_group.add_argument(
+            "--oklab",
+            action="store_true",
+            help="show OKLAB values"
+        )
+        info_group.add_argument(
             "--cieluv", "-luv",
             action="store_true",
             dest="cieluv",
             help="show CIE 1976 LUV values"
         )
         info_group.add_argument(
-            "--oklab",
-            action="store_true",
-            help="show OKLAB values"
-        )
-        info_group.add_argument(
-            "--oklch",
-            action="store_true",
-            help="show OKLCH values"
-        )
-        info_group.add_argument(
             "-wcag", "--contrast",
             action="store_true",
             help="show WCAG contrast ratio"
-        )
-        info_group.add_argument(
-            "-apca", "--apca-contrast",
-            action="store_true",
-            help="show APCA contrast ratio"
-        )
-        info_group.add_argument(
-            "-jz", "--jzazbz",
-            action="store_true",
-            help="show JZAZBZ values"
         )
         info_group.add_argument(
             "-S", "--similar",
@@ -2205,7 +2057,7 @@ def main() -> None:
         info_group.add_argument(
             "--name",
             action="store_true",
-            help="show color name if available in --list-color-names"
+            help="show color name if available in --list-color-names otherwise 'unknown'"
         )
         parser.add_argument(
             "command",
