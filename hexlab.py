@@ -2262,10 +2262,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-ust be the first argument")
-            sys.exit(2)
-        ensure_truecolor()
-        handle_color_command(args)
-
-if __name__ == "__main__":
-    main()
