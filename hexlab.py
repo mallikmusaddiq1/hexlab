@@ -1645,13 +1645,13 @@ def get_gradient_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="generate gradient from random colors"
     )
-    parser.add_argument(
+    input_group.add_argument(
         "-cn", "--color-name",
         action="append",
         type=type_color_name,
         help="use -cn NAME multiple times for inputs by name from --list-color-names"
     )
-    parser.add_argument(
+    input_group.add_argument(
         "-di", "--decimal-index",
         action="append",
         type=type_general_string,
@@ -1703,13 +1703,13 @@ def get_mix_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="generate mix from random colors"
     )
-    parser.add_argument(
+    input_group.add_argument(
         "-cn", "--color-name",
         action="append",
         type=type_color_name,
         help="use -cn NAME multiple times for inputs by name from --list-color-names"
     )
-    parser.add_argument(
+    input_group.add_argument(
         "-di", "--decimal-index",
         action="append",
         type=type_general_string,
