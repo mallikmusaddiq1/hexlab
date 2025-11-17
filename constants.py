@@ -85,16 +85,6 @@ FORMAT_ALIASES = {
     'jzbzaz': 'jzbzaz'
 }
 
-M_CAM16 = [
-    [ 0.401288,  0.650173, -0.051461],
-    [-0.250268,  1.204414,  0.045854],
-    [-0.002079,  0.048952,  0.953127]
-]
-M_CAM16_INV = [
-    [ 1.8620678, -1.0112547,  0.14918678],
-    [ 0.38752654,  0.62144744, -0.00897398],
-    [-0.01584150, -0.03412294,  1.0499644]
-]
 M_JZAZBZ_1 = [
     [ 0.41478972,  0.579999,  0.0146480],
     [-0.20151000,  1.120649,  0.0531008],
@@ -963,6 +953,17 @@ COLOR_NAMES = {
     'yellow': 'FFFF00',
     'yellowbrown': 'B79400',
     'yellowgreen': '9ACD32',
+    'yellowish': 'FAEE66',
+    'yellowishbrown': '9B7A01',
+    'yellowishgreen': 'B0DD16',
+    'yellowishorange': 'FFAB0F',
+    'yellowishtan': 'FCFC81',
+    'yellowochre': 'CB9D06',
+    'yelloworange': 'FCB001',
+    'yellowybrown': 'AE8B0C',
+    'yellowygreen': 'BFF128'
+}
+32',
     'yellowish': 'FAEE66',
     'yellowishbrown': '9B7A01',
     'yellowishgreen': 'B0DD16',
