@@ -10,8 +10,8 @@ import textwrap
 import shutil
 from typing import Tuple
 
-from input_utils import INPUT_HANDLERS, log, HexlabArgumentParser
-from constants import COLOR_NAMES, MAX_DEC, EPS, SRGB_TO_LINEAR_TH, LINEAR_TO_SRGB_TH
+from .input_utils import INPUT_HANDLERS, log, HexlabArgumentParser
+from .constants import COLOR_NAMES, MAX_DEC, EPS, SRGB_TO_LINEAR_TH, LINEAR_TO_SRGB_TH
 
 
 def _norm_name_key(s: str) -> str:

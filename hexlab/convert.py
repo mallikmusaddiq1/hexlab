@@ -8,8 +8,8 @@ import math
 import re
 from typing import Tuple
 
-from input_utils import INPUT_HANDLERS, log, HexlabArgumentParser
-from constants import (
+from .input_utils import INPUT_HANDLERS, log, HexlabArgumentParser
+from .constants import (
     COLOR_NAMES, MAX_DEC, FORMAT_ALIASES,
     SRGB_TO_LINEAR_TH, LINEAR_TO_SRGB_TH, EPS
 )

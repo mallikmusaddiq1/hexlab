@@ -9,17 +9,17 @@ import json
 import re
 from typing import Tuple
 
-from input_utils import INPUT_HANDLERS, log, HexlabArgumentParser
+from .input_utils import INPUT_HANDLERS, log, HexlabArgumentParser
 
-import gradient
-import mix
-import scheme
-import vision
-import convert
-import similar
-import adjust
+from . import gradient
+from . import mix
+from . import scheme
+from . import vision
+from . import convert
+from . import similar
+from . import adjust
 
-from constants import (
+from .constants import (
     COLOR_NAMES as COLOR_NAMES_RAW, MAX_DEC, __version__,
     TECH_INFO_KEYS, SRGB_TO_LINEAR_TH, LINEAR_TO_SRGB_TH, EPS
 )
@@ -425,7 +425,7 @@ def main() -> None:
 
     parser = HexlabArgumentParser(
         prog="hexlab",
-        description="hexlab: 24-bit hex color exploration tool",
+        description="hexlab: 24-bit hex color exploration and manipulation tool",
         formatter_class=argparse.RawTextHelpFormatter,
         add_help=False
     )

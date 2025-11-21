@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hexlab"
+version = "0.0.1"
+description = "24-bit hex   color exploration and manipulation tool."
+readme = "README.md"
+requires-python = ">=3.7"
+authors = [
+  { name = "Mallik Mohammad Musaddiq", email = "mallikmusaddiq1@gmail.com"},
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Multimedia :: Graphics",
+    "Environment :: Console",
+]
+dependencies = []
+
+[project.scripts]
+hexlab = "hexlab.cli:main"
