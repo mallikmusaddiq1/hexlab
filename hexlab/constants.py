@@ -21,7 +21,6 @@ TECH_INFO_KEYS = [
     'index', 'red_green_blue', 'luminance', 'hue_saturation_lightness',
     'hsv', 'cmyk', 'contrast', 'xyz', 'lab', 'lightness_chroma_hue',
     'hue_whiteness_blackness', 'oklab', 'oklch', 'cieluv', 'similar', 'name',
-    'apca_contrast', 'cam16ucs', 'jzazbz'
 ]
 
 SCHEME_KEYS = [
@@ -77,8 +76,6 @@ FORMAT_ALIASES = {
     'oklch': 'oklch',
     'cielchok': 'oklch',
     'srgblinear': 'srgb-linear',
-    'cam16ucs': 'cam16ucs',
-    'jzbzaz': 'jzbzaz'
 }
 
 COLOR_NAMES = {
