@@ -20,7 +20,7 @@ HEX_REGEX = re.compile(r"^(?:[0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})$")
 TECH_INFO_KEYS = [
     'index', 'red_green_blue', 'luminance', 'hue_saturation_lightness',
     'hsv', 'cmyk', 'contrast', 'xyz', 'lab', 'lightness_chroma_hue',
-    'hue_whiteness_blackness', 'oklab', 'oklch', 'cieluv', 'similar', 'name',
+    'hue_whiteness_blackness', 'oklab', 'oklch', 'cieluv', 'similar', 'name', 'lch',
 ]
 
 SCHEME_KEYS = [

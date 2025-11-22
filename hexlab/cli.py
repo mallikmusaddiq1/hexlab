@@ -24,6 +24,22 @@ from .constants import (
     TECH_INFO_KEYS, SRGB_TO_LINEAR_TH, LINEAR_TO_SRGB_TH, EPS
 )
 
+from .convert import (
+    hex_to_rgb as conv_hex_to_rgb,
+    rgb_to_xyz as conv_rgb_to_xyz,
+    xyz_to_lab as conv_xyz_to_lab,
+    lab_to_lch as conv_lab_to_lch,
+    rgb_to_hsl as conv_rgb_to_hsl,
+    rgb_to_hsv as conv_rgb_to_hsv,
+    rgb_to_hwb as conv_rgb_to_hwb,
+    rgb_to_cmyk as conv_rgb_to_cmyk,
+    rgb_to_oklab as conv_rgb_to_oklab,
+    oklab_to_oklch as conv_oklab_to_oklch,
+    rgb_to_luv as conv_rgb_to_luv,
+    _clamp01 as conv_clamp01,
+    _srgb_to_linear as conv_srgb_to_linear,
+)
+
 def _normalize_hex_val(v: str) -> str:
     if not isinstance(v, str):
         return ''
@@ -37,9 +53,7 @@ def _norm_name_key(s: str) -> str:
 
 COLOR_NAMES = {k: _normalize_hex_val(v) for k, v in COLOR_NAMES_RAW.items()}
 
-HEX_TO_NAME = {}
-for name, hexv in COLOR_NAMES.items():
-    HEX_TO_NAME[hexv.upper()] = name
+HEX_TO_NAME = {v.upper(): k for k, v in COLOR_NAMES.items()}
 
 _norm_map = {}
 for k, v in COLOR_NAMES.items():
@@ -60,147 +74,47 @@ def _get_color_name_hex(sanitized_name: str) -> str:
         return None
     return COLOR_NAMES_LOOKUP.get(sanitized_name)
 
-
 def hex_to_rgb(hex_code: str) -> Tuple[int, int, int]:
-    return tuple(int(hex_code[i:i + 2], 16) for i in (0, 2, 4))
-
-def rgb_to_hex(r, g, b):
-    return f"{int(round(r)):02X}{int(round(g)):02X}{int(round(b)):02X}"
+    return conv_hex_to_rgb(hex_code)
 
 def _clamp01(v: float) -> float:
-    return max(0.0, min(1.0, v)) if v == v else 0.0
+    return conv_clamp01(v)
 
 def lum_comp(c: int) -> float:
-    c_norm = _clamp01(c / 255.0)
-    return c_norm / 12.92 if c_norm <= SRGB_TO_LINEAR_TH else ((c_norm + 0.055) / 1.055) ** 2.4
+    return conv_srgb_to_linear(c)
 
 def get_luminance(r: int, g: int, b: int) -> float:
     return 0.2126 * lum_comp(r) + 0.7152 * lum_comp(g) + 0.0722 * lum_comp(b)
 
-def _srgb_to_linear(c: int) -> float:
-    return lum_comp(c)
-
-def _linear_to_srgb(l: float) -> float:
-    l = max(l, 0.0)
-    return 12.92 * l if l <= LINEAR_TO_SRGB_TH else 1.055 * (l ** (1 / 2.4)) - 0.055
-
 def rgb_to_hsl(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    r_f, g_f, b_f = r / 255.0, g / 255.0, b / 255.0
-    cmax, cmin = max(r_f, g_f, b_f), min(r_f, g_f, b_f)
-    delta = cmax - cmin
-    l = (cmax + cmin) / 2
-    if delta == 0:
-        h, s = 0.0, 0.0
-    else:
-        denom = 1 - abs(2 * l - 1)
-        s = 0.0 if abs(denom) < EPS else delta / denom
-        if cmax == r_f:
-            h = 60 * (((g_f - b_f) / delta) % 6)
-        elif cmax == g_f:
-            h = 60 * ((b_f - r_f) / delta + 2)
-        else:
-            h = 60 * ((r_f - g_f) / delta + 4)
-        h = (h + 360) % 360
-    return (h, s, l)
+    return conv_rgb_to_hsl(r, g, b)
 
 def rgb_to_hsv(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    r_f, g_f, b_f = r / 255.0, g / 255.0, b / 255.0
-    cmax, cmin = max(r_f, g_f, b_f), min(r_f, g_f, b_f)
-    delta = cmax - cmin
-    v = cmax
-    if delta == 0:
-        h, s = 0.0, 0.0
-    else:
-        s = delta / v if v != 0 else 0.0
-        if cmax == r_f:
-            h = 60 * (((g_f - b_f) / delta) % 6)
-        elif cmax == g_f:
-            h = 60 * ((b_f - r_f) / delta + 2)
-        else:
-            h = 60 * ((r_f - g_f) / delta + 4)
-        h = (h + 360) % 360
-    return (h, s, v)
+    return conv_rgb_to_hsv(r, g, b)
 
 def rgb_to_hwb(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    h, s, v = rgb_to_hsv(r, g, b)
-    w = (1 - s) * v
-    black = 1 - v
-    return h, w, black
+    return conv_rgb_to_hwb(r, g, b)
 
 def rgb_to_cmyk(r: int, g: int, b: int) -> Tuple[float, float, float, float]:
-    if r == 0 and g == 0 and b == 0:
-        return 0.0, 0.0, 0.0, 1.0
-    r_n, g_n, b_n = r / 255.0, g / 255.0, b / 255.0
-    k = 1.0 - max(r_n, g_n, b_n)
-    if k >= 1.0:
-        return 0.0, 0.0, 0.0, 1.0
-    c = (1.0 - r_n - k) / (1.0 - k)
-    m = (1.0 - g_n - k) / (1.0 - k)
-    y = (1.0 - b_n - k) / (1.0 - k)
-    return (c, m, y, k)
+    return conv_rgb_to_cmyk(r, g, b)
 
 def rgb_to_xyz(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    r_l = _srgb_to_linear(r)
-    g_l = _srgb_to_linear(g)
-    b_l = _srgb_to_linear(b)
-    x = r_l * 0.4124564 + g_l * 0.3575761 + b_l * 0.1804375
-    y = r_l * 0.2126729 + g_l * 0.7151522 + b_l * 0.0721750
-    z = r_l * 0.0193339 + g_l * 0.1191920 + b_l * 0.9503041
-    return x * 100.0, y * 100.0, z * 100.0
-
-def _xyz_f(t: float) -> float:
-    return t ** (1 / 3) if t > 0.008856 else (7.787 * t) + (16.0 / 116.0)
+    return conv_rgb_to_xyz(r, g, b)
 
 def xyz_to_lab(x: float, y: float, z: float) -> Tuple[float, float, float]:
-    ref_x, ref_y, ref_z = 95.047, 100.0, 108.883
-    x_r = _xyz_f(x / ref_x)
-    y_r = _xyz_f(y / ref_y)
-    z_r = _xyz_f(z / ref_z)
-    return (116.0 * y_r) - 16.0, 500.0 * (x_r - y_r), 200.0 * (y_r - z_r)
+    return conv_xyz_to_lab(x, y, z)
 
 def lab_to_lch(l: float, a: float, b: float) -> Tuple[float, float, float]:
-    return l, math.hypot(a, b), math.degrees(math.atan2(b, a)) % 360
+    return conv_lab_to_lch(l, a, b)
 
 def rgb_to_oklab(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    r_l = _srgb_to_linear(r)
-    g_l = _srgb_to_linear(g)
-    b_l = _srgb_to_linear(b)
-    l = 0.4122214708 * r_l + 0.5363325363 * g_l + 0.0514459929 * b_l
-    m = 0.2119034982 * r_l + 0.6806995451 * g_l + 0.1073969566 * b_l
-    s = 0.0883024619 * r_l + 0.2817188376 * g_l + 0.6299787005 * b_l
-    l_ = (l + EPS) ** (1 / 3) if l >= 0 else -((-l + EPS) ** (1 / 3))
-    m_ = (m + EPS) ** (1 / 3) if m >= 0 else -((-m + EPS) ** (1 / 3))
-    s_ = (s + EPS) ** (1 / 3) if s >= 0 else -((-s + EPS) ** (1 / 3))
-    return (
-        0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
-        1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
-        0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_,
-    )
+    return conv_rgb_to_oklab(r, g, b)
 
 def oklab_to_oklch(l: float, a: float, b: float) -> Tuple[float, float, float]:
-    return l, math.hypot(a, b), math.degrees(math.atan2(b, a)) % 360
-
-def rgb_to_oklch(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    l, a, b_ok = rgb_to_oklab(r, g, b)
-    return oklab_to_oklch(l, a, b_ok)
+    return conv_oklab_to_oklch(l, a, b)
 
 def rgb_to_luv(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    X, Y, Z = rgb_to_xyz(r, g, b)
-    ref_X, ref_Y, ref_Z = 95.047, 100.0, 108.883
-    denom = (X + 15 * Y + 3 * Z)
-    if denom == 0:
-        u_p, v_p = 0.0, 0.0
-    else:
-        u_p, v_p = (4 * X) / denom, (9 * Y) / denom
-    denom_n = (ref_X + 15 * ref_Y + 3 * ref_Z)
-    u_p_n, v_p_n = (4 * ref_X) / denom_n, (9 * ref_Y) / denom_n
-    y_r = Y / ref_Y
-    L = (116.0 * (y_r ** (1 / 3))) - 16.0 if y_r > 0.008856 else 903.3 * y_r
-    if L == 0:
-        u, v = 0.0, 0.0
-    else:
-        u, v = 13.0 * L * (u_p - u_p_n), 13.0 * L * (v_p - v_p_n)
-    return L, u, v
+    return conv_rgb_to_luv(r, g, b)
 
 def get_wcag_contrast(lum: float) -> dict:
     contrast_white = (1.0 + 0.05) / (lum + 0.05)
@@ -226,18 +140,33 @@ def print_color_block(hex_code: str, title: str = "Color") -> None:
 def _zero_small(v: float, threshold: float = 1e-4) -> float:
     return 0.0 if abs(v) <= threshold else v
 
-def _draw_bar(val: int, r_c: int, g_c: int, b_c: int) -> str:
+def _draw_bar(val: float, max_val: float, r_c: int, g_c: int, b_c: int) -> str:
     total_len = 15
-    percent = val / 255.0
+    
+    if val < 0: val = 0
+    if val > max_val: val = max_val
+        
+    percent = val / max_val
     filled = int(total_len * percent)
+    filled = max(0, min(total_len, filled))
     empty = total_len - filled
     
     color_ansi = f"\033[38;2;{r_c};{g_c};{b_c}m"
     reset_ansi = "\033[0m"
-    
     empty_ansi = "\033[90m"
+    
     bar_str = f"{color_ansi}{'█' * filled}{reset_ansi}{empty_ansi}{'░' * empty}{reset_ansi}"
-    return f"{bar_str} {percent*100:>5.4f}%"
+    
+    if max_val == 1.0:
+        val_str = f"{val*100:>6.2f}%"
+    elif max_val == 360:
+        val_str = f"{val:>6.1f}°"
+    elif max_val == 100:
+        val_str = f"{val:>6.1f}%"
+    else:
+        val_str = f"{val/max_val*100:>6.2f}%"
+        
+    return f"{bar_str} {val_str}"
 
 def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) -> None:
     print_color_block(hex_code, title)
@@ -270,82 +199,121 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
         v_comp_luv = _zero_small(v_uv)
 
     print()
-    if getattr(args, 'index', False):
-        print(f"   Index      : {int(hex_code, 16)} / {MAX_DEC}")
-    if getattr(args, 'red_green_blue', False):
-        print(f"   RGB        : rgb({r}, {g}, {b})")
-        if not getattr(args, 'hide_chart', False):
-            print(f"                R {_draw_bar(r, 255, 60, 60)}")
-            print(f"                G {_draw_bar(g, 60, 255, 60)}")
-            print(f"                B {_draw_bar(b, 60, 80, 255)}")
-
-    if getattr(args, 'name', False):
-        name = HEX_TO_NAME.get(hex_code.upper())
-        if name:
-            print(f"   Name       : {name}")
 
     arg_lum = getattr(args, 'luminance', False)
     arg_contrast = getattr(args, 'contrast', False)
 
+    if getattr(args, 'index', False):
+        print(f"\n   index      : {int(hex_code, 16)} / {MAX_DEC}")
+    if getattr(args, 'name', False):
+        name = HEX_TO_NAME.get(hex_code.upper())
+        if name:
+            print(f"\n   name       : {name}")
+
     if arg_lum or arg_contrast:
         l_rel = get_luminance(r, g, b)
         if arg_lum:
-            print(f"   Luminance  : {l_rel:.6f}")
+            print(f"\n   luminance  : {l_rel:.6f}")
+            print(f"                L {_draw_bar(l_rel, 1.0, 200, 200, 200)}")
+
+    if getattr(args, 'red_green_blue', False):
+        print(f"\n   rgb        : rgb({r}, {g}, {b})")
+        print(f"                R {_draw_bar(r, 255, 255, 60, 60)}")
+        print(f"                G {_draw_bar(g, 255, 60, 255, 60)}")
+        print(f"                B {_draw_bar(b, 255, 60, 80, 255)}")
 
     if getattr(args, 'hue_saturation_lightness', False):
         h, s, l_hsl = rgb_to_hsl(r, g, b)
-        print(f"   HSL        : hsl({h:.1f}°, {s * 100:.1f}%, {l_hsl * 100:.1f}%)")
+        print(f"\n   hsl        : hsl({h:.1f}°, {s * 100:.1f}%, {l_hsl * 100:.1f}%)")
+        print(f"                H {_draw_bar(h, 360, 255, 200, 0)}")
+        print(f"                S {_draw_bar(s, 1.0, 0, 200, 255)}")
+        print(f"                L {_draw_bar(l_hsl, 1.0, 200, 200, 200)}")
+
     if getattr(args, 'hsv', False):
         h, s, v = rgb_to_hsv(r, g, b)
-        print(f"   HSV        : hsv({h:.1f}°, {s * 100:.1f}%, {v * 100:.1f}%)")
+        print(f"\n   hsv        : hsv({h:.1f}°, {s * 100:.1f}%, {v * 100:.1f}%)")
+        print(f"                H {_draw_bar(h, 360, 255, 200, 0)}")
+        print(f"                S {_draw_bar(s, 1.0, 0, 200, 255)}")
+        print(f"                V {_draw_bar(v, 1.0, 200, 200, 200)}")
+
     if getattr(args, 'hue_whiteness_blackness', False):
         h, w, b_hwb = rgb_to_hwb(r, g, b)
-        print(f"   HWB        : hwb({h:.1f}°, {w * 100:.1f}%, {b_hwb * 100:.1f}%)")
+        print(f"\n   hwb        : hwb({h:.1f}°, {w * 100:.1f}%, {b_hwb * 100:.1f}%)")
+        print(f"                H {_draw_bar(h, 360, 255, 200, 0)}")
+        print(f"                W {_draw_bar(w, 1.0, 200, 200, 200)}")
+        print(f"                B {_draw_bar(b_hwb, 1.0, 100, 100, 100)}")
+
     if getattr(args, 'cmyk', False):
         c, m, y_cmyk, k = rgb_to_cmyk(r, g, b)
-        print(f"   CMYK       : cmyk({c * 100:.1f}%, {m * 100:.1f}%, {y_cmyk * 100:.1f}%, {k * 100:.1f}%)")
+        print(f"\n   cmyk       : cmyk({c * 100:.1f}%, {m * 100:.1f}%, {y_cmyk * 100:.1f}%, {k * 100:.1f}%)")
+        print(f"                C {_draw_bar(c, 1.0, 0, 255, 255)}")
+        print(f"                M {_draw_bar(m, 1.0, 255, 0, 255)}")
+        print(f"                Y {_draw_bar(y_cmyk, 1.0, 255, 255, 0)}")
+        print(f"                K {_draw_bar(k, 1.0, 100, 100, 100)}")
 
     if arg_xyz:
-        print(f"   XYZ        : xyz({x:.4f}, {y:.4f}, {z:.4f})")
+        print(f"\n   xyz        : xyz({x:.4f}, {y:.4f}, {z:.4f})")
+        print(f"                X {_draw_bar(x / 100.0, 1.0, 255, 60, 60)}")
+        print(f"                Y {_draw_bar(y / 100.0, 1.0, 60, 255, 60)}")
+        print(f"                Z {_draw_bar(z / 100.0, 1.0, 60, 80, 255)}")
+
     if arg_lab:
         a_comp_lab = _zero_small(a_lab)
         b_comp_lab = _zero_small(b_lab)
-        print(f"   LAB        : lab({l_lab:.4f}, {a_comp_lab:.4f}, {b_comp_lab:.4f})")
+        print(f"\n   lab        : lab({l_lab:.4f}, {a_comp_lab:.4f}, {b_comp_lab:.4f})")
+        print(f"                L {_draw_bar(l_lab / 100.0, 1.0, 200, 200, 200)}")
+        print(f"                A {_draw_bar(a_comp_lab + 128.0, 255.0, 60, 255, 60)}")
+        print(f"                B {_draw_bar(b_comp_lab + 128.0, 255.0, 60, 60, 255)}")
+
     if arg_lch:
         l_lch, c_lch, h_lch = lab_to_lch(l_lab, a_lab, b_lab)
-        print(f"   LCH        : lch({l_lch:.4f}, {c_lch:.4f}, {h_lch:.4f}°)")
+        print(f"\n   lch        : lch({l_lch:.4f}, {c_lch:.4f}, {h_lch:.4f}°)")
+        print(f"                L {_draw_bar(l_lch / 100.0, 1.0, 200, 200, 200)}")
+        print(f"                C {_draw_bar(c_lch / 150.0, 1.0, 255, 60, 255)}")
+        print(f"                H {_draw_bar(h_lch, 360, 255, 200, 0)}")
+
     if arg_cieluv:
-        print(f"   LUV        : luv({l_uv:.4f}, {u_comp_luv:.4f}, {v_comp_luv:.4f})")
+        print(f"\n   luv        : luv({l_uv:.4f}, {u_comp_luv:.4f}, {v_comp_luv:.4f})")
+        print(f"                L {_draw_bar(l_uv / 100.0, 1.0, 200, 200, 200)}")
+        print(f"                U {_draw_bar(u_comp_luv + 100.0, 200.0, 60, 255, 60)}")
+        print(f"                V {_draw_bar(v_comp_luv + 100.0, 200.0, 60, 60, 255)}")
+
     if arg_oklab:
         a_comp_ok = _zero_small(a_ok)
         b_comp_ok = _zero_small(b_ok)
-        print(f"   OKLAB      : oklab({l_ok:.4f}, {a_comp_ok:.4f}, {b_comp_ok:.4f})")
+        print(f"\n   oklab      : oklab({l_ok:.4f}, {a_comp_ok:.4f}, {b_comp_ok:.4f})")
+        print(f"                L {_draw_bar(l_ok, 1.0, 200, 200, 200)}")
+        print(f"                A {_draw_bar(a_comp_ok + 0.4, 0.8, 60, 255, 60)}")
+        print(f"                B {_draw_bar(b_comp_ok + 0.4, 0.8, 60, 60, 255)}")
+
     if arg_oklch:
         l_oklch, c_oklch, h_oklch = oklab_to_oklch(l_ok, a_ok, b_ok)
-        print(f"   OKLCH      : oklch({l_oklch:.4f}, {c_oklch:.4f}, {h_oklch:.4f}°)")
+        print(f"\n   oklch      : oklch({l_oklch:.4f}, {c_oklch:.4f}, {h_oklch:.4f}°)")
+        print(f"                L {_draw_bar(l_oklch, 1.0, 200, 200, 200)}")
+        print(f"                C {_draw_bar(c_oklch / 0.4, 1.0, 255, 60, 255)}")
+        print(f"                H {_draw_bar(h_oklch, 360, 255, 200, 0)}")
 
     if arg_contrast:
         if not arg_lum:
             l_rel = get_luminance(r, g, b)
         wcag = get_wcag_contrast(l_rel)
-        print(
-            "   Contrast White: "
-            f"{wcag['white']['ratio']:.2f}:1 "
-            f"(AA-Large: {wcag['white']['levels']['AA-Large']}, "
-            f"AA: {wcag['white']['levels']['AA']}, "
-            f"AAA-Large: {wcag['white']['levels']['AAA-Large']}, "
-            f"AAA: {wcag['white']['levels']['AAA']})"
-        )
-        print(
-            "   Contrast Black: "
-            f"{wcag['black']['ratio']:.2f}:1 "
-            f"(AA-Large: {wcag['black']['levels']['AA-Large']}, "
-            f"AA: {wcag['black']['levels']['AA']}, "
-            f"AAA-Large: {wcag['black']['levels']['AAA-Large']}, "
-            f"AAA: {wcag['black']['levels']['AAA']})"
-        )
-    print()
+        
+        bg_ansi = f"\033[48;2;{r};{g};{b}m"
+        fg_white = "\033[38;2;255;255;255m"
+        fg_black = "\033[38;2;0;0;0m"
+        reset = "\033[0m"
+        
+        line_1_block = f"{bg_ansi}{fg_white}{'white':^15}{reset}"
+        line_2_block = f"{bg_ansi}{' ' * 15}{reset}"
+        line_3_block = f"{bg_ansi}{fg_black}{'black':^15}{reset}"
+        
+        status_white = f"{wcag['white']['ratio']:.2f}:1 (AA:{wcag['white']['levels']['AA']}, AAA:{wcag['white']['levels']['AAA']})"
+        status_black = f"{wcag['black']['ratio']:.2f}:1 (AA:{wcag['black']['levels']['AA']}, AAA:{wcag['black']['levels']['AAA']})"
 
+        print(f"\n                  {line_1_block}  {status_white}")
+        print(f"   contrast   :   {line_2_block}")
+        print(f"                  {line_3_block}  {status_black}")
+    print()
 
 def handle_color_command(args: argparse.Namespace) -> None:
     if args.all_tech_infos:
@@ -354,14 +322,14 @@ def handle_color_command(args: argparse.Namespace) -> None:
                 setattr(args, key, True)
 
     clean_hex = None
-    title = "Current Color"
+    title = "current"
     if args.seed is not None:
         random.seed(args.seed)
 
     if args.random_hex:
         current_dec = random.randint(0, MAX_DEC)
         clean_hex = f"{current_dec:06X}"
-        title = "random color"
+        title = "random"
     elif args.color_name:
         hex_val = _get_color_name_hex(args.color_name)
         if not hex_val:
@@ -378,7 +346,7 @@ def handle_color_command(args: argparse.Namespace) -> None:
     elif getattr(args, "decimal_index", None) is not None:
         clean_hex = args.decimal_index
         idx = int(clean_hex, 16)
-        title = HEX_TO_NAME.get(clean_hex.upper(), f"Index {idx}")
+        title = HEX_TO_NAME.get(clean_hex.upper(), f"index {idx}")
     else:
         log('error', "one of the arguments -H/--hex, -rh/--random-hex, -di/--decimal-index, or -cn/--color-name is required")
         log('info', "use 'hexlab --help' for more information")
@@ -389,13 +357,13 @@ def handle_color_command(args: argparse.Namespace) -> None:
 
     if args.next:
         next_dec = (current_dec + 1) % (MAX_DEC + 1)
-        print_color_and_info(f"{next_dec:06X}", "Next Color", args)
+        print_color_and_info(f"{next_dec:06X}", "next", args)
     if args.previous:
         prev_dec = (current_dec - 1) % (MAX_DEC + 1)
-        print_color_and_info(f"{prev_dec:06X}", "Previous Color", args)
+        print_color_and_info(f"{prev_dec:06X}", "previous", args)
     if args.negative:
         neg_dec = MAX_DEC - current_dec
-        print_color_and_info(f"{neg_dec:06X}", "Negative Color", args)
+        print_color_and_info(f"{neg_dec:06X}", "negative", args)
 
 
 def ensure_truecolor() -> None:
@@ -511,11 +479,7 @@ def main() -> None:
         action="store_true",
         help="show all technical information"
     )
-    info_group.add_argument(
-        "-hc", "--hide-chart",
-        action="store_true",
-        help="hide the visual rgb bar chart"
-    )
+
     info_group.add_argument(
         "-i", "--index",
         action="store_true",
@@ -640,4 +604,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-()
