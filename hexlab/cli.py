@@ -141,12 +141,18 @@ def _zero_small(v: float, threshold: float = 1e-4) -> float:
     return 0.0 if abs(v) <= threshold else v
 
 def _draw_bar(val: float, max_val: float, r_c: int, g_c: int, b_c: int) -> str:
-    total_len = 15
+    """
+    Complex Directional Bar:
+    - Positive values: Fill Left -> Right [####....]
+    - Negative values: Fill Right -> Left [....####]
+    """
+    total_len = 16
     
-    if val < 0: val = 0
-    if val > max_val: val = max_val
-        
-    percent = val / max_val
+    # Calculate absolute ratio for fill length
+    abs_val = abs(val)
+    if abs_val > max_val: abs_val = max_val
+    
+    percent = abs_val / max_val
     filled = int(total_len * percent)
     filled = max(0, min(total_len, filled))
     empty = total_len - filled
@@ -155,16 +161,32 @@ def _draw_bar(val: float, max_val: float, r_c: int, g_c: int, b_c: int) -> str:
     reset_ansi = "\033[0m"
     empty_ansi = "\033[90m"
     
-    bar_str = f"{color_ansi}{'█' * filled}{reset_ansi}{empty_ansi}{'░' * empty}{reset_ansi}"
+    block_char = "█"
+    empty_char = "░"
     
+    # DIRECTIONAL LOGIC
+    if val < 0:
+        # Negative: End -> Start (Right to Left)
+        # Visual: [....####]
+        bar_str = f"{empty_ansi}{empty_char * empty}{reset_ansi}{color_ansi}{block_char * filled}{reset_ansi}"
+    else:
+        # Positive: Start -> End (Left to Right)
+        # Visual: [####....]
+        bar_str = f"{color_ansi}{block_char * filled}{reset_ansi}{empty_ansi}{empty_char * empty}{reset_ansi}"
+    
+    # Formatting the value text based on input range
     if max_val == 1.0:
+        # Usually 0-1 normalized values
         val_str = f"{val*100:>6.2f}%"
     elif max_val == 360:
+        # Hue degrees
         val_str = f"{val:>6.1f}°"
     elif max_val == 100:
+        # Percentages 0-100
         val_str = f"{val:>6.1f}%"
     else:
-        val_str = f"{val/max_val*100:>6.2f}%"
+        # Raw values (like LAB/LUV) - allow space for negative sign
+        val_str = f"{val:>7.2f}"
         
     return f"{bar_str} {val_str}"
 
@@ -218,9 +240,9 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
 
     if getattr(args, 'red_green_blue', False):
         print(f"\n   rgb        : rgb({r}, {g}, {b})")
-        print(f"                R {_draw_bar(r, 255, 255, 60, 60)}")
-        print(f"                G {_draw_bar(g, 255, 60, 255, 60)}")
-        print(f"                B {_draw_bar(b, 255, 60, 80, 255)}")
+        print(f"                R {_draw_bar(r, 255, 255, 60, 60)} ({(r/255)*100:.2f}%)")
+        print(f"                G {_draw_bar(g, 255, 60, 255, 60)} ({(g/255)*100:.2f}%)")
+        print(f"                B {_draw_bar(b, 255, 60, 80, 255)} ({(b/255)*100:.2f}%)")
 
     if getattr(args, 'hue_saturation_lightness', False):
         h, s, l_hsl = rgb_to_hsl(r, g, b)
@@ -262,8 +284,9 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
         b_comp_lab = _zero_small(b_lab)
         print(f"\n   lab        : lab({l_lab:.4f}, {a_comp_lab:.4f}, {b_comp_lab:.4f})")
         print(f"                L {_draw_bar(l_lab / 100.0, 1.0, 200, 200, 200)}")
-        print(f"                A {_draw_bar(a_comp_lab + 128.0, 255.0, 60, 255, 60)}")
-        print(f"                B {_draw_bar(b_comp_lab + 128.0, 255.0, 60, 60, 255)}")
+        # Removed offset, passing raw negative/positive values
+        print(f"                A {_draw_bar(a_comp_lab, 128.0, 60, 255, 60)}")
+        print(f"                B {_draw_bar(b_comp_lab, 128.0, 60, 60, 255)}")
 
     if arg_lch:
         l_lch, c_lch, h_lch = lab_to_lch(l_lab, a_lab, b_lab)
@@ -275,16 +298,18 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
     if arg_cieluv:
         print(f"\n   luv        : luv({l_uv:.4f}, {u_comp_luv:.4f}, {v_comp_luv:.4f})")
         print(f"                L {_draw_bar(l_uv / 100.0, 1.0, 200, 200, 200)}")
-        print(f"                U {_draw_bar(u_comp_luv + 100.0, 200.0, 60, 255, 60)}")
-        print(f"                V {_draw_bar(v_comp_luv + 100.0, 200.0, 60, 60, 255)}")
+        # Removed offset, passing raw negative/positive values
+        print(f"                U {_draw_bar(u_comp_luv, 100.0, 60, 255, 60)}")
+        print(f"                V {_draw_bar(v_comp_luv, 100.0, 60, 60, 255)}")
 
     if arg_oklab:
         a_comp_ok = _zero_small(a_ok)
         b_comp_ok = _zero_small(b_ok)
         print(f"\n   oklab      : oklab({l_ok:.4f}, {a_comp_ok:.4f}, {b_comp_ok:.4f})")
         print(f"                L {_draw_bar(l_ok, 1.0, 200, 200, 200)}")
-        print(f"                A {_draw_bar(a_comp_ok + 0.4, 0.8, 60, 255, 60)}")
-        print(f"                B {_draw_bar(b_comp_ok + 0.4, 0.8, 60, 60, 255)}")
+        # Removed offset, passing raw negative/positive values
+        print(f"                A {_draw_bar(a_comp_ok, 0.4, 60, 255, 60)}")
+        print(f"                B {_draw_bar(b_comp_ok, 0.4, 60, 60, 255)}")
 
     if arg_oklch:
         l_oklch, c_oklch, h_oklch = oklab_to_oklch(l_ok, a_ok, b_ok)
@@ -303,9 +328,9 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
         fg_black = "\033[38;2;0;0;0m"
         reset = "\033[0m"
         
-        line_1_block = f"{bg_ansi}{fg_white}{'white':^15}{reset}"
-        line_2_block = f"{bg_ansi}{' ' * 15}{reset}"
-        line_3_block = f"{bg_ansi}{fg_black}{'black':^15}{reset}"
+        line_1_block = f"{bg_ansi}{fg_white}{'white':^16}{reset}"
+        line_2_block = f"{bg_ansi}{' ' * 16}{reset}"
+        line_3_block = f"{bg_ansi}{fg_black}{'black':^16}{reset}"
         
         status_white = f"{wcag['white']['ratio']:.2f}:1 (AA:{wcag['white']['levels']['AA']}, AAA:{wcag['white']['levels']['AAA']})"
         status_black = f"{wcag['black']['ratio']:.2f}:1 (AA:{wcag['black']['levels']['AA']}, AAA:{wcag['black']['levels']['AAA']})"
