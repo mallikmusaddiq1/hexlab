@@ -97,7 +97,7 @@ def handle_simulate_command(args: argparse.Namespace) -> None:
 
     if args.random_simulate:
         base_hex = f"{random.randint(0, MAX_DEC):06X}"
-        title = "Random Base"
+        title = "random"
     elif args.color_name:
         hexv = _get_color_name_hex(args.color_name)
         if not hexv:
@@ -114,11 +114,7 @@ def handle_simulate_command(args: argparse.Namespace) -> None:
     elif getattr(args, "decimal_index", None) is not None:
         base_hex = args.decimal_index
         idx = int(base_hex, 16)
-        title = HEX_TO_NAME.get(base_hex.upper(), f"Index {idx}")
-
-    if base_hex is None:
-        log('error', "no valid color provided for simulate")
-        sys.exit(2)
+        title = HEX_TO_NAME.get(base_hex.upper(), f"index {idx}")
 
     print()
     print_color_block(base_hex, title)
@@ -148,21 +144,21 @@ def handle_simulate_command(args: argparse.Namespace) -> None:
     if args.protanopia or no_specific_flag or args.all_simulates:
         rr, gg, bb = apply_matrix(r, g, b, CB_MATRICES["Protanopia"])
         sim_hex = rgb_to_hex(rr, gg, bb)
-        print_color_block(sim_hex, "Protanopia")
+        print_color_block(sim_hex, "protanopia")
     if args.deuteranopia or args.all_simulates:
         rr, gg, bb = apply_matrix(r, g, b, CB_MATRICES["Deuteranopia"])
         sim_hex = rgb_to_hex(rr, gg, bb)
-        print_color_block(sim_hex, "Deuteranopia")
+        print_color_block(sim_hex, "deuteranopia")
     if args.tritanopia or args.all_simulates:
         rr, gg, bb = apply_matrix(r, g, b, CB_MATRICES["Tritanopia"])
         sim_hex = rgb_to_hex(rr, gg, bb)
-        print_color_block(sim_hex, "Tritanopia")
+        print_color_block(sim_hex, "tritanopia")
     if args.achromatopsia or args.all_simulates:
         l_lin = get_luminance(r, g, b)
         gray_srgb_norm = _linear_to_srgb(l_lin)
         gray_255 = max(0, min(255, int(round(gray_srgb_norm * 255))))
         sim_hex = rgb_to_hex(gray_255, gray_255, gray_255)
-        print_color_block(sim_hex, "Achromatopsia")
+        print_color_block(sim_hex, "achromatopsia")
     print()
 
 

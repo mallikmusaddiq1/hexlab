@@ -239,7 +239,7 @@ def handle_scheme_command(args: argparse.Namespace) -> None:
 
     if args.random_scheme:
         base_hex = f"{random.randint(0, MAX_DEC):06X}"
-        title = "Random Base"
+        title = "random"
     elif args.color_name:
         hexv = _get_color_name_hex(args.color_name)
         if not hexv:
@@ -256,7 +256,7 @@ def handle_scheme_command(args: argparse.Namespace) -> None:
     elif getattr(args, "decimal_index", None) is not None:
         base_hex = args.decimal_index
         idx = int(base_hex, 16)
-        title = HEX_TO_NAME.get(base_hex.upper(), f"Index {idx}")
+        title = HEX_TO_NAME.get(base_hex.upper(), f"index {idx}")
 
     if base_hex is None:
         log('error', "no valid color provided for scheme")
@@ -317,30 +317,30 @@ def handle_scheme_command(args: argparse.Namespace) -> None:
         args.monochromatic
     )
     if not any_specific_flag:
-        print_color_block(get_scheme_hex(180), "Comp        180°")
+        print_color_block(get_scheme_hex(180), "comp        180°")
     else:
         if args.complementary:
-            print_color_block(get_scheme_hex(180), "Comp        180°")
+            print_color_block(get_scheme_hex(180), "comp        180°")
         if args.split_complementary:
-            print_color_block(get_scheme_hex(150), "Split Comp  150°")
-            print_color_block(get_scheme_hex(210), "Split Comp  210°")
+            print_color_block(get_scheme_hex(150), "split comp  150°")
+            print_color_block(get_scheme_hex(210), "split comp  210°")
         if args.analogous:
-            print_color_block(get_scheme_hex(-30), "Analog      -30°")
-            print_color_block(get_scheme_hex(30), "Analog       30°")
+            print_color_block(get_scheme_hex(-30), "analog      -30°")
+            print_color_block(get_scheme_hex(30), "analog       30°")
         if args.triadic:
-            print_color_block(get_scheme_hex(120), "Tria        120°")
-            print_color_block(get_scheme_hex(240), "Tria        240°")
+            print_color_block(get_scheme_hex(120), "tria        120°")
+            print_color_block(get_scheme_hex(240), "tria        240°")
         if args.tetradic_square:
-            print_color_block(get_scheme_hex(90), "Tetra Sq     90°")
-            print_color_block(get_scheme_hex(180), "Tetra Sq    180°")
-            print_color_block(get_scheme_hex(270), "Tetra Sq    270°")
+            print_color_block(get_scheme_hex(90), "tetra sq     90°")
+            print_color_block(get_scheme_hex(180), "tetra sq    180°")
+            print_color_block(get_scheme_hex(270), "tetra sq    270°")
         if args.tetradic_rectangular:
-            print_color_block(get_scheme_hex(60), "Tetra Rec    60°")
-            print_color_block(get_scheme_hex(180), "Tetra Rec   180°")
-            print_color_block(get_scheme_hex(240), "Tetra Rec   240°")
+            print_color_block(get_scheme_hex(60), "tetra rec    60°")
+            print_color_block(get_scheme_hex(180), "tetra rec   180°")
+            print_color_block(get_scheme_hex(240), "tetra rec   240°")
         if args.monochromatic:
-            print_color_block(get_mono_hex(-0.2), "Mono       -20%L")
-            print_color_block(get_mono_hex(0.2), "Mono       +20%L")
+            print_color_block(get_mono_hex(-0.2), "mono       -20%L")
+            print_color_block(get_mono_hex(0.2), "mono       +20%L")
     print()
 
 

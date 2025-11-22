@@ -338,7 +338,7 @@ def handle_mix_command(args: argparse.Namespace) -> None:
     for i, hex_code in enumerate(colors_hex):
         print_color_block(hex_code, f"input {i + 1}")
 
-    print("-" * 18)
+    print("─" * 18)
     print_color_block(mixed_hex, "mixed result")
     print()
 

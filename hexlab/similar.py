@@ -327,10 +327,10 @@ def handle_similar_command(args: argparse.Namespace) -> None:
     metric_label = metric_map.get(metric, 'ΔE')
 
     if not similar_list:
-        print("   (No similar colors found within parameters)")
+        log('info', "no similar colors found within parameters")
     else:
         for i, (hex_val, diff) in enumerate(similar_list):
-            label = f"Similar {i+1}"
+            label = f"similar {i+1}"
             print_color_block(hex_val, label)
             print(f"  ({metric_label}: {diff:.2f})")
 

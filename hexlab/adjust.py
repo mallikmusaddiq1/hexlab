@@ -199,6 +199,7 @@ def hwb_to_rgb(h: float, w: float, b: float) -> Tuple[float, float, float]:
     s = 1 - (w / v)
     return hsv_to_rgb(h, s, v)
 
+
 def rgb_to_xyz(r: int, g: int, b: int) -> Tuple[float, float, float]:
     r_lin = _srgb_to_linear(r)
     g_lin = _srgb_to_linear(g)
@@ -318,6 +319,7 @@ def _finalize_rgb(r: float, g: float, b: float) -> Tuple[int, int, int]:
         max(0, min(255, int(round(b)))),
     )
 
+
 def print_block(hex_code: str, label: str) -> None:
     r, g, b = hex_to_rgb(hex_code)
     print(f"{label:<17} : \033[48;2;{r};{g};{b}m        \033[0m #{hex_code}")
@@ -357,20 +359,17 @@ def _mix_rgb_linear(fr: float, fg: float, fb: float, tr: float, tg: float, tb: f
     bl = bl1 * (1.0 - t) + bl2 * t
     return _linear_to_srgb(rl) * 255.0, _linear_to_srgb(gl) * 255.0, _linear_to_srgb(bl) * 255.0
 
-def _print_steps(mods):
-    if not mods:
+
+def _print_steps(mods, verbose: bool) -> None:
+    if not (verbose and mods):
         return
-    print()
-    print("steps:")
-    term_width = shutil.get_terminal_size(fallback=(80, 20)).columns
-    indent = "  "
-    for i, (label, val) in enumerate(mods, 1):
+    parts = []
+    for label, val in mods:
         if val:
-            line = f"{i:2d}. {label}: {val}"
+            parts.append(f"{label} {val}")
         else:
-            line = f"{i:2d}. {label}"
-        wrapped = textwrap.fill(line, width=term_width, subsequent_indent=indent)
-        print(indent + wrapped.lstrip())
+            parts.append(f"{label}")
+    log("info", "steps: " + " \u2192 ".join(parts))
 
 
 def handle_adjust_command(args: argparse.Namespace) -> None:
@@ -379,7 +378,7 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
     base_hex, title = None, "original"
 
     if args.random_adjust:
-        base_hex, title = f"{random.randint(0, MAX_DEC):06X}", "Random"
+        base_hex, title = f"{random.randint(0, MAX_DEC):06X}", "random"
     elif args.color_name:
         base_hex = _get_color_name_hex(args.color_name)
         if not base_hex:
@@ -389,7 +388,7 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
     elif args.hex:
         base_hex, title = args.hex, f"#{args.hex}"
     elif getattr(args, "decimal_index", None):
-        base_hex, title = args.decimal_index, f"Idx {int(args.decimal_index, 16)}"
+        base_hex, title = args.decimal_index, f"idx {int(args.decimal_index, 16)}"
 
     if not base_hex:
         log("error", "no input color")
@@ -412,8 +411,6 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
             target_up = target.upper()
             target_name = HEX_TO_NAME.get(target_up)
             target_desc = f"with #{target_up}"
-            if target_name:
-                target_desc += f' ("{target_name}")'
 
             mix_mode = args.mix_mode
 
@@ -421,7 +418,7 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
                 fr, fg, fb = _mix_rgb_linear(fr, fg, fb, float(tr), float(tg), float(tb), t)
                 mods.append(
                     (
-                        "mix SRGB Linear",
+                        "mix",
                         f"{args.mix_amount:.4f}% {target_desc}",
                     )
                 )
@@ -432,7 +429,7 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
                 fr, fg, fb = _clamp255(fr), _clamp255(fg), _clamp255(fb)
                 mods.append(
                     (
-                        "mix SRGB",
+                        "mix",
                         f"{args.mix_amount:.4f}% {target_desc}",
                     )
                 )
@@ -451,7 +448,7 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
                 fr, fg, fb = _clamp255(fr), _clamp255(fg), _clamp255(fb)
                 mods.append(
                     (
-                        "mix CIELAB",
+                        "mix",
                         f"{args.mix_amount:.4f}% {target_desc}",
                     )
                 )
@@ -467,12 +464,11 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
                 fr, fg, fb = _clamp255(fr), _clamp255(fg), _clamp255(fb)
                 mods.append(
                     (
-                        "mix CIELUV",
+                        "mix",
                         f"{args.mix_amount:.4f}% {target_desc}",
                     )
                 )
             else:
-                # default / explicit oklab
                 l1, a1, b1_ok = rgb_to_oklab(fr, fg, fb)
                 l2, a2, b2_ok = rgb_to_oklab(tr, tg, tb)
                 fr, fg, fb = oklab_to_rgb(
@@ -483,7 +479,7 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
                 fr, fg, fb = _clamp255(fr), _clamp255(fg), _clamp255(fb)
                 mods.append(
                     (
-                        "mix OKLAB",
+                        "mix",
                         f"{args.mix_amount:.4f}% {target_desc}",
                     )
                 )
@@ -495,48 +491,48 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
         l, a, b_ok = rgb_to_oklab(fr, fg, fb)
         fr, fg, fb = oklab_to_rgb(l, 0.0, 0.0)
         fr, fg, fb = _clamp255(fr), _clamp255(fg), _clamp255(fb)
-        mods.append(("grayscale OKLAB", None))
+        mods.append(("grayscale", None))
     if args.sepia:
         tr = fr * 0.393 + fg * 0.769 + fb * 0.189
         tg = fr * 0.349 + fg * 0.686 + fb * 0.168
         tb = fr * 0.272 + fg * 0.534 + fb * 0.131
         fr, fg, fb = min(255.0, tr), min(255.0, tg), min(255.0, tb)
         fr, fg, fb = _clamp255(fr), _clamp255(fg), _clamp255(fb)
-        mods.append(("sepia RGB", None))
+        mods.append(("sepia", None))
 
     if args.rotate is not None:
         h, s, l = rgb_to_hsl(fr, fg, fb)
         fr, fg, fb = hsl_to_rgb(h + args.rotate, s, l)
-        mods.append(("hue rotate HSL)", f"{args.rotate:+.4f}°"))
+        mods.append(("hue rotate)", f"{args.rotate:+.4f}°"))
     if args.brightness is not None:
         factor = 1.0 + (args.brightness / 100.0)
         fr, fg, fb = _apply_linear_gain_rgb(fr, fg, fb, factor)
-        mods.append(("brightness linear RGB", f"{args.brightness:+.4f}%"))
+        mods.append(("brightness", f"{args.brightness:+.4f}%"))
     if args.contrast is not None:
         fr, fg, fb = _apply_linear_contrast_rgb(fr, fg, fb, args.contrast)
-        mods.append(("contrast linear RGB)", f"{args.contrast:+.4f}%"))
+        mods.append(("contrast)", f"{args.contrast:+.4f}%"))
 
     if any(x is not None for x in [args.lighten, args.darken, args.saturate, args.desaturate]):
         h, s, l = rgb_to_hsl(fr, fg, fb)
         if args.lighten is not None:
             amount = args.lighten / 100.0
             l = _clamp01(l + (1.0 - l) * amount)
-            mods.append(("lighten HSL", f"+{args.lighten:.4f}%"))
+            mods.append(("lighten", f"+{args.lighten:.4f}%"))
 
         if args.darken is not None:
             amount = args.darken / 100.0
             l = _clamp01(l * (1.0 - amount))
-            mods.append(("darken HSL", f"-{args.darken:.4f}%"))
+            mods.append(("darken", f"-{args.darken:.4f}%"))
 
         if args.saturate is not None:
             amount = args.saturate / 100.0
             s = _clamp01(s + (1.0 - s) * amount)
-            mods.append(("saturate HSL", f"+{args.saturate:.4f}%"))
+            mods.append(("saturate", f"+{args.saturate:.4f}%"))
 
         if args.desaturate is not None:
             amount = args.desaturate / 100.0
             s = _clamp01(s * (1.0 - amount))
-            mods.append(("desaturate HSL", f"-{args.desaturate:.4f}%"))
+            mods.append(("desaturate", f"-{args.desaturate:.4f}%"))
 
         fr, fg, fb = hsl_to_rgb(h, s, l)
 
@@ -544,10 +540,10 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
         h, w, b = rgb_to_hwb(fr, fg, fb)
         if args.whiten is not None:
             w = _clamp01(w + args.whiten / 100.0)
-            mods.append(("whiten HWB", f"+{args.whiten:.4f}%"))
+            mods.append(("whiten", f"+{args.whiten:.4f}%"))
         if args.blacken is not None:
             b = _clamp01(b + args.blacken / 100.0)
-            mods.append(("blacken HWB", f"+{args.blacken:.4f}%"))
+            mods.append(("blacken", f"+{args.blacken:.4f}%"))
         fr, fg, fb = hwb_to_rgb(h, w, b)
 
     if args.chroma_boost is not None:
@@ -556,32 +552,32 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
         c = max(0.0, c * factor)
         fr, fg, fb = oklch_to_rgb(l, c, h)
         fr, fg, fb = _clamp255(fr), _clamp255(fg), _clamp255(fb)
-        mods.append(("chroma boost OKLCH", f"{args.chroma_boost:+.4f}%"))
+        mods.append(("chroma boost", f"{args.chroma_boost:+.4f}%"))
 
     if args.warm is not None:
         l, a, b_ok = rgb_to_oklab(fr, fg, fb)
         fr, fg, fb = oklab_to_rgb(l, a + args.warm / 2000.0, b_ok + args.warm / 1000.0)
         fr, fg, fb = _clamp255(fr), _clamp255(fg), _clamp255(fb)
-        mods.append(("warm OKLAB", f"+{args.warm:.4f}%"))
+        mods.append(("warm", f"+{args.warm:.4f}%"))
 
     if args.cool is not None:
         l, a, b_ok = rgb_to_oklab(fr, fg, fb)
         fr, fg, fb = oklab_to_rgb(l, a - args.cool / 2000.0, b_ok - args.cool / 1000.0)
         fr, fg, fb = _clamp255(fr), _clamp255(fg), _clamp255(fb)
-        mods.append(("cool OKLAB", f"+{args.cool:.4f}%"))
+        mods.append(("cool", f"+{args.cool:.4f}%"))
 
     if args.red_channel is not None:
         fr = _clamp01((fr + args.red_channel) / 255.0) * 255.0
-        mods.append(("red channel RGB", f"{args.red_channel:+d}"))
+        mods.append(("red channel", f"{args.red_channel:+d}"))
     if args.green_channel is not None:
         fg = _clamp01((fg + args.green_channel) / 255.0) * 255.0
-        mods.append(("green channel RGB", f"{args.green_channel:+d}"))
+        mods.append(("green channel", f"{args.green_channel:+d}"))
     if args.blue_channel is not None:
         fb = _clamp01((fb + args.blue_channel) / 255.0) * 255.0
-        mods.append(("blue channel RGB", f"{args.blue_channel:+d}"))
+        mods.append(("blue channel", f"{args.blue_channel:+d}"))
     if args.opacity is not None:
         fr, fg, fb = _apply_opacity_on_black(fr, fg, fb, args.opacity)
-        mods.append(("opacity linear RGB", f"{args.opacity:.4f}%"))
+        mods.append(("opacity", f"{args.opacity:.4f}%"))
 
     print()
 
@@ -595,7 +591,7 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
         base_label = "Base" if is_hex_title else title
         print_block(base_hex, base_label)
         print_block(mix_target_hex, "mix with")
-        print("-" * 18)
+        print("─" * 18)
         print_block(res_hex, "result")
     elif not mods:
         base_label = "original" if is_hex_title else title
@@ -605,11 +601,11 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
     else:
         base_label = "original" if is_hex_title else title
         print_block(base_hex, base_label)
-        print("-" * 18)
+        print("─" * 18)
         print_block(res_hex, "adjusted")
 
     print()
-    _print_steps(mods)
+    _print_steps(mods, getattr(args, "verbose", False))
     print()
 
 
@@ -658,34 +654,41 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         help="random seed for reproducibility",
     )
 
-    ga = p.add_argument_group("basic HSL tone & saturation from 0 to 100, positive only)")
+    p.add_argument(
+        "-V",
+        "--verbose",
+        action="store_true",
+        help="log detailed adjustment pipeline steps",
+    )
+
+    ga = p.add_argument_group("basic hsl tone & saturation from 0 to 100, positive only)")
     ga.add_argument(
         "-l",
         "--lighten",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="increase HSL lightness by N%% relative to current lightness",
+        help="increase hsl lightness by N%% relative to current lightness",
     )
     ga.add_argument(
         "-d",
         "--darken",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="decrease HSL lightness by N%% relative multiply towards 0",
+        help="decrease hsl lightness by N%% relative multiply towards 0",
     )
     ga.add_argument(
         "-sat",
         "--saturate",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="increase HSL saturation by N%% relative to remaining headroom",
+        help="increase hsl saturation by N%% relative to remaining headroom",
     )
     ga.add_argument(
         "-des",
         "--desaturate",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="decrease HSL saturation by N%% relative multiply towards 0",
+        help="decrease hsl saturation by N%% relative multiply towards 0",
     )
     ga.add_argument(
         "-rot",
@@ -701,14 +704,14 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         "--brightness",
         type=INPUT_HANDLERS["float_signed_100"],
         metavar="N",
-        help="adjust brightness by N%% in linear RGB from -100 to 100",
+        help="adjust brightness by N%% in linear-rgb from -100 to 100",
     )
     adv_group.add_argument(
         "-ct",
         "--contrast",
         type=INPUT_HANDLERS["float_signed_100"],
         metavar="N",
-        help="adjust contrast by N%% in linear RGB from -100 to 100, mid-grey anchored)",
+        help="adjust contrast by N%% in linear-rgb from -100 to 100, mid-grey anchored)",
     )
     adv_group.add_argument(
         "-cb",
@@ -736,17 +739,17 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         "--warm",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="heuristic OKLAB warmth from 0 to 100",
+        help="heuristic oklab warmth from 0 to 100",
     )
     adv_group.add_argument(
         "-cool",
         "--cool",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="heuristic OKLAB coolness from 0 to 100",
+        help="heuristic oklab coolness from 0 to 100",
     )
 
-    filter_group = p.add_argument_group("filters & RGB channels")
+    filter_group = p.add_argument_group("filters & channels")
     filter_group.add_argument(
         "-g",
         "--grayscale",
@@ -763,28 +766,28 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         "-sep",
         "--sepia",
         action="store_true",
-        help="apply classic RGB sepia matrix",
+        help="apply classic rgb sepia matrix",
     )
     filter_group.add_argument(
         "-rc",
         "--red-channel",
         type=INPUT_HANDLERS["int_channel"],
         metavar="N",
-        help="add/sub red channel in RGB from -255 to 255",
+        help="add/sub red channel in rgb from -255 to 255",
     )
     filter_group.add_argument(
         "-gc",
         "--green-channel",
         type=INPUT_HANDLERS["int_channel"],
         metavar="N",
-        help="add/sub green channel in RGB from -255 to 255",
+        help="add/sub green channel in rgb from -255 to 255",
     )
     filter_group.add_argument(
         "-bc",
         "--blue-channel",
         type=INPUT_HANDLERS["int_channel"],
         metavar="N",
-        help="add/sub blue channel in RGB from -255 to 255",
+        help="add/sub blue channel in rgb from -255 to 255",
     )
     filter_group.add_argument(
         "-op",
