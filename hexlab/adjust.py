@@ -414,7 +414,7 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
 
             mix_mode = args.mix_mode
 
-            if mix_mode in ("rgb", "srgb-linear"):
+            if mix_mode in ("rgb", "srgblinear"):
                 fr, fg, fb = _mix_rgb_linear(fr, fg, fb, float(tr), float(tg), float(tb), t)
                 mods.append(
                     (
@@ -695,7 +695,7 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         "--rotate",
         type=INPUT_HANDLERS["float"],
         metavar="N",
-        help="rotate HSL hue by N degrees can be positive or negative",
+        help="rotate hsl hue by N degrees can be positive or negative",
     )
 
     adv_group = p.add_argument_group("advanced tonal & colorfulness corrections")
@@ -718,21 +718,21 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         "--chroma-boost",
         type=INPUT_HANDLERS["float"],
         metavar="N",
-        help="scale OKLCH chroma by 1 + N/100; N>0 boosts, N<0 reduces",
+        help="scale oklch chroma by 1 + N/100; N>0 boosts, N<0 reduces",
     )
     adv_group.add_argument(
         "-w",
         "--whiten",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="increase HWB whiteness by N%% mix towards white",
+        help="increase hwb whiteness by N%% mix towards white",
     )
     adv_group.add_argument(
         "-b",
         "--blacken",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="increase HWB blackness by N%% mix towards black",
+        help="increase hwb blackness by N%% mix towards black",
     )
     adv_group.add_argument(
         "-warm",
@@ -754,7 +754,7 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         "-g",
         "--grayscale",
         action="store_true",
-        help="OKLAB grayscale preserves lightness and removes chroma",
+        help="oklab grayscale preserves lightness and removes chroma",
     )
     filter_group.add_argument(
         "-inv",
@@ -831,7 +831,7 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         "-mm",
         "--mix-mode",
         type=INPUT_HANDLERS["colorspace"],
-        choices=["rgb", "srgb", "srgb-linear", "lab", "oklab", "luv"],
+        choices=["rgb", "srgb", "srgblinear", "lab", "oklab", "luv"],
         default="rgb",
         help=(
             "mixing interpolation mode"

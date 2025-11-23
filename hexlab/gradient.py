@@ -258,7 +258,7 @@ def _get_interpolated_color(c1, c2, t: float, colorspace: str) -> Tuple[float, f
         b_new = b1 + t * (b2 - b1)
         return r_new, g_new, b_new
 
-    if colorspace == 'srgb-linear':
+    if colorspace == 'srgblinear':
         r_lin1, g_lin1, b_lin1 = c1
         r_lin2, g_lin2, b_lin2 = c2
         r_lin_new = r_lin1 + t * (r_lin2 - r_lin1)
@@ -329,7 +329,7 @@ def _get_interpolated_color(c1, c2, t: float, colorspace: str) -> Tuple[float, f
 def _convert_rgb_to_space(r: int, g: int, b: int, colorspace: str) -> Tuple[float, ...]:
     if colorspace == 'srgb':
         return (r, g, b)
-    if colorspace == 'srgb-linear':
+    if colorspace == 'srgblinear':
         return (_srgb_to_linear(r), _srgb_to_linear(g), _srgb_to_linear(b))
     if colorspace == 'lab':
         x, y, z = rgb_to_xyz(r, g, b)
@@ -467,7 +467,7 @@ def get_gradient_parser() -> argparse.ArgumentParser:
         "-cs", "--colorspace",
         default="lab",
         type=INPUT_HANDLERS["colorspace"],
-        choices=['srgb', 'srgb-linear', 'lab', 'lch', 'oklab', 'oklch', 'luv'],
+        choices=['srgb', 'srgblinear', 'lab', 'lch', 'oklab', 'oklch', 'luv'],
         help="colorspace for interpolation (default: lab)"
     )
     parser.add_argument(

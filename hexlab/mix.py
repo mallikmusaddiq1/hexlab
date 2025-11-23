@@ -238,7 +238,7 @@ def luv_to_rgb(L: float, u: float, v: float) -> Tuple[float, float, float]:
 def _convert_rgb_to_space(r: int, g: int, b: int, colorspace: str) -> Tuple[float, ...]:
     if colorspace == 'srgb':
         return (r, g, b)
-    if colorspace == 'srgb-linear':
+    if colorspace == 'srgblinear':
         return (_srgb_to_linear(r), _srgb_to_linear(g), _srgb_to_linear(b))
     if colorspace == 'lab':
         x, y, z = rgb_to_xyz(r, g, b)
@@ -319,7 +319,7 @@ def handle_mix_command(args: argparse.Namespace) -> None:
 
     if colorspace == 'srgb':
         avg_r_f, avg_g_f, avg_b_f = avg_c1, avg_c2, avg_c3
-    elif colorspace == 'srgb-linear':
+    elif colorspace == 'srgblinear':
         avg_r_f = _linear_to_srgb(avg_c1) * 255
         avg_g_f = _linear_to_srgb(avg_c2) * 255
         avg_b_f = _linear_to_srgb(avg_c3) * 255
@@ -377,7 +377,7 @@ def get_mix_parser() -> argparse.ArgumentParser:
         "-cs", "--colorspace",
         default="lab",
         type=INPUT_HANDLERS["colorspace"],
-        choices=['srgb', 'srgb-linear', 'lab', 'oklab', 'luv'],
+        choices=['srgb', 'srgblinear', 'lab', 'oklab', 'luv'],
         help="colorspace for mixing (default: lab)"
     )
     parser.add_argument(
