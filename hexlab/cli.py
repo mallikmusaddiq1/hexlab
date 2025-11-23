@@ -135,7 +135,7 @@ def get_wcag_contrast(lum: float) -> dict:
 
 def print_color_block(hex_code: str, title: str = "Color") -> None:
     r, g, b = hex_to_rgb(hex_code)
-    print(f"{title:<18}: \033[48;2;{r};{g};{b}m        \033[0m #{hex_code}")
+    print(f"{title:<18}:   \033[48;2;{r};{g};{b}m                \033[0m  #{hex_code}")
 
 def _zero_small(v: float, threshold: float = 1e-4) -> float:
     return 0.0 if abs(v) <= threshold else v
@@ -190,8 +190,28 @@ def _draw_bar(val: float, max_val: float, r_c: int, g_c: int, b_c: int) -> str:
         
     return f"{bar_str} {val_str}"
 
-def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) -> None:
+def print_color_and_info(
+    hex_code: str,
+    title: str,
+    args: argparse.Namespace,
+    *,
+    neighbors=None,
+) -> None:
+    # Main color block
     print_color_block(hex_code, title)
+
+    # Neighbour blocks (next / previous / negative) directly under main block
+    if neighbors:
+        nxt = neighbors.get("next")
+        prv = neighbors.get("previous")
+        neg = neighbors.get("negative")
+        if nxt is not None:
+            print_color_block(nxt, "next")
+        if prv is not None:
+            print_color_block(prv, "previous")
+        if neg is not None:
+            print_color_block(neg, "negative")
+
     r, g, b = hex_to_rgb(hex_code)
 
     x, y, z, l_lab, a_lab, b_lab = (0.0,) * 6
@@ -220,103 +240,102 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
         u_comp_luv = _zero_small(u_uv)
         v_comp_luv = _zero_small(v_uv)
 
-    print()
 
     arg_lum = getattr(args, 'luminance', False)
     arg_contrast = getattr(args, 'contrast', False)
 
     if getattr(args, 'index', False):
-        print(f"\n   index      : {int(hex_code, 16)} / {MAX_DEC}")
+        print(f"\n\nindex             : {int(hex_code, 16)} / {MAX_DEC}")
     if getattr(args, 'name', False):
         name = HEX_TO_NAME.get(hex_code.upper())
         if name:
-            print(f"\n   name       : {name}")
+            print(f"\nname              : {name}")
 
     if arg_lum or arg_contrast:
         l_rel = get_luminance(r, g, b)
         if arg_lum:
-            print(f"\n   luminance  : {l_rel:.6f}")
-            print(f"                L {_draw_bar(l_rel, 1.0, 200, 200, 200)}")
+            print(f"\nluminance         : {l_rel:.6f}")
+            print(f"                    L {_draw_bar(l_rel, 1.0, 200, 200, 200)}")
 
     if getattr(args, 'red_green_blue', False):
-        print(f"\n   rgb        : rgb({r}, {g}, {b})")
-        print(f"                R {_draw_bar(r, 255, 255, 60, 60)} ({(r/255)*100:.2f}%)")
-        print(f"                G {_draw_bar(g, 255, 60, 255, 60)} ({(g/255)*100:.2f}%)")
-        print(f"                B {_draw_bar(b, 255, 60, 80, 255)} ({(b/255)*100:.2f}%)")
+        print(f"\nrgb               : rgb({r}, {g}, {b})")
+        print(f"                    R {_draw_bar(r, 255, 255, 60, 60)} ({(r/255)*100:.2f}%)")
+        print(f"                    G {_draw_bar(g, 255, 60, 255, 60)} ({(g/255)*100:.2f}%)")
+        print(f"                    B {_draw_bar(b, 255, 60, 80, 255)} ({(b/255)*100:.2f}%)")
 
     if getattr(args, 'hue_saturation_lightness', False):
         h, s, l_hsl = rgb_to_hsl(r, g, b)
-        print(f"\n   hsl        : hsl({h:.1f}°, {s * 100:.1f}%, {l_hsl * 100:.1f}%)")
-        print(f"                H {_draw_bar(h, 360, 255, 200, 0)}")
-        print(f"                S {_draw_bar(s, 1.0, 0, 200, 255)}")
-        print(f"                L {_draw_bar(l_hsl, 1.0, 200, 200, 200)}")
+        print(f"\nhsl               : hsl({h:.1f}°, {s * 100:.1f}%, {l_hsl * 100:.1f}%)")
+        print(f"                    H {_draw_bar(h, 360, 255, 200, 0)}")
+        print(f"                    S {_draw_bar(s, 1.0, 0, 200, 255)}")
+        print(f"                    L {_draw_bar(l_hsl, 1.0, 200, 200, 200)}")
 
     if getattr(args, 'hsv', False):
         h, s, v = rgb_to_hsv(r, g, b)
-        print(f"\n   hsv        : hsv({h:.1f}°, {s * 100:.1f}%, {v * 100:.1f}%)")
-        print(f"                H {_draw_bar(h, 360, 255, 200, 0)}")
-        print(f"                S {_draw_bar(s, 1.0, 0, 200, 255)}")
-        print(f"                V {_draw_bar(v, 1.0, 200, 200, 200)}")
+        print(f"\nhsv               : hsv({h:.1f}°, {s * 100:.1f}%, {v * 100:.1f}%)")
+        print(f"                    H {_draw_bar(h, 360, 255, 200, 0)}")
+        print(f"                    S {_draw_bar(s, 1.0, 0, 200, 255)}")
+        print(f"                    V {_draw_bar(v, 1.0, 200, 200, 200)}")
 
     if getattr(args, 'hue_whiteness_blackness', False):
         h, w, b_hwb = rgb_to_hwb(r, g, b)
-        print(f"\n   hwb        : hwb({h:.1f}°, {w * 100:.1f}%, {b_hwb * 100:.1f}%)")
-        print(f"                H {_draw_bar(h, 360, 255, 200, 0)}")
-        print(f"                W {_draw_bar(w, 1.0, 200, 200, 200)}")
-        print(f"                B {_draw_bar(b_hwb, 1.0, 100, 100, 100)}")
+        print(f"\nhwb               : hwb({h:.1f}°, {w * 100:.1f}%, {b_hwb * 100:.1f}%)")
+        print(f"                    H {_draw_bar(h, 360, 255, 200, 0)}")
+        print(f"                    W {_draw_bar(w, 1.0, 200, 200, 200)}")
+        print(f"                    B {_draw_bar(b_hwb, 1.0, 100, 100, 100)}")
 
     if getattr(args, 'cmyk', False):
         c, m, y_cmyk, k = rgb_to_cmyk(r, g, b)
-        print(f"\n   cmyk       : cmyk({c * 100:.1f}%, {m * 100:.1f}%, {y_cmyk * 100:.1f}%, {k * 100:.1f}%)")
-        print(f"                C {_draw_bar(c, 1.0, 0, 255, 255)}")
-        print(f"                M {_draw_bar(m, 1.0, 255, 0, 255)}")
-        print(f"                Y {_draw_bar(y_cmyk, 1.0, 255, 255, 0)}")
-        print(f"                K {_draw_bar(k, 1.0, 100, 100, 100)}")
+        print(f"\ncmyk              : cmyk({c * 100:.1f}%, {m * 100:.1f}%, {y_cmyk * 100:.1f}%, {k * 100:.1f}%)")
+        print(f"                    C {_draw_bar(c, 1.0, 0, 255, 255)}")
+        print(f"                    M {_draw_bar(m, 1.0, 255, 0, 255)}")
+        print(f"                    Y {_draw_bar(y_cmyk, 1.0, 255, 255, 0)}")
+        print(f"                    K {_draw_bar(k, 1.0, 100, 100, 100)}")
 
     if arg_xyz:
-        print(f"\n   xyz        : xyz({x:.4f}, {y:.4f}, {z:.4f})")
-        print(f"                X {_draw_bar(x / 100.0, 1.0, 255, 60, 60)}")
-        print(f"                Y {_draw_bar(y / 100.0, 1.0, 60, 255, 60)}")
-        print(f"                Z {_draw_bar(z / 100.0, 1.0, 60, 80, 255)}")
+        print(f"\nxyz               : xyz({x:.4f}, {y:.4f}, {z:.4f})")
+        print(f"                    X {_draw_bar(x / 100.0, 1.0, 255, 60, 60)}")
+        print(f"                    Y {_draw_bar(y / 100.0, 1.0, 60, 255, 60)}")
+        print(f"                    Z {_draw_bar(z / 100.0, 1.0, 60, 80, 255)}")
 
     if arg_lab:
         a_comp_lab = _zero_small(a_lab)
         b_comp_lab = _zero_small(b_lab)
-        print(f"\n   lab        : lab({l_lab:.4f}, {a_comp_lab:.4f}, {b_comp_lab:.4f})")
-        print(f"                L {_draw_bar(l_lab / 100.0, 1.0, 200, 200, 200)}")
+        print(f"\nlab               : lab({l_lab:.4f}, {a_comp_lab:.4f}, {b_comp_lab:.4f})")
+        print(f"                    L {_draw_bar(l_lab / 100.0, 1.0, 200, 200, 200)}")
         # Removed offset, passing raw negative/positive values
-        print(f"                A {_draw_bar(a_comp_lab, 128.0, 60, 255, 60)}")
-        print(f"                B {_draw_bar(b_comp_lab, 128.0, 60, 60, 255)}")
+        print(f"                    A {_draw_bar(a_comp_lab, 128.0, 60, 255, 60)}")
+        print(f"                    B {_draw_bar(b_comp_lab, 128.0, 60, 60, 255)}")
 
     if arg_lch:
         l_lch, c_lch, h_lch = lab_to_lch(l_lab, a_lab, b_lab)
-        print(f"\n   lch        : lch({l_lch:.4f}, {c_lch:.4f}, {h_lch:.4f}°)")
-        print(f"                L {_draw_bar(l_lch / 100.0, 1.0, 200, 200, 200)}")
-        print(f"                C {_draw_bar(c_lch / 150.0, 1.0, 255, 60, 255)}")
-        print(f"                H {_draw_bar(h_lch, 360, 255, 200, 0)}")
+        print(f"\nlch               : lch({l_lch:.4f}, {c_lch:.4f}, {h_lch:.4f}°)")
+        print(f"                    L {_draw_bar(l_lch / 100.0, 1.0, 200, 200, 200)}")
+        print(f"                    C {_draw_bar(c_lch / 150.0, 1.0, 255, 60, 255)}")
+        print(f"                    H {_draw_bar(h_lch, 360, 255, 200, 0)}")
 
     if arg_cieluv:
-        print(f"\n   luv        : luv({l_uv:.4f}, {u_comp_luv:.4f}, {v_comp_luv:.4f})")
-        print(f"                L {_draw_bar(l_uv / 100.0, 1.0, 200, 200, 200)}")
+        print(f"\nluv               : luv({l_uv:.4f}, {u_comp_luv:.4f}, {v_comp_luv:.4f})")
+        print(f"                    L {_draw_bar(l_uv / 100.0, 1.0, 200, 200, 200)}")
         # Removed offset, passing raw negative/positive values
-        print(f"                U {_draw_bar(u_comp_luv, 100.0, 60, 255, 60)}")
-        print(f"                V {_draw_bar(v_comp_luv, 100.0, 60, 60, 255)}")
+        print(f"                    U {_draw_bar(u_comp_luv, 100.0, 60, 255, 60)}")
+        print(f"                    V {_draw_bar(v_comp_luv, 100.0, 60, 60, 255)}")
 
     if arg_oklab:
         a_comp_ok = _zero_small(a_ok)
         b_comp_ok = _zero_small(b_ok)
-        print(f"\n   oklab      : oklab({l_ok:.4f}, {a_comp_ok:.4f}, {b_comp_ok:.4f})")
-        print(f"                L {_draw_bar(l_ok, 1.0, 200, 200, 200)}")
+        print(f"\noklab             : oklab({l_ok:.4f}, {a_comp_ok:.4f}, {b_comp_ok:.4f})")
+        print(f"                    L {_draw_bar(l_ok, 1.0, 200, 200, 200)}")
         # Removed offset, passing raw negative/positive values
-        print(f"                A {_draw_bar(a_comp_ok, 0.4, 60, 255, 60)}")
-        print(f"                B {_draw_bar(b_comp_ok, 0.4, 60, 60, 255)}")
+        print(f"                    A {_draw_bar(a_comp_ok, 0.4, 60, 255, 60)}")
+        print(f"                    B {_draw_bar(b_comp_ok, 0.4, 60, 60, 255)}")
 
     if arg_oklch:
         l_oklch, c_oklch, h_oklch = oklab_to_oklch(l_ok, a_ok, b_ok)
-        print(f"\n   oklch      : oklch({l_oklch:.4f}, {c_oklch:.4f}, {h_oklch:.4f}°)")
-        print(f"                L {_draw_bar(l_oklch, 1.0, 200, 200, 200)}")
-        print(f"                C {_draw_bar(c_oklch / 0.4, 1.0, 255, 60, 255)}")
-        print(f"                H {_draw_bar(h_oklch, 360, 255, 200, 0)}")
+        print(f"\noklch             : oklch({l_oklch:.4f}, {c_oklch:.4f}, {h_oklch:.4f}°)")
+        print(f"                    L {_draw_bar(l_oklch, 1.0, 200, 200, 200)}")
+        print(f"                    C {_draw_bar(c_oklch / 0.4, 1.0, 255, 60, 255)}")
+        print(f"                    H {_draw_bar(h_oklch, 360, 255, 200, 0)}")
 
     if arg_contrast:
         if not arg_lum:
@@ -335,9 +354,9 @@ def print_color_and_info(hex_code: str, title: str, args: argparse.Namespace) ->
         status_white = f"{wcag['white']['ratio']:.2f}:1 (AA:{wcag['white']['levels']['AA']}, AAA:{wcag['white']['levels']['AAA']})"
         status_black = f"{wcag['black']['ratio']:.2f}:1 (AA:{wcag['black']['levels']['AA']}, AAA:{wcag['black']['levels']['AAA']})"
 
-        print(f"\n                  {line_1_block}  {status_white}")
-        print(f"   contrast   :   {line_2_block}")
-        print(f"                  {line_3_block}  {status_black}")
+        print(f"\n                      {line_1_block}  {status_white}")
+        print(f"contrast          :   {line_2_block}")
+        print(f"                      {line_3_block}  {status_black}")
     print()
 
 def handle_color_command(args: argparse.Namespace) -> None:
@@ -378,23 +397,28 @@ def handle_color_command(args: argparse.Namespace) -> None:
         sys.exit(2)
 
     current_dec = int(clean_hex, 16)
-    print_color_and_info(clean_hex, title, args)
 
+    # Precompute neighbours for display directly under main block
+    neighbors = {}
     if args.next:
         next_dec = (current_dec + 1) % (MAX_DEC + 1)
-        print_color_and_info(f"{next_dec:06X}", "next", args)
+        neighbors["next"] = f"{next_dec:06X}"
     if args.previous:
         prev_dec = (current_dec - 1) % (MAX_DEC + 1)
-        print_color_and_info(f"{prev_dec:06X}", "previous", args)
+        neighbors["previous"] = f"{prev_dec:06X}"
     if args.negative:
         neg_dec = MAX_DEC - current_dec
-        print_color_and_info(f"{neg_dec:06X}", "negative", args)
+        neighbors["negative"] = f"{neg_dec:06X}"
 
+    if not neighbors:
+        neighbors = None
+
+    # Single call: main color with full info, neighbours as minimal blocks under header
+    print_color_and_info(clean_hex, title, args, neighbors=neighbors)
 
 def ensure_truecolor() -> None:
     if sys.platform != "win32" and os.environ.get("COLORTERM") != "truecolor":
         os.environ["COLORTERM"] = "truecolor"
-
 
 SUBCOMMANDS = {
     'gradient': gradient,
@@ -405,7 +429,6 @@ SUBCOMMANDS = {
     'similar': similar,
     'adjust': adjust,
 }
-
 
 def main() -> None:
     if len(sys.argv) > 1:
