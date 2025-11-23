@@ -615,11 +615,29 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         prog="hexlab adjust",
         description=(
             "hexlab adjust: advanced color manipulation\n\n"
-            "all operations are deterministic and applied in a fixed pipeline. "
-            "see the 'steps' section in the output for the exact order"
+            "all operations are deterministic and applied in a fixed pipeline"
         ),
         formatter_class=argparse.RawTextHelpFormatter,
+        usage=argparse.SUPPRESS
     )
+
+    p.add_argument(
+        "usage_hack", 
+        nargs="?", 
+        help=argparse.SUPPRESS, 
+        default=argparse.SUPPRESS
+    )
+    
+    original_print_help = p.print_help
+    
+    def custom_print_help(file=None):
+        if file is None:
+            file = sys.stdout
+        print("usage: hexlab adjust [-h] (-H HEX | -ra | -cn NAME | -di INDEX) [OPTIONS...]", file=file)
+        print("", file=file)
+        original_print_help(file)
+    
+    p.print_help = custom_print_help
 
     input_group = p.add_mutually_exclusive_group(required=True)
     input_group.add_argument(
@@ -638,115 +656,115 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         "-cn",
         "--color-name",
         type=INPUT_HANDLERS["color_name"],
-        help="base color name from --list-color-names",
+        help="base color name",
     )
     input_group.add_argument(
         "-di",
         "--decimal-index",
         type=INPUT_HANDLERS["decimal_index"],
-        help="base color decimal index: 0 to 16777215",
+        help="base decimal index",
     )
 
     p.add_argument(
         "-s",
         "--seed",
         type=INPUT_HANDLERS["seed"],
-        help="random seed for reproducibility",
+        help="random seed",
     )
 
     p.add_argument(
         "-V",
         "--verbose",
         action="store_true",
-        help="log detailed adjustment pipeline steps",
+        help="log detailed pipeline steps",
     )
 
-    ga = p.add_argument_group("basic hsl tone & saturation from 0 to 100, positive only)")
+    ga = p.add_argument_group("HSL adjustments")
     ga.add_argument(
         "-l",
         "--lighten",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="increase hsl lightness by N%% relative to current lightness",
+        help="increase lightness (0-100%%)",
     )
     ga.add_argument(
         "-d",
         "--darken",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="decrease hsl lightness by N%% relative multiply towards 0",
+        help="decrease lightness (0-100%%)",
     )
     ga.add_argument(
         "-sat",
         "--saturate",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="increase hsl saturation by N%% relative to remaining headroom",
+        help="increase saturation (0-100%%)",
     )
     ga.add_argument(
         "-des",
         "--desaturate",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="decrease hsl saturation by N%% relative multiply towards 0",
+        help="decrease saturation (0-100%%)",
     )
     ga.add_argument(
         "-rot",
         "--rotate",
         type=INPUT_HANDLERS["float"],
         metavar="N",
-        help="rotate hsl hue by N degrees can be positive or negative",
+        help="rotate hue (degrees)",
     )
 
-    adv_group = p.add_argument_group("advanced tonal & colorfulness corrections")
+    adv_group = p.add_argument_group("tone & vividness")
     adv_group.add_argument(
         "-br",
         "--brightness",
         type=INPUT_HANDLERS["float_signed_100"],
         metavar="N",
-        help="adjust brightness by N%% in linear-rgb from -100 to 100",
+        help="adjust linear brightness (+/- %%)",
     )
     adv_group.add_argument(
         "-ct",
         "--contrast",
         type=INPUT_HANDLERS["float_signed_100"],
         metavar="N",
-        help="adjust contrast by N%% in linear-rgb from -100 to 100, mid-grey anchored)",
+        help="adjust linear contrast (+/- %%)",
     )
     adv_group.add_argument(
         "-cb",
         "--chroma-boost",
         type=INPUT_HANDLERS["float"],
         metavar="N",
-        help="scale oklch chroma by 1 + N/100; N>0 boosts, N<0 reduces",
+        help="scale OKLCH chroma",
     )
     adv_group.add_argument(
         "-w",
         "--whiten",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="increase hwb whiteness by N%% mix towards white",
+        help="mix with white (HWB)",
     )
     adv_group.add_argument(
         "-b",
         "--blacken",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="increase hwb blackness by N%% mix towards black",
+        help="mix with black (HWB)",
     )
     adv_group.add_argument(
         "-warm",
         "--warm",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="heuristic oklab warmth from 0 to 100",
+        help="increase warmth (OKLAB)",
     )
     adv_group.add_argument(
         "-cool",
         "--cool",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="heuristic oklab coolness from 0 to 100",
+        help="increase coolness (OKLAB)",
     )
 
     filter_group = p.add_argument_group("filters & channels")
@@ -754,52 +772,50 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         "-g",
         "--grayscale",
         action="store_true",
-        help="oklab grayscale preserves lightness and removes chroma",
+        help="convert to grayscale",
     )
     filter_group.add_argument(
         "-inv",
         "--invert",
         action="store_true",
-        help="invert the color)",
+        help="invert color",
     )
     filter_group.add_argument(
         "-sep",
         "--sepia",
         action="store_true",
-        help="apply classic rgb sepia matrix",
+        help="apply sepia filter",
     )
     filter_group.add_argument(
         "-rc",
         "--red-channel",
         type=INPUT_HANDLERS["int_channel"],
         metavar="N",
-        help="add/sub red channel in rgb from -255 to 255",
+        help="add/sub red (-255 to 255)",
     )
     filter_group.add_argument(
         "-gc",
         "--green-channel",
         type=INPUT_HANDLERS["int_channel"],
         metavar="N",
-        help="add/sub green channel in rgb from -255 to 255",
+        help="add/sub green (-255 to 255)",
     )
     filter_group.add_argument(
         "-bc",
         "--blue-channel",
         type=INPUT_HANDLERS["int_channel"],
         metavar="N",
-        help="add/sub blue channel in rgb from -255 to 255",
+        help="add/sub blue (-255 to 255)",
     )
     filter_group.add_argument(
         "-op",
         "--opacity",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help=(
-            "simulate opacity N%% over black in linear RGB"
-        ),
+        help="simulate opacity on black (0-100%%)",
     )
 
-    gm = p.add_argument_group("mixing with another color")
+    gm = p.add_argument_group("mixing")
     gm.add_argument(
         "-mix",
         "--mix-color",
@@ -811,13 +827,13 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         "-mh",
         "--mix-color-hex",
         type=INPUT_HANDLERS["hex"],
-        help="hex code to mix with base color",
+        help="target hex code",
     )
     mix_ex.add_argument(
         "-mn",
         "--mix-color-name",
         type=INPUT_HANDLERS["color_name"],
-        help="color name to mix with from --list-color-names",
+        help="target color name",
     )
     gm.add_argument(
         "-ma",
@@ -825,7 +841,7 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         type=INPUT_HANDLERS["float_0_100"],
         default=50.0,
         metavar="N",
-        help="mix percentage N%% of secondary color (0-100, default: 50)",
+        help="mix percentage (default: 50)",
     )
     gm.add_argument(
         "-mm",
@@ -833,9 +849,7 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         type=INPUT_HANDLERS["colorspace"],
         choices=["rgb", "srgb", "srgblinear", "lab", "oklab", "luv"],
         default="rgb",
-        help=(
-            "mixing interpolation mode"
-        ),
+        help="interpolation mode",
     )
 
     return p
