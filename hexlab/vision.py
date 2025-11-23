@@ -80,9 +80,9 @@ def _finalize_rgb_vals(r: float, g: float, b: float) -> Tuple[int, int, int]:
     b_i = max(0, min(255, b_i))
     return r_i, g_i, b_i
 
-def print_color_block(hex_code: str, title: str = "Color") -> None:
+def print_color_block(hex_code: str, title: str = "color") -> None:
     r, g, b = hex_to_rgb(hex_code)
-    print(f"{title:<18}: \033[48;2;{r};{g};{b}m        \033[0m #{hex_code}")
+    print(f"{title:<18}:   \033[48;2;{r};{g};{b}m                \033[0m  #{hex_code}")
 
 
 def handle_simulate_command(args: argparse.Namespace) -> None:

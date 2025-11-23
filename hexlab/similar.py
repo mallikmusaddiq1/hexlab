@@ -197,7 +197,7 @@ def delta_e_euclidean_oklab(oklab1: Tuple[float, float, float], oklab2: Tuple[fl
 
 def print_color_block(hex_code: str, title: str = "Color") -> None:
     r, g, b = hex_to_rgb(hex_code)
-    print(f"{title:<18}: \033[48;2;{r};{g};{b}m        \033[0m #{hex_code}", end="")
+    print(f"{title:<18}:   \033[48;2;{r};{g};{b}m                \033[0m  #{hex_code}", end="")
 
 def _generate_search_cloud(base_rgb: Tuple[int, int, int], count: int = 3000) -> List[Tuple[int, int, int]]:
     r, g, b = base_rgb

@@ -322,7 +322,7 @@ def _finalize_rgb(r: float, g: float, b: float) -> Tuple[int, int, int]:
 
 def print_block(hex_code: str, label: str) -> None:
     r, g, b = hex_to_rgb(hex_code)
-    print(f"{label:<17} : \033[48;2;{r};{g};{b}m        \033[0m #{hex_code}")
+    print(f"{label:<17} :   \033[48;2;{r};{g};{b}m                \033[0m  #{hex_code}")
 
 
 def _apply_linear_gain_rgb(fr: float, fg: float, fb: float, factor: float) -> Tuple[float, float, float]:
@@ -588,10 +588,10 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
     is_hex_title = isinstance(title, str) and title.startswith("#") and title[1:].upper() == base_hex_upper
 
     if mix_target_hex:
-        base_label = "Base" if is_hex_title else title
+        base_label = "base" if is_hex_title else title
         print_block(base_hex, base_label)
         print_block(mix_target_hex, "mix with")
-        print("─" * 18)
+        print()
         print_block(res_hex, "result")
     elif not mods:
         base_label = "original" if is_hex_title else title
@@ -601,7 +601,7 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
     else:
         base_label = "original" if is_hex_title else title
         print_block(base_hex, base_label)
-        print("─" * 18)
+        print()
         print_block(res_hex, "adjusted")
 
     print()
