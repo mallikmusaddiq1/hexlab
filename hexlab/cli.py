@@ -348,7 +348,7 @@ def print_color_and_info(
         reset = "\033[0m"
         
         line_1_block = f"{bg_ansi}{fg_white}{'white':^16}{reset}"
-        line_2_block = f"{bg_ansi}{' ' * 16}{reset}"
+        line_2_block = f"{bg_ansi}{'ㅤ' * 8}{reset}"
         line_3_block = f"{bg_ansi}{fg_black}{'black':^16}{reset}"
         
         status_white = f"{wcag['white']['ratio']:.2f}:1 (AA:{wcag['white']['levels']['AA']}, AAA:{wcag['white']['levels']['AAA']})"

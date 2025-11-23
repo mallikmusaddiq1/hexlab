@@ -188,7 +188,7 @@ def _finalize_rgb_vals(r: float, g: float, b: float) -> Tuple[int, int, int]:
 
 def print_color_block(hex_code: str, title: str = "Color") -> None:
     r, g, b = hex_to_rgb(hex_code)
-    print(f"{title:<18}: \033[48;2;{r};{g};{b}m        \033[0m #{hex_code}")
+    print(f"{title:<18}:   \033[48;2;{r};{g};{b}m                \033[0m  #{hex_code}")
 
 def rgb_to_luv(r: int, g: int, b: int) -> Tuple[float, float, float]:
     X, Y, Z = rgb_to_xyz(r, g, b)
