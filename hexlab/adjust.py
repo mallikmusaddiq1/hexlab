@@ -163,7 +163,7 @@ def _gamut_map_oklab_to_srgb(l: float, a: float, b: float) -> Tuple[float, float
     high = C
     best_rgb = (fr, fg, fb)
 
-    for _ in range(10):
+    for _ in range(20):
         mid_C = (low + high) / 2.0
         new_a = mid_C * math.cos(h_rad)
         new_b = mid_C * math.sin(h_rad)
@@ -410,7 +410,6 @@ def _ensure_min_contrast_with(
         return fr, fg, fb, False
 
     l0, a0, b0 = rgb_to_oklab(fr, fg, fb)
-    base_Y = _relative_luminance(fr, fg, fb)
     bg_Y = _relative_luminance(br, bg, bb)
 
     Y_light = min_ratio * (bg_Y + 0.05) - 0.05
