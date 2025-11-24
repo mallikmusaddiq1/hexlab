@@ -352,19 +352,19 @@ def handle_gradient_command(args: argparse.Namespace) -> None:
         random.seed(args.seed)
 
     if (
-        not args.random_gradient
+        not args.random
         and not args.hex
         and not args.color_name
         and not getattr(args, "decimal_index", None)
     ):
-        log('error', "at least one -H/--hex, -cn/--color-name, -di/--decimal-index, or -rg/--random-gradient is required")
+        log('error', "at least one -H/--hex, -cn/--color-name, -di/--decimal-index, or -r/--random is required")
         log('info', "use 'hexlab gradient -h' for more information")
         sys.exit(2)
 
     colorspace = args.colorspace
 
     colors_hex: List[str] = []
-    if args.random_gradient:
+    if args.random:
         num_hex = args.total_random_hex
         if num_hex == 0:
             num_hex = random.randint(2, 5)
@@ -396,6 +396,7 @@ def handle_gradient_command(args: argparse.Namespace) -> None:
 
     num_steps = max(1, min(MAX_STEPS, args.steps))
 
+    print()
     if num_steps == 1:
         print_color_block(colors_hex[0], "step 1")
         return
@@ -441,7 +442,7 @@ def get_gradient_parser() -> argparse.ArgumentParser:
         help="use -H HEX multiple times for inputs"
     )
     input_group.add_argument(
-        "-rg", "--random-gradient",
+        "-r", "--random",
         action="store_true",
         help="generate gradient from random colors"
     )
@@ -480,7 +481,7 @@ def get_gradient_parser() -> argparse.ArgumentParser:
         "-s", "--seed",
         type=INPUT_HANDLERS["seed"],
         default=None,
-        help="random seed for reproducibility"
+        help="seed for reproducibility of random"
     )
     return parser
 

@@ -260,15 +260,15 @@ def handle_mix_command(args: argparse.Namespace) -> None:
     if args.seed is not None:
         random.seed(args.seed)
 
-    if not args.random_mix and not args.hex and not args.color_name and not getattr(args, "decimal_index", None):
-        log('error', "at least one -H/--hex, -cn/--color-name, -di/--decimal-index, or -rm/--random-mix is required")
+    if not args.random and not args.hex and not args.color_name and not getattr(args, "decimal_index", None):
+        log('error', "at least one -H/--hex, -cn/--color-name, -di/--decimal-index, or -r/--random is required")
         log('info', "use 'hexlab mix -h' for more information")
         sys.exit(2)
 
     colorspace = args.colorspace
 
     colors_hex = []
-    if args.random_mix:
+    if args.random:
         num_hex = args.total_random_hex
         if num_hex == 0:
             num_hex = 2
@@ -357,7 +357,7 @@ def get_mix_parser() -> argparse.ArgumentParser:
         help="use -H HEX multiple times for inputs"
     )
     input_group.add_argument(
-        "-rm", "--random-mix",
+        "-r", "--random",
         action="store_true",
         help="generate mix from random colors"
     )
@@ -390,7 +390,7 @@ def get_mix_parser() -> argparse.ArgumentParser:
         "-s", "--seed",
         type=INPUT_HANDLERS["seed"],
         default=None,
-        help="random seed for reproducibility"
+        help="seed for reproducibility of random"
     )
     return parser
 

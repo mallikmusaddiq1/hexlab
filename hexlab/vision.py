@@ -95,7 +95,7 @@ def handle_simulate_command(args: argparse.Namespace) -> None:
     base_hex = None
     title = "Base Color"
 
-    if args.random_simulate:
+    if args.random:
         base_hex = f"{random.randint(0, MAX_DEC):06X}"
         title = "random"
     elif args.color_name:
@@ -175,7 +175,7 @@ def get_vision_parser() -> argparse.ArgumentParser:
         help="base hex code for simulation"
     )
     input_group.add_argument(
-        "-rs", "--random-simulate",
+        "-r", "--random",
         action="store_true",
         help="simulate with a random color"
     )
@@ -193,7 +193,7 @@ def get_vision_parser() -> argparse.ArgumentParser:
         "-s", "--seed",
         type=INPUT_HANDLERS["seed"],
         default=None,
-        help="random seed for reproducibility"
+        help="seed for reproducibility of random"
     )
     simulate_group = parser.add_argument_group("simulation types")
     simulate_group.add_argument(

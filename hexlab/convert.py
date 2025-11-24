@@ -730,7 +730,7 @@ def get_convert_parser() -> argparse.ArgumentParser:
              '  -v "oklch(0, 0, 0°)"'
     )
     input_group.add_argument(
-        "-rv", "--random-value",
+        "-r", "--random",
         action="store_true",
         help="generate a random value for the --from-format"
     )
@@ -738,7 +738,7 @@ def get_convert_parser() -> argparse.ArgumentParser:
         "-s", "--seed",
         type=INPUT_HANDLERS["seed"],
         default=None,
-        help="random seed for reproducibility"
+        help="seed for reproducibility of random"
     )
     parser.add_argument(
         "-V", "--verbose",

@@ -267,10 +267,10 @@ def handle_similar_command(args: argparse.Namespace) -> None:
     clean_hex = None
     title = "Base Color"
 
-    if args.random_similar:
+    if args.random:
         current_dec = random.randint(0, MAX_DEC)
         clean_hex = f"{current_dec:06X}"
-        title = "Random Base"
+        title = "random"
     elif args.color_name:
         hex_val = _get_color_name_hex(args.color_name)
         if not hex_val:
@@ -285,13 +285,11 @@ def handle_similar_command(args: argparse.Namespace) -> None:
         clean_hex = args.hex
         title = HEX_TO_NAME.get(clean_hex.upper(), f"#{clean_hex}")
     elif args.decimal_index:
-        # INPUT_HANDLERS returned this as a valid HEX STRING ("0000FF")
-        # So we use it directly as hex!
         clean_hex = args.decimal_index
         idx = int(clean_hex, 16)
         title = HEX_TO_NAME.get(clean_hex.upper(), f"Index {idx}")
     else:
-        log('error', "one of the arguments -H/--hex, -rs/--random-similar, -di/--decimal-index, or -cn/--color-name is required")
+        log('error', "one of the arguments -H/--hex, -r/--random, -di/--decimal-index, or -cn/--color-name is required")
         log('info', "use 'hexlab similar --help' for more information")
         sys.exit(2)
 
@@ -350,7 +348,7 @@ def get_similar_parser() -> argparse.ArgumentParser:
         help="base hex code"
     )
     input_group.add_argument(
-        "-rs", "--random-similar",
+        "-r", "--random",
         action="store_true",
         help="use a random base"
     )
@@ -386,7 +384,7 @@ def get_similar_parser() -> argparse.ArgumentParser:
         "-s", "--seed",
         type=INPUT_HANDLERS["seed"],
         default=None,
-        help="random seed for reproducibility"
+        help="seed for reproducibility of random"
     )
     return parser
 

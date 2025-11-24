@@ -237,7 +237,7 @@ def handle_scheme_command(args: argparse.Namespace) -> None:
     base_hex = None
     title = "Base Color"
 
-    if args.random_scheme:
+    if args.random:
         base_hex = f"{random.randint(0, MAX_DEC):06X}"
         title = "random"
     elif args.color_name:
@@ -357,7 +357,7 @@ def get_scheme_parser() -> argparse.ArgumentParser:
         help="base hex code for the scheme"
     )
     input_group.add_argument(
-        "-rs", "--random-scheme",
+        "-r", "--random",
         action="store_true",
         help="generate a scheme from a random color"
     )

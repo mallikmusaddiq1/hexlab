@@ -197,6 +197,7 @@ def print_color_and_info(
     *,
     neighbors=None,
 ) -> None:
+    print()
     # Main color block
     print_color_block(hex_code, title)
 
@@ -370,7 +371,7 @@ def handle_color_command(args: argparse.Namespace) -> None:
     if args.seed is not None:
         random.seed(args.seed)
 
-    if args.random_hex:
+    if args.random:
         current_dec = random.randint(0, MAX_DEC)
         clean_hex = f"{current_dec:06X}"
         title = "random"
@@ -392,7 +393,7 @@ def handle_color_command(args: argparse.Namespace) -> None:
         idx = int(clean_hex, 16)
         title = HEX_TO_NAME.get(clean_hex.upper(), f"index {idx}")
     else:
-        log('error', "one of the arguments -H/--hex, -rh/--random-hex, -di/--decimal-index, or -cn/--color-name is required")
+        log('error', "one of the arguments -H/--hex, -r/--random, -di/--decimal-index, or -cn/--color-name is required")
         log('info', "use 'hexlab --help' for more information")
         sys.exit(2)
 
@@ -481,7 +482,7 @@ def main() -> None:
         help="6-digit hex color code without # sign"
     )
     color_input_group.add_argument(
-        "-rh", "--random-hex",
+        "-r", "--random",
         action="store_true",
         help="generate a random hex color"
     )
@@ -501,7 +502,7 @@ def main() -> None:
         "-s", "--seed",
         type=INPUT_HANDLERS["seed"],
         default=None,
-        help="random seed for reproducibility"
+        help="seed for reproducibility of random"
     )
 
     mod_group = parser.add_argument_group("color modifications")
