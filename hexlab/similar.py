@@ -38,7 +38,7 @@ for k, v in COLOR_NAMES.items():
     if key in _norm_map and _norm_map.get(key) != v:
         original_hex = _norm_map.get(key)
         original_name = HEX_TO_NAME.get(original_hex, '???')
-        log('warn', f"Color name collision on key '{key}': '{original_name}' and '{k}' both normalize to the same key. '{k}' will be used.")
+        log('warn', f"color name collision on key '{key}': '{original_name}' and '{k}' both normalize to the same key. '{k}' will be used.")
     _norm_map[key] = v
 COLOR_NAMES_LOOKUP = _norm_map
 
@@ -69,7 +69,6 @@ def _srgb_to_linear(c: int) -> float:
     c_norm = _clamp01(c_norm)
     return c_norm / 12.92 if c_norm <= SRGB_TO_LINEAR_TH else ((c_norm + 0.055) / 1.055) ** 2.4
 
-# --- HSL Math Helpers for Smart Randomness ---
 def rgb_to_hsl(r: int, g: int, b: int) -> Tuple[float, float, float]:
     r_f, g_f, b_f = r / 255.0, g / 255.0, b / 255.0
     cmax = max(r_f, g_f, b_f)
@@ -245,26 +244,20 @@ def delta_e_euclidean_oklab(oklab1: Tuple[float, float, float], oklab2: Tuple[fl
     l2, a2, b2 = oklab2
     return math.sqrt((l1 - l2) ** 2 + (a1 - a2) ** 2 + (b1 - b2) ** 2)
 
-def print_color_block(hex_code: str, title: str = "Color") -> None:
+def print_color_block(hex_code: str, title: str = "color") -> None:
     r, g, b = hex_to_rgb(hex_code)
     print(f"{title:<18}:   \033[48;2;{r};{g};{b}m                \033[0m  #{hex_code}", end="")
 
 def _generate_search_cloud(base_rgb: Tuple[int, int, int], count: int = 5000) -> List[Tuple[int, int, int]]:
-    """
-    Generates candidate colors using HSL perturbation (Smart Random).
-    Ensures high-quality exploration and uniqueness using a Set.
-    """
     r, g, b = base_rgb
     h, s, l = rgb_to_hsl(r, g, b)
     
     candidates = set()
 
-    # Dynamic ranges for "Smart" natural variations
-    # We use slightly wider ranges to support quantity demands up to 1000
     for _ in range(count):
-        h_delta = random.uniform(-20, 20)  # Hue shift (+/- 20 deg)
-        s_delta = random.uniform(-0.15, 0.15) # Saturation shift
-        l_delta = random.uniform(-0.15, 0.15) # Lightness shift
+        h_delta = random.uniform(-20, 20)
+        s_delta = random.uniform(-0.15, 0.15)
+        l_delta = random.uniform(-0.15, 0.15)
 
         new_h = (h + h_delta) % 360
         new_s = max(0.0, min(1.0, s + s_delta))
@@ -287,8 +280,6 @@ def find_similar_colors_dynamic(base_rgb: Tuple[int, int, int], n: int = 5, metr
     elif metric == 'oklab':
         base_oklab = rgb_to_oklab(base_r_i, base_g_i, base_b_i)
 
-    # Dynamic pool sizing for Quantity assurance
-    # Ensure pool is large enough for n=1000 requests (roughly 10x candidates per result)
     pool_size = max(5000, n * 10)
     candidate_pool = _generate_search_cloud(base_rgb, count=pool_size)
 
@@ -324,7 +315,7 @@ def handle_similar_command(args: argparse.Namespace) -> None:
         random.seed(args.seed)
 
     clean_hex = None
-    title = "Base Color"
+    title = "base color"
 
     if args.random:
         current_dec = random.randint(0, MAX_DEC)
@@ -346,7 +337,7 @@ def handle_similar_command(args: argparse.Namespace) -> None:
     elif args.decimal_index:
         clean_hex = args.decimal_index
         idx = int(clean_hex, 16)
-        title = HEX_TO_NAME.get(clean_hex.upper(), f"Index {idx}")
+        title = HEX_TO_NAME.get(clean_hex.upper(), f"index {idx}")
     else:
         log('error', "one of the arguments -H/--hex, -r/--random, -di/--decimal-index, or -cn/--color-name is required")
         log('info', "use 'hexlab similar --help' for more information")
