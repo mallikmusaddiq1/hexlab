@@ -69,6 +69,56 @@ def _srgb_to_linear(c: int) -> float:
     c_norm = _clamp01(c_norm)
     return c_norm / 12.92 if c_norm <= SRGB_TO_LINEAR_TH else ((c_norm + 0.055) / 1.055) ** 2.4
 
+# --- HSL Math Helpers for Smart Randomness ---
+def rgb_to_hsl(r: int, g: int, b: int) -> Tuple[float, float, float]:
+    r_f, g_f, b_f = r / 255.0, g / 255.0, b / 255.0
+    cmax = max(r_f, g_f, b_f)
+    cmin = min(r_f, g_f, b_f)
+    delta = cmax - cmin
+    l = (cmax + cmin) / 2
+    if delta == 0:
+        h = 0.0
+        s = 0.0
+    else:
+        denom = 1 - abs(2 * l - 1)
+        s = 0.0 if abs(denom) < EPS else delta / denom
+        if cmax == r_f:
+            h = 60 * (((g_f - b_f) / delta) % 6)
+        elif cmax == g_f:
+            h = 60 * ((b_f - r_f) / delta + 2)
+        else:
+            h = 60 * ((r_f - g_f) / delta + 4)
+        h = (h + 360) % 360
+    return (h, s, l)
+
+def hsl_to_rgb(h: float, s: float, l: float) -> Tuple[int, int, int]:
+    h = h % 360
+    c = (1 - abs(2 * l - 1)) * s
+    x = c * (1 - abs(((h / 60) % 2) - 1))
+    m = l - c / 2
+    if 0 <= h < 60:
+        r_p, g_p, b_p = c, x, 0
+    elif 60 <= h < 120:
+        r_p, g_p, b_p = x, c, 0
+    elif 120 <= h < 180:
+        r_p, g_p, b_p = 0, c, x
+    elif 180 <= h < 240:
+        r_p, g_p, b_p = 0, x, c
+    elif 240 <= h < 300:
+        r_p, g_p, b_p = x, 0, c
+    else:
+        r_p, g_p, b_p = c, 0, x
+    
+    r_fin = (r_p + m) * 255.0
+    g_fin = (g_p + m) * 255.0
+    b_fin = (b_p + m) * 255.0
+    
+    return (
+        max(0, min(255, int(round(r_fin)))),
+        max(0, min(255, int(round(g_fin)))),
+        max(0, min(255, int(round(b_fin))))
+    )
+
 def rgb_to_xyz(r: int, g: int, b: int) -> Tuple[float, float, float]:
     r_lin = _srgb_to_linear(r)
     g_lin = _srgb_to_linear(g)
@@ -199,23 +249,29 @@ def print_color_block(hex_code: str, title: str = "Color") -> None:
     r, g, b = hex_to_rgb(hex_code)
     print(f"{title:<18}:   \033[48;2;{r};{g};{b}m                \033[0m  #{hex_code}", end="")
 
-def _generate_search_cloud(base_rgb: Tuple[int, int, int], count: int = 3000) -> List[Tuple[int, int, int]]:
+def _generate_search_cloud(base_rgb: Tuple[int, int, int], count: int = 5000) -> List[Tuple[int, int, int]]:
+    """
+    Generates candidate colors using HSL perturbation (Smart Random).
+    Ensures high-quality exploration and uniqueness using a Set.
+    """
     r, g, b = base_rgb
+    h, s, l = rgb_to_hsl(r, g, b)
+    
     candidates = set()
 
-    ranges = [20, 40, 60, 80, 120]
-
+    # Dynamic ranges for "Smart" natural variations
+    # We use slightly wider ranges to support quantity demands up to 1000
     for _ in range(count):
-        rng = random.choice(ranges)
+        h_delta = random.uniform(-20, 20)  # Hue shift (+/- 20 deg)
+        s_delta = random.uniform(-0.15, 0.15) # Saturation shift
+        l_delta = random.uniform(-0.15, 0.15) # Lightness shift
 
-        nr = r + random.randint(-rng, rng)
-        ng = g + random.randint(-rng, rng)
-        nb = b + random.randint(-rng, rng)
+        new_h = (h + h_delta) % 360
+        new_s = max(0.0, min(1.0, s + s_delta))
+        new_l = max(0.0, min(1.0, l + l_delta))
 
-        nr = max(0, min(255, nr))
-        ng = max(0, min(255, ng))
-        nb = max(0, min(255, nb))
-
+        nr, ng, nb = hsl_to_rgb(new_h, new_s, new_l)
+        
         candidates.add((nr, ng, nb))
 
     return list(candidates)
@@ -231,7 +287,10 @@ def find_similar_colors_dynamic(base_rgb: Tuple[int, int, int], n: int = 5, metr
     elif metric == 'oklab':
         base_oklab = rgb_to_oklab(base_r_i, base_g_i, base_b_i)
 
-    candidate_pool = _generate_search_cloud(base_rgb, count=5000)
+    # Dynamic pool sizing for Quantity assurance
+    # Ensure pool is large enough for n=1000 requests (roughly 10x candidates per result)
+    pool_size = max(5000, n * 10)
+    candidate_pool = _generate_search_cloud(base_rgb, count=pool_size)
 
     valid_similar = []
 
@@ -366,7 +425,8 @@ def get_similar_parser() -> argparse.ArgumentParser:
         "-dm", "--distance-metric",
         type=INPUT_HANDLERS["distance_metric"],
         default='lab',
-        help="distance metric: lab oklab rgb (default: lab)"
+        help="distance metric: lab oklab rgb (default: lab)",
+        choices=['lab', 'oklab', 'rgb']
     )
     parser.add_argument(
         "-dv", "--dedup-value",
