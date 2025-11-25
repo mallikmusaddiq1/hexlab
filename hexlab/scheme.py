@@ -267,14 +267,10 @@ def handle_scheme_command(args: argparse.Namespace) -> None:
     print()
     r, g, b = hex_to_rgb(base_hex)
 
-    # initialize, will be filled by the chosen model branch
     h, s, l, c = (0.0,) * 4
 
-    # preserve use of INPUT_HANDLERS for robust parsing, but enforce allowed choices here as well
     model = (args.harmony_model or 'hsl').lower()
 
-    # Defensive guard: argparse choices should normally block invalid values,
-    # but ensure explicit validation here (keeps behavior robust).
     if model not in ("hsl", "lch", "oklch"):
         log('error', f"unsupported harmony model '{args.harmony_model}'.")
         log('info', "valid options are: hsl, lch, oklch")
@@ -289,9 +285,8 @@ def handle_scheme_command(args: argparse.Namespace) -> None:
     elif model == 'oklch':
         l, c, h = rgb_to_oklch(r, g, b)
 
-    # sanity checks: ensure hue is a finite number
     if not (isinstance(h, (int, float)) and h == h):
-        log('error', "computed hue is invalid (NaN). Aborting to avoid producing invalid output.")
+        log('error', "computed hue is invalid (NaN). aborting to avoid producing invalid output.")
         sys.exit(3)
 
     def get_scheme_hex(hue_shift: float) -> str:
@@ -306,7 +301,6 @@ def handle_scheme_command(args: argparse.Namespace) -> None:
         elif model == 'oklch':
             new_r, new_g, new_b = oklch_to_rgb(l, c, new_h)
         else:
-            # defensive: should never happen due to earlier guard
             log('error', f"internal error: unhandled harmony model '{model}' in get_scheme_hex")
             sys.exit(3)
         return rgb_to_hex(new_r, new_g, new_b)
@@ -399,8 +393,6 @@ def get_scheme_parser() -> argparse.ArgumentParser:
         default=None,
         help="random seed for reproducibility"
     )
-    # keep using INPUT_HANDLERS for parsing, but restrict allowed choices so argparse
-    # will raise a clear error for invalid models
     parser.add_argument(
         "-hm", "--harmony-model",
         type=INPUT_HANDLERS["harmony_model"],
