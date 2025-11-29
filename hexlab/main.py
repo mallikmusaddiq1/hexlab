@@ -1,141 +1,28 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
 import sys
 import random
 import math
-import json
-import re
 from typing import Tuple
-
-from .input_utils import INPUT_HANDLERS, log, HexlabArgumentParser
-
-from . import gradient
-from . import mix
-from . import scheme
-from . import vision
-from . import convert
-from . import similar
-from . import adjust
-
-from .constants import (
-    COLOR_NAMES as COLOR_NAMES_RAW, MAX_DEC, __version__,
-    TECH_INFO_KEYS, SRGB_TO_LINEAR_TH, LINEAR_TO_SRGB_TH, EPS
+from .constants.constants import MAX_DEC, __version__, TECH_INFO_KEYS, SRGB_TO_LINEAR_TH, LINEAR_TO_SRGB_TH, EPS
+from .utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
+from .utils.hexlab_logger import log
+from .utils.truecolor import ensure_truecolor
+from .utils.print_color_block import print_color_block
+from .utils.formatting import format_colorspace
+from .utils.color_names_handler import resolve_color_name_or_exit, get_title_for_hex, handle_list_color_names_action
+from .subcommands.subcommands import SUBCOMMANDS
+from .color_math.luminance import get_luminance
+from .color_math.wcag_contrast import get_wcag_contrast
+from .color_math.conversions import (
+    hex_to_rgb, rgb_to_xyz,
+    xyz_to_lab, lab_to_lch,
+    rgb_to_hsl, rgb_to_hsv,
+    rgb_to_hwb, rgb_to_cmyk,
+    rgb_to_oklab, oklab_to_oklch,
+    rgb_to_luv
 )
-
-from .convert import (
-    hex_to_rgb as conv_hex_to_rgb,
-    rgb_to_xyz as conv_rgb_to_xyz,
-    xyz_to_lab as conv_xyz_to_lab,
-    lab_to_lch as conv_lab_to_lch,
-    rgb_to_hsl as conv_rgb_to_hsl,
-    rgb_to_hsv as conv_rgb_to_hsv,
-    rgb_to_hwb as conv_rgb_to_hwb,
-    rgb_to_cmyk as conv_rgb_to_cmyk,
-    rgb_to_oklab as conv_rgb_to_oklab,
-    oklab_to_oklch as conv_oklab_to_oklch,
-    rgb_to_luv as conv_rgb_to_luv,
-    _clamp01 as conv_clamp01,
-    _srgb_to_linear as conv_srgb_to_linear,
-)
-
-def _normalize_hex_val(v: str) -> str:
-    if not isinstance(v, str):
-        return ''
-    vv = v.replace('#', '').strip().upper()
-    if len(vv) == 3:
-        vv = ''.join([c * 2 for c in vv])
-    return vv
-
-def _norm_name_key(s: str) -> str:
-    return re.sub(r'[^0-9a-z]', '', str(s).lower())
-
-COLOR_NAMES = {k: _normalize_hex_val(v) for k, v in COLOR_NAMES_RAW.items()}
-
-HEX_TO_NAME = {v.upper(): k for k, v in COLOR_NAMES.items()}
-
-_norm_map = {}
-for k, v in COLOR_NAMES.items():
-    key = _norm_name_key(k)
-    if key in _norm_map and _norm_map.get(key) != v:
-        original_hex = _norm_map.get(key)
-        original_name = HEX_TO_NAME.get(original_hex.upper(), '???')
-        log(
-            'warn',
-            f"Color name collision on key '{key}': '{original_name}' and "
-            f"'{k}' both normalize to the same key. '{k}' will be used."
-        )
-    _norm_map[key] = v
-COLOR_NAMES_LOOKUP = _norm_map
-
-def _get_color_name_hex(sanitized_name: str) -> str:
-    if not sanitized_name:
-        return None
-    return COLOR_NAMES_LOOKUP.get(sanitized_name)
-
-def hex_to_rgb(hex_code: str) -> Tuple[int, int, int]:
-    return conv_hex_to_rgb(hex_code)
-
-def _clamp01(v: float) -> float:
-    return conv_clamp01(v)
-
-def lum_comp(c: int) -> float:
-    return conv_srgb_to_linear(c)
-
-def get_luminance(r: int, g: int, b: int) -> float:
-    return 0.2126 * lum_comp(r) + 0.7152 * lum_comp(g) + 0.0722 * lum_comp(b)
-
-def rgb_to_hsl(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    return conv_rgb_to_hsl(r, g, b)
-
-def rgb_to_hsv(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    return conv_rgb_to_hsv(r, g, b)
-
-def rgb_to_hwb(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    return conv_rgb_to_hwb(r, g, b)
-
-def rgb_to_cmyk(r: int, g: int, b: int) -> Tuple[float, float, float, float]:
-    return conv_rgb_to_cmyk(r, g, b)
-
-def rgb_to_xyz(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    return conv_rgb_to_xyz(r, g, b)
-
-def xyz_to_lab(x: float, y: float, z: float) -> Tuple[float, float, float]:
-    return conv_xyz_to_lab(x, y, z)
-
-def lab_to_lch(l: float, a: float, b: float) -> Tuple[float, float, float]:
-    return conv_lab_to_lch(l, a, b)
-
-def rgb_to_oklab(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    return conv_rgb_to_oklab(r, g, b)
-
-def oklab_to_oklch(l: float, a: float, b: float) -> Tuple[float, float, float]:
-    return conv_oklab_to_oklch(l, a, b)
-
-def rgb_to_luv(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    return conv_rgb_to_luv(r, g, b)
-
-def get_wcag_contrast(lum: float) -> dict:
-    contrast_white = (1.0 + 0.05) / (lum + 0.05)
-    contrast_black = (lum + 0.05) / (0.0 + 0.05)
-
-    def get_pass_fail(ratio: float) -> dict:
-        return {
-            "AA-Large": "Pass" if ratio >= 3 else "Fail",
-            "AA": "Pass" if ratio >= 4.5 else "Fail",
-            "AAA-Large": "Pass" if ratio >= 4.5 else "Fail",
-            "AAA": "Pass" if ratio >= 7 else "Fail",
-        }
-
-    return {
-        "white": {"ratio": contrast_white, "levels": get_pass_fail(contrast_white)},
-        "black": {"ratio": contrast_black, "levels": get_pass_fail(contrast_black)},
-    }
-
-def print_color_block(hex_code: str, title: str = "Color") -> None:
-    r, g, b = hex_to_rgb(hex_code)
-    print(f"{title:<18}:   \033[48;2;{r};{g};{b}m                \033[0m  #{hex_code}")
 
 def _zero_small(v: float, threshold: float = 1e-4) -> float:
     return 0.0 if abs(v) <= threshold else v
@@ -173,6 +60,8 @@ def print_color_and_info(
 ) -> None:
     print()
     print_color_block(hex_code, title)
+
+    hide_bars = getattr(args, 'hide_bars', False)
 
     if neighbors:
         nxt = neighbors.get("next")
@@ -219,92 +108,104 @@ def print_color_and_info(
     if getattr(args, 'index', False):
         print(f"\n\nindex             : {int(hex_code, 16)} / {MAX_DEC}")
     if getattr(args, 'name', False):
-        name = HEX_TO_NAME.get(hex_code.upper())
-        if name:
-            print(f"\nname              : {name}")
+        name_or_hex = get_title_for_hex(hex_code)
+        if not name_or_hex.startswith("#") and name_or_hex.lower() != "unknown":
+            print(f"\nname              : {name_or_hex}")
 
     if arg_lum or arg_contrast:
         l_rel = get_luminance(r, g, b)
         if arg_lum:
             print(f"\nluminance         : {l_rel:.6f}")
-            print(f"                    L {_draw_bar(l_rel, 1.0, 200, 200, 200)}")
+            if not hide_bars:
+                print(f"                    L {_draw_bar(l_rel, 1.0, 200, 200, 200)}")
 
-    if getattr(args, 'red_green_blue', False):
-        print(f"\nrgb               : rgb({r}, {g}, {b})")
-        print(f"                    R {_draw_bar(r, 255, 255, 60, 60)} {(r/255)*100:6.2f}%")
-        print(f"                    G {_draw_bar(g, 255, 60, 255, 60)} {(g/255)*100:6.2f}%")
-        print(f"                    B {_draw_bar(b, 255, 60, 80, 255)} {(b/255)*100:6.2f}%")
+    if getattr(args, 'rgb', False):
+        print(f"\nrgb               : {format_colorspace('rgb', r, g, b)}")
+        if not hide_bars:
+            print(f"                    R {_draw_bar(r, 255, 255, 60, 60)} {(r/255)*100:6.2f}%")
+            print(f"                    G {_draw_bar(g, 255, 60, 255, 60)} {(g/255)*100:6.2f}%")
+            print(f"                    B {_draw_bar(b, 255, 60, 80, 255)} {(b/255)*100:6.2f}%")
 
-    if getattr(args, 'hue_saturation_lightness', False):
+    if getattr(args, 'hsl', False):
         h, s, l_hsl = rgb_to_hsl(r, g, b)
-        print(f"\nhsl               : hsl({h:.1f}°, {s * 100:.1f}%, {l_hsl * 100:.1f}%)")
-        print(f"                    H {_draw_bar(h, 360, 255, 200, 0)}")
-        print(f"                    S {_draw_bar(s, 1.0, 0, 200, 255)}")
-        print(f"                    L {_draw_bar(l_hsl, 1.0, 200, 200, 200)}")
+        print(f"\nhsl               : {format_colorspace('hsl', h, s, l_hsl)}")
+        if not hide_bars:
+            print(f"                    H {_draw_bar(h, 360, 255, 200, 0)}")
+            print(f"                    S {_draw_bar(s, 1.0, 0, 200, 255)}")
+            print(f"                    L {_draw_bar(l_hsl, 1.0, 200, 200, 200)}")
 
     if getattr(args, 'hsv', False):
         h, s, v = rgb_to_hsv(r, g, b)
-        print(f"\nhsv               : hsv({h:.1f}°, {s * 100:.1f}%, {v * 100:.1f}%)")
-        print(f"                    H {_draw_bar(h, 360, 255, 200, 0)}")
-        print(f"                    S {_draw_bar(s, 1.0, 0, 200, 255)}")
-        print(f"                    V {_draw_bar(v, 1.0, 200, 200, 200)}")
+        print(f"\nhsv               : {format_colorspace('hsv', h, s, v)}")
+        if not hide_bars:
+            print(f"                    H {_draw_bar(h, 360, 255, 200, 0)}")
+            print(f"                    S {_draw_bar(s, 1.0, 0, 200, 255)}")
+            print(f"                    V {_draw_bar(v, 1.0, 200, 200, 200)}")
 
-    if getattr(args, 'hue_whiteness_blackness', False):
+    if getattr(args, 'hwb', False):
         h, w, b_hwb = rgb_to_hwb(r, g, b)
-        print(f"\nhwb               : hwb({h:.1f}°, {w * 100:.1f}%, {b_hwb * 100:.1f}%)")
-        print(f"                    H {_draw_bar(h, 360, 255, 200, 0)}")
-        print(f"                    W {_draw_bar(w, 1.0, 200, 200, 200)}")
-        print(f"                    B {_draw_bar(b_hwb, 1.0, 100, 100, 100)}")
+        print(f"\nhwb               : {format_colorspace('hwb', h, w, b_hwb)}")
+        if not hide_bars:
+            print(f"                    H {_draw_bar(h, 360, 255, 200, 0)}")
+            print(f"                    W {_draw_bar(w, 1.0, 200, 200, 200)}")
+            print(f"                    B {_draw_bar(b_hwb, 1.0, 100, 100, 100)}")
 
     if getattr(args, 'cmyk', False):
         c, m, y_cmyk, k = rgb_to_cmyk(r, g, b)
-        print(f"\ncmyk              : cmyk({c * 100:.1f}%, {m * 100:.1f}%, {y_cmyk * 100:.1f}%, {k * 100:.1f}%)")
-        print(f"                    C {_draw_bar(c, 1.0, 0, 255, 255)}")
-        print(f"                    M {_draw_bar(m, 1.0, 255, 0, 255)}")
-        print(f"                    Y {_draw_bar(y_cmyk, 1.0, 255, 255, 0)}")
-        print(f"                    K {_draw_bar(k, 1.0, 100, 100, 100)}")
+        print(f"\ncmyk              : {format_colorspace('cmyk', c, m, y_cmyk, k)}")
+        if not hide_bars:
+            print(f"                    C {_draw_bar(c, 1.0, 0, 255, 255)}")
+            print(f"                    M {_draw_bar(m, 1.0, 255, 0, 255)}")
+            print(f"                    Y {_draw_bar(y_cmyk, 1.0, 255, 255, 0)}")
+            print(f"                    K {_draw_bar(k, 1.0, 100, 100, 100)}")
 
     if arg_xyz:
-        print(f"\nxyz               : xyz({x:.4f}, {y:.4f}, {z:.4f})")
-        print(f"                    X {_draw_bar(x / 100.0, 1.0, 255, 60, 60)}")
-        print(f"                    Y {_draw_bar(y / 100.0, 1.0, 60, 255, 60)}")
-        print(f"                    Z {_draw_bar(z / 100.0, 1.0, 60, 80, 255)}")
+        print(f"\nxyz               : {format_colorspace('xyz', x, y, z)}")
+        if not hide_bars:
+            print(f"                    X {_draw_bar(x / 100.0, 1.0, 255, 60, 60)}")
+            print(f"                    Y {_draw_bar(y / 100.0, 1.0, 60, 255, 60)}")
+            print(f"                    Z {_draw_bar(z / 100.0, 1.0, 60, 80, 255)}")
 
     if arg_lab:
         a_comp_lab = _zero_small(a_lab)
         b_comp_lab = _zero_small(b_lab)
-        print(f"\nlab               : lab({l_lab:.4f}, {a_comp_lab:.4f}, {b_comp_lab:.4f})")
-        print(f"                    L {_draw_bar(l_lab / 100.0, 1.0, 200, 200, 200)}")
-        print(f"                    A {_draw_bar(a_comp_lab, 128.0, 60, 255, 60)}")
-        print(f"                    B {_draw_bar(b_comp_lab, 128.0, 60, 60, 255)}")
+        print(f"\nlab               : {format_colorspace('lab', l_lab, a_comp_lab, b_comp_lab)}")
+        if not hide_bars:
+            print(f"                    L {_draw_bar(l_lab / 100.0, 1.0, 200, 200, 200)}")
+            print(f"                    A {_draw_bar(a_comp_lab, 128.0, 60, 255, 60)}")
+            print(f"                    B {_draw_bar(b_comp_lab, 128.0, 60, 60, 255)}")
 
     if arg_lch:
         l_lch, c_lch, h_lch = lab_to_lch(l_lab, a_lab, b_lab)
-        print(f"\nlch               : lch({l_lch:.4f}, {c_lch:.4f}, {h_lch:.4f}°)")
-        print(f"                    L {_draw_bar(l_lch / 100.0, 1.0, 200, 200, 200)}")
-        print(f"                    C {_draw_bar(c_lch / 150.0, 1.0, 255, 60, 255)}")
-        print(f"                    H {_draw_bar(h_lch, 360, 255, 200, 0)}")
+        print(f"\nlch               : {format_colorspace('lch', l_lch, c_lch, h_lch)}")
+        if not hide_bars:
+            print(f"                    L {_draw_bar(l_lch / 100.0, 1.0, 200, 200, 200)}")
+            print(f"                    C {_draw_bar(c_lch / 150.0, 1.0, 255, 60, 255)}")
+            print(f"                    H {_draw_bar(h_lch, 360, 255, 200, 0)}")
 
     if arg_cieluv:
-        print(f"\nluv               : luv({l_uv:.4f}, {u_comp_luv:.4f}, {v_comp_luv:.4f})")
-        print(f"                    L {_draw_bar(l_uv / 100.0, 1.0, 200, 200, 200)}")
-        print(f"                    U {_draw_bar(u_comp_luv, 100.0, 60, 255, 60)}")
-        print(f"                    V {_draw_bar(v_comp_luv, 100.0, 60, 60, 255)}")
+        print(f"\nluv               : {format_colorspace('luv', l_uv, u_comp_luv, v_comp_luv)}")
+        if not hide_bars:
+            print(f"                    L {_draw_bar(l_uv / 100.0, 1.0, 200, 200, 200)}")
+            print(f"                    U {_draw_bar(u_comp_luv, 100.0, 60, 255, 60)}")
+            print(f"                    V {_draw_bar(v_comp_luv, 100.0, 60, 60, 255)}")
 
     if arg_oklab:
         a_comp_ok = _zero_small(a_ok)
         b_comp_ok = _zero_small(b_ok)
-        print(f"\noklab             : oklab({l_ok:.4f}, {a_comp_ok:.4f}, {b_comp_ok:.4f})")
-        print(f"                    L {_draw_bar(l_ok, 1.0, 200, 200, 200)}")
-        print(f"                    A {_draw_bar(a_comp_ok, 0.4, 60, 255, 60)}")
-        print(f"                    B {_draw_bar(b_comp_ok, 0.4, 60, 60, 255)}")
+        print(f"\noklab             : {format_colorspace('oklab', l_ok, a_comp_ok, b_comp_ok)}")
+        if not hide_bars:
+            print(f"                    L {_draw_bar(l_ok, 1.0, 200, 200, 200)}")
+            print(f"                    A {_draw_bar(a_comp_ok, 0.4, 60, 255, 60)}")
+            print(f"                    B {_draw_bar(b_comp_ok, 0.4, 60, 60, 255)}")
 
     if arg_oklch:
         l_oklch, c_oklch, h_oklch = oklab_to_oklch(l_ok, a_ok, b_ok)
-        print(f"\noklch             : oklch({l_oklch:.4f}, {c_oklch:.4f}, {h_oklch:.4f}°)")
-        print(f"                    L {_draw_bar(l_oklch, 1.0, 200, 200, 200)}")
-        print(f"                    C {_draw_bar(c_oklch / 0.4, 1.0, 255, 60, 255)}")
-        print(f"                    H {_draw_bar(h_oklch, 360, 255, 200, 0)}")
+        print(f"\noklch             : {format_colorspace('oklch', l_oklch, c_oklch, h_oklch)}")
+        if not hide_bars:
+            print(f"                    L {_draw_bar(l_oklch, 1.0, 200, 200, 200)}")
+            print(f"                    C {_draw_bar(c_oklch / 0.4, 1.0, 255, 60, 255)}")
+            print(f"                    H {_draw_bar(h_oklch, 360, 255, 200, 0)}")
 
     if arg_contrast:
         if not arg_lum:
@@ -331,8 +232,7 @@ def print_color_and_info(
 def handle_color_command(args: argparse.Namespace) -> None:
     if args.all_tech_infos:
         for key in TECH_INFO_KEYS:
-            if key != 'similar':
-                setattr(args, key, True)
+            setattr(args, key, True)
 
     clean_hex = None
     title = "current"
@@ -344,24 +244,17 @@ def handle_color_command(args: argparse.Namespace) -> None:
         clean_hex = f"{current_dec:06X}"
         title = "random"
     elif args.color_name:
-        hex_val = _get_color_name_hex(args.color_name)
-        if not hex_val:
-            log('error', f"unknown color name '{args.color_name}'")
-            log('info', "use 'hexlab --list-color-names' to see all options")
-            sys.exit(2)
-        clean_hex = hex_val
-        title = HEX_TO_NAME.get(clean_hex.upper())
-        if not title:
-            title = args.color_name.title()
+        clean_hex = resolve_color_name_or_exit(args.color_name)
+        title = get_title_for_hex(clean_hex)
     elif args.hexcode:
         clean_hex = args.hexcode
-        title = HEX_TO_NAME.get(clean_hex.upper(), f"#{clean_hex}")
+        title = get_title_for_hex(clean_hex)
     elif getattr(args, "decimal_index", None) is not None:
         clean_hex = args.decimal_index
         idx = int(clean_hex, 16)
-        title = HEX_TO_NAME.get(clean_hex.upper(), f"index {idx}")
+        title = get_title_for_hex(clean_hex, f"index {idx}")
     else:
-        log('error', "one of the arguments -H/--hex, -r/--random, -di/--decimal-index, or -cn/--color-name is required")
+        log('error', "one of the arguments -H/--hex -r/--random -cn/--color-name -di/--decimal-index is required")
         log('info', "use 'hexlab --help' for more information")
         sys.exit(2)
 
@@ -382,20 +275,6 @@ def handle_color_command(args: argparse.Namespace) -> None:
         neighbors = None
 
     print_color_and_info(clean_hex, title, args, neighbors=neighbors)
-
-def ensure_truecolor() -> None:
-    if sys.platform != "win32" and os.environ.get("COLORTERM") != "truecolor":
-        os.environ["COLORTERM"] = "truecolor"
-
-SUBCOMMANDS = {
-    'gradient': gradient,
-    'mix': mix,
-    'scheme': scheme,
-    'vision': vision,
-    'convert': convert,
-    'similar': similar,
-    'adjust': adjust,
-}
 
 def main() -> None:
     if len(sys.argv) > 1:
@@ -436,7 +315,8 @@ def main() -> None:
         nargs='?',
         const='text',
         default=None,
-        choices=['text', 'json', 'pretty-json'],
+        choices=['text', 'json', 'prettyjson'],
+        type=INPUT_HANDLERS["color_name"],
         help="list available color names and exit"
     )
 
@@ -494,6 +374,11 @@ def main() -> None:
         action="store_true",
         help="show all technical information"
     )
+    info_group.add_argument(
+        "--hide-bars",
+        action="store_true",
+        help="hide visual color bars"
+    )
 
     info_group.add_argument(
         "-i", "--index",
@@ -503,6 +388,7 @@ def main() -> None:
     info_group.add_argument(
         "-rgb", "--red-green-blue",
         action="store_true",
+        dest="rgb",
         help="show RGB values"
     )
     info_group.add_argument(
@@ -513,6 +399,7 @@ def main() -> None:
     info_group.add_argument(
         "-hsl", "--hue-saturation-lightness",
         action="store_true",
+        dest="hsl",
         help="show HSL values"
     )
     info_group.add_argument(
@@ -524,6 +411,7 @@ def main() -> None:
     info_group.add_argument(
         "-hwb", "--hue-whiteness-blackness",
         action="store_true",
+        dest="hwb",
         help="show HWB values"
     )
     info_group.add_argument(
@@ -584,16 +472,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.list_color_names:
-        fmt = args.list_color_names
-        color_keys = sorted(list(COLOR_NAMES.keys()))
-        if fmt == 'text':
-            for name in color_keys:
-                print(name)
-        elif fmt == 'json':
-            print(json.dumps(color_keys))
-        elif fmt == 'pretty-json':
-            print(json.dumps(color_keys, indent=4))
-        sys.exit(0)
+        handle_list_color_names_action(args.list_color_names)
 
     if args.help_full:
         parser.print_help()
@@ -603,7 +482,7 @@ def main() -> None:
                 getter = getattr(module, f"get_{name}_parser")
                 getter().print_help()
             except AttributeError:
-                print(f"(Help for '{name}' not available)")
+                log('info', f"help for '{name}' not available")
         sys.exit(0)
 
     if args.command:
