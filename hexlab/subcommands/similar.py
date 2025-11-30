@@ -156,7 +156,7 @@ def get_similar_parser() -> argparse.ArgumentParser:
     input_group = parser.add_mutually_exclusive_group(required=True)
     input_group.add_argument(
         "-H", "--hex",
-        dest="hexcode"
+        dest="hexcode",
         type=INPUT_HANDLERS["hex"],
         help="base hex code"
     )
