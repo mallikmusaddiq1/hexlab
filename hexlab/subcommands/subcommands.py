@@ -2,7 +2,7 @@ from . import (
    gradient, mix,
    scheme, vision,
    similar, convert,
-   adjust, pick
+   adjust
 )
 
 SUBCOMMANDS = {
@@ -12,6 +12,5 @@ SUBCOMMANDS = {
     'vision': vision,
     'similar': similar,
     'convert': convert,
-    'adjust': adjust,
-    'pick': pick
+    'adjust': adjust
 }
