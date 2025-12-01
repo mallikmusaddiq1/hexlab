@@ -302,8 +302,10 @@ Typical workflow:
 
 ## Author
 
-**Mallik Mohammad Musaddiq**  
+Name: **Mallik Mohammad Musaddiq**  
+
 Email: [mallikmusaddiq1@gmail.com](mailto:mallikmusaddiq1@gmail.com)
+
 [**GitHub Profile**](github.com/mallikmusaddiq1)
 
 ---
