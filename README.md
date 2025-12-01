@@ -304,7 +304,7 @@ Typical workflow:
 
 **Mallik Mohammad Musaddiq**  
 Email: [mallikmusaddiq1@gmail.com](mailto:mallikmusaddiq1@gmail.com)
-[GitHub Profile](github.com/mallikmusaddiq1)
+[**GitHub Profile**](github.com/mallikmusaddiq1)
 
 ---
 
@@ -312,4 +312,3 @@ Email: [mallikmusaddiq1@gmail.com](mailto:mallikmusaddiq1@gmail.com)
 
 This project is intended to include a standard open‑source license.  
 Add a `LICENSE` file to the repository and update this section to match the chosen license.
-```
