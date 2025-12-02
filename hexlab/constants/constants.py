@@ -13,7 +13,7 @@ SRGB_TO_LINEAR_TH = 0.04045
 LINEAR_TO_SRGB_TH = 0.0031308
 EPS = 1e-12
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"
 
 # HEX_REGEX = re.compile(r"^(?:[0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})$")
 
