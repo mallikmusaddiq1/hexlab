@@ -371,3 +371,86 @@ def luv_to_rgb(L: float, u: float, v: float) -> Tuple[float, float, float]:
         Z = Y * (12.0 - 3.0 * u_prime - 20.0 * v_prime) / (4.0 * v_prime)
 
     return xyz_to_rgb(X, Y, Z)
+
+# ==========================================
+# Direct Conversion Wrappers
+# ==========================================
+
+def hex_to_hsl(hex_code: str) -> Tuple[float, float, float]:
+    return rgb_to_hsl(*hex_to_rgb(hex_code))
+
+
+def hsl_to_hex(h: float, s: float, l: float) -> str:
+    return rgb_to_hex(*hsl_to_rgb(h, s, l))
+
+
+def hex_to_hsv(hex_code: str) -> Tuple[float, float, float]:
+    return rgb_to_hsv(*hex_to_rgb(hex_code))
+
+
+def hsv_to_hex(h: float, s: float, v: float) -> str:
+    return rgb_to_hex(*hsv_to_rgb(h, s, v))
+
+
+def hex_to_hwb(hex_code: str) -> Tuple[float, float, float]:
+    return rgb_to_hwb(*hex_to_rgb(hex_code))
+
+
+def hwb_to_hex(h: float, w: float, b: float) -> str:
+    return rgb_to_hex(*hwb_to_rgb(h, w, b))
+
+
+def hex_to_cmyk(hex_code: str) -> Tuple[float, float, float, float]:
+    return rgb_to_cmyk(*hex_to_rgb(hex_code))
+
+
+def cmyk_to_hex(c: float, m: float, y: float, k: float) -> str:
+    return rgb_to_hex(*cmyk_to_rgb(c, m, y, k))
+
+
+def hex_to_xyz(hex_code: str) -> Tuple[float, float, float]:
+    return rgb_to_xyz(*hex_to_rgb(hex_code))
+
+
+def xyz_to_hex(x: float, y: float, z: float) -> str:
+    return rgb_to_hex(*xyz_to_rgb(x, y, z))
+
+
+def hex_to_lab(hex_code: str) -> Tuple[float, float, float]:
+    return rgb_to_lab(*hex_to_rgb(hex_code))
+
+
+def lab_to_hex(l: float, a: float, b: float) -> str:
+    return rgb_to_hex(*lab_to_rgb(l, a, b))
+
+
+def hex_to_lch(hex_code: str) -> Tuple[float, float, float]:
+    return rgb_to_lch(*hex_to_rgb(hex_code))
+
+
+def lch_to_hex(l: float, c: float, h: float) -> str:
+    return rgb_to_hex(*lch_to_rgb(l, c, h))
+
+
+def hex_to_oklab(hex_code: str) -> Tuple[float, float, float]:
+    return rgb_to_oklab(*hex_to_rgb(hex_code))
+
+
+def oklab_to_hex(l: float, a: float, b: float) -> str:
+    return rgb_to_hex(*oklab_to_rgb(l, a, b))
+
+
+def hex_to_oklch(hex_code: str) -> Tuple[float, float, float]:
+    return rgb_to_oklch(*hex_to_rgb(hex_code))
+
+
+def oklch_to_hex(l: float, c: float, h: float) -> str:
+    return rgb_to_hex(*oklch_to_rgb(l, c, h))
+
+
+def hex_to_luv(hex_code: str) -> Tuple[float, float, float]:
+    return rgb_to_luv(*hex_to_rgb(hex_code))
+
+
+def luv_to_hex(l: float, u: float, v: float) -> str:
+    return rgb_to_hex(*luv_to_rgb(l, u, v))
