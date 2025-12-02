@@ -1,31 +1,51 @@
+# File: main.py
 #!/usr/bin/env python3
 
 import argparse
-import sys
-import random
 import math
+import random
+import sys
 from typing import Tuple
-from .constants.constants import MAX_DEC, __version__, TECH_INFO_KEYS, SRGB_TO_LINEAR_TH, LINEAR_TO_SRGB_TH, EPS
-from .utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
-from .utils.hexlab_logger import log
-from .utils.truecolor import ensure_truecolor
-from .utils.print_color_block import print_color_block
-from .utils.formatting import format_colorspace
-from .utils.color_names_handler import resolve_color_name_or_exit, get_title_for_hex, handle_list_color_names_action
-from .subcommands.subcommands import SUBCOMMANDS
+
+from .color_math.conversions import (
+    hex_to_rgb,
+    lab_to_lch,
+    oklab_to_oklch,
+    rgb_to_cmyk,
+    rgb_to_hsl,
+    rgb_to_hsv,
+    rgb_to_hwb,
+    rgb_to_luv,
+    rgb_to_oklab,
+    rgb_to_xyz,
+    xyz_to_lab,
+)
 from .color_math.luminance import get_luminance
 from .color_math.wcag_contrast import get_wcag_contrast
-from .color_math.conversions import (
-    hex_to_rgb, rgb_to_xyz,
-    xyz_to_lab, lab_to_lch,
-    rgb_to_hsl, rgb_to_hsv,
-    rgb_to_hwb, rgb_to_cmyk,
-    rgb_to_oklab, oklab_to_oklch,
-    rgb_to_luv
+from .constants.constants import (
+    EPS,
+    LINEAR_TO_SRGB_TH,
+    MAX_DEC,
+    SRGB_TO_LINEAR_TH,
+    TECH_INFO_KEYS,
+    __version__,
 )
+from .subcommands.registry import SUBCOMMANDS
+from .utils.color_names_handler import (
+    get_title_for_hex,
+    handle_list_color_names_action,
+    resolve_color_name_or_exit,
+)
+from .utils.formatting import format_colorspace
+from .utils.hexlab_logger import log
+from .utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
+from .utils.print_color_block import print_color_block
+from .utils.truecolor import ensure_truecolor
+
 
 def _zero_small(v: float, threshold: float = 1e-4) -> float:
     return 0.0 if abs(v) <= threshold else v
+
 
 def _draw_bar(val: float, max_val: float, r_c: int, g_c: int, b_c: int) -> str:
     total_len = 16
@@ -45,11 +65,18 @@ def _draw_bar(val: float, max_val: float, r_c: int, g_c: int, b_c: int) -> str:
     empty_char = "░"
 
     if val < 0:
-        bar_str = f"{empty_ansi}{empty_char * empty}{reset_ansi}{color_ansi}{block_char * filled}{reset_ansi}"
+        bar_str = (
+            f"{empty_ansi}{empty_char * empty}{reset_ansi}"
+            f"{color_ansi}{block_char * filled}{reset_ansi}"
+        )
     else:
-        bar_str = f"{color_ansi}{block_char * filled}{reset_ansi}{empty_ansi}{empty_char * empty}{reset_ansi}"
+        bar_str = (
+            f"{color_ansi}{block_char * filled}{reset_ansi}"
+            f"{empty_ansi}{empty_char * empty}{reset_ansi}"
+        )
 
     return bar_str
+
 
 def print_color_and_info(
     hex_code: str,
@@ -122,9 +149,11 @@ def print_color_and_info(
     if getattr(args, 'rgb', False):
         print(f"\nrgb               : {format_colorspace('rgb', r, g, b)}")
         if not hide_bars:
-            print(f"                    R {_draw_bar(r, 255, 255, 60, 60)} {(r/255)*100:6.2f}%")
-            print(f"                    G {_draw_bar(g, 255, 60, 255, 60)} {(g/255)*100:6.2f}%")
-            print(f"                    B {_draw_bar(b, 255, 60, 80, 255)} {(b/255)*100:6.2f}%")
+            # fmt: off
+            print(f"                    R {_draw_bar(r, 255, 255, 60, 60)} {(r / 255) * 100:6.2f}%")
+            print(f"                    G {_draw_bar(g, 255, 60, 255, 60)} {(g / 255) * 100:6.2f}%")
+            print(f"                    B {_draw_bar(b, 255, 60, 80, 255)} {(b / 255) * 100:6.2f}%")
+            # fmt: on
 
     if getattr(args, 'hsl', False):
         h, s, l_hsl = rgb_to_hsl(r, g, b)
@@ -221,13 +250,19 @@ def print_color_and_info(
         line_2_block = f"{bg_ansi}{'ㅤ' * 8}{reset}"
         line_3_block = f"{bg_ansi}{fg_black}{'black':^16}{reset}"
 
-        status_white = f"{wcag['white']['ratio']:.2f}:1 (AA:{wcag['white']['levels']['AA']}, AAA:{wcag['white']['levels']['AAA']})"
-        status_black = f"{wcag['black']['ratio']:.2f}:1 (AA:{wcag['black']['levels']['AA']}, AAA:{wcag['black']['levels']['AAA']})"
+        white_ratio = wcag['white']['ratio']
+        white_lvls = wcag['white']['levels']
+        black_ratio = wcag['black']['ratio']
+        black_lvls = wcag['black']['levels']
 
-        print(f"\n                      {line_1_block}  {status_white}")
+        s_white = f"{white_ratio:.2f}:1 (AA:{white_lvls['AA']}, AAA:{white_lvls['AAA']})"
+        s_black = f"{black_ratio:.2f}:1 (AA:{black_lvls['AA']}, AAA:{black_lvls['AAA']})"
+
+        print(f"\n                      {line_1_block}  {s_white}")
         print(f"contrast          :   {line_2_block}")
-        print(f"                      {line_3_block}  {status_black}")
+        print(f"                      {line_3_block}  {s_black}")
     print()
+
 
 def handle_color_command(args: argparse.Namespace) -> None:
     if args.all_tech_infos:
@@ -254,7 +289,10 @@ def handle_color_command(args: argparse.Namespace) -> None:
         idx = int(clean_hex, 16)
         title = get_title_for_hex(clean_hex, f"index {idx}")
     else:
-        log('error', "one of the arguments -H/--hex -r/--random -cn/--color-name -di/--decimal-index is required")
+        log(
+            'error',
+            "one of the arguments -H/--hex -r/--random -cn/--color-name -di/--decimal-index is required"
+        )
         log('info', "use 'hexlab --help' for more information")
         sys.exit(2)
 
@@ -275,6 +313,7 @@ def handle_color_command(args: argparse.Namespace) -> None:
         neighbors = None
 
     print_color_and_info(clean_hex, title, args, neighbors=neighbors)
+
 
 def main() -> None:
     if len(sys.argv) > 1:
@@ -477,7 +516,7 @@ def main() -> None:
     if args.help_full:
         parser.print_help()
         for name, module in SUBCOMMANDS.items():
-            print("\n"*2)
+            print("\n" * 2)
             try:
                 getter = getattr(module, f"get_{name}_parser")
                 getter().print_help()

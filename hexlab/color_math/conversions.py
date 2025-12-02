@@ -1,23 +1,28 @@
-from typing import Tuple
+# File: conversions.py
 import math
+from typing import Tuple
+
+from ..constants.constants import EPS, LINEAR_TO_SRGB_TH, SRGB_TO_LINEAR_TH
 from ..utils.clamping import _clamp01
-from ..constants.constants import SRGB_TO_LINEAR_TH, LINEAR_TO_SRGB_TH, EPS
 from ..utils.input_handler import normalize_hex
+
 
 def hex_to_rgb(hex_code: str) -> Tuple[int, int, int]:
     h = normalize_hex(hex_code)
     if not h:
         return (0, 0, 0)
     try:
-        return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+        return tuple(int(h[i : i + 2], 16) for i in (0, 2, 4))
     except ValueError:
         return (0, 0, 0)
+
 
 def rgb_to_hex(r: float, g: float, b: float) -> str:
     r_clamped = max(0, min(255, int(round(r))))
     g_clamped = max(0, min(255, int(round(g))))
     b_clamped = max(0, min(255, int(round(b))))
     return f"{r_clamped:02X}{g_clamped:02X}{b_clamped:02X}"
+
 
 def rgb_to_hsl(r: int, g: int, b: int) -> Tuple[float, float, float]:
     r_f, g_f, b_f = r / 255.0, g / 255.0, b / 255.0
@@ -40,13 +45,14 @@ def rgb_to_hsl(r: int, g: int, b: int) -> Tuple[float, float, float]:
         h = (h + 360) % 360
     return (h, s, l)
 
+
 def hsl_to_rgb(h: float, s: float, l: float) -> Tuple[float, float, float]:
     h = h % 360
     if s == 0:
         r = g = b = l
     else:
         c = (1 - abs(2 * l - 1)) * s
-        x = c * (1 - abs(((h / 60) % 2) - 1))
+        x = c * (1 - abs(((h / 60.0) % 2) - 1))
         m = l - c / 2
         if 0 <= h < 60:
             r_p, g_p, b_p = c, x, 0
@@ -62,6 +68,7 @@ def hsl_to_rgb(h: float, s: float, l: float) -> Tuple[float, float, float]:
             r_p, g_p, b_p = c, 0, x
         r, g, b = (r_p + m), (g_p + m), (b_p + m)
     return _clamp01(r) * 255, _clamp01(g) * 255, _clamp01(b) * 255
+
 
 def rgb_to_hsv(r: int, g: int, b: int) -> Tuple[float, float, float]:
     r_f, g_f, b_f = r / 255.0, g / 255.0, b / 255.0
@@ -83,10 +90,11 @@ def rgb_to_hsv(r: int, g: int, b: int) -> Tuple[float, float, float]:
         h = (h + 360) % 360
     return (h, s, v)
 
+
 def hsv_to_rgb(h: float, s: float, v: float) -> Tuple[float, float, float]:
     h = h % 360
     c = v * s
-    x = c * (1 - abs(((h / 60) % 2) - 1))
+    x = c * (1 - abs(((h / 60.0) % 2) - 1))
     m = v - c
     if 0 <= h < 60:
         r_p, g_p, b_p = c, x, 0
@@ -103,6 +111,7 @@ def hsv_to_rgb(h: float, s: float, v: float) -> Tuple[float, float, float]:
     r, g, b = (r_p + m), (g_p + m), (b_p + m)
     return _clamp01(r) * 255, _clamp01(g) * 255, _clamp01(b) * 255
 
+
 def rgb_to_cmyk(r: int, g: int, b: int) -> Tuple[float, float, float, float]:
     if r == 0 and g == 0 and b == 0:
         return 0.0, 0.0, 0.0, 1.0
@@ -116,16 +125,19 @@ def rgb_to_cmyk(r: int, g: int, b: int) -> Tuple[float, float, float, float]:
     y = (1.0 - b_norm - k) / denom
     return (c, m, y, k)
 
+
 def cmyk_to_rgb(c: float, m: float, y: float, k: float) -> Tuple[float, float, float]:
     r = 255 * (1 - _clamp01(c)) * (1 - _clamp01(k))
     g = 255 * (1 - _clamp01(m)) * (1 - _clamp01(k))
     b = 255 * (1 - _clamp01(y)) * (1 - _clamp01(k))
     return r, g, b
 
+
 def _srgb_to_linear(c: int) -> float:
     c_norm = c / 255.0
     c_norm = _clamp01(c_norm)
     return c_norm / 12.92 if c_norm <= SRGB_TO_LINEAR_TH else ((c_norm + 0.055) / 1.055) ** 2.4
+
 
 def rgb_to_xyz(r: int, g: int, b: int) -> Tuple[float, float, float]:
     r_lin = _srgb_to_linear(r)
@@ -136,11 +148,14 @@ def rgb_to_xyz(r: int, g: int, b: int) -> Tuple[float, float, float]:
     z = r_lin * 0.0193339 + g_lin * 0.1191920 + b_lin * 0.9503041
     return x * 100.0, y * 100.0, z * 100.0
 
+
 def _xyz_f(t: float) -> float:
     return t ** (1 / 3) if t > 0.008856 else (7.787 * t) + (16.0 / 116.0)
 
+
 def _xyz_f_inv(t: float) -> float:
     return t ** 3 if t > 0.20689655 else (t - 16.0 / 116.0) / 7.787
+
 
 def xyz_to_lab(x: float, y: float, z: float) -> Tuple[float, float, float]:
     ref_x, ref_y, ref_z = 95.047, 100.0, 108.883
@@ -152,6 +167,7 @@ def xyz_to_lab(x: float, y: float, z: float) -> Tuple[float, float, float]:
     b = 200.0 * (y_r - z_r)
     return l, a, b
 
+
 def lab_to_xyz(l: float, a: float, b: float) -> Tuple[float, float, float]:
     ref_x, ref_y, ref_z = 95.047, 100.0, 108.883
     y_r = (l + 16.0) / 116.0
@@ -162,9 +178,11 @@ def lab_to_xyz(l: float, a: float, b: float) -> Tuple[float, float, float]:
     z = _xyz_f_inv(z_r) * ref_z
     return x, y, z
 
+
 def _linear_to_srgb(l: float) -> float:
     l = max(l, 0.0)
     return 12.92 * l if l <= LINEAR_TO_SRGB_TH else 1.055 * (l ** (1 / 2.4)) - 0.055
+
 
 def xyz_to_rgb(x: float, y: float, z: float) -> Tuple[float, float, float]:
     x_n, y_n, z_n = x / 100.0, y / 100.0, z / 100.0
@@ -176,31 +194,38 @@ def xyz_to_rgb(x: float, y: float, z: float) -> Tuple[float, float, float]:
     b = _linear_to_srgb(b_lin)
     return _clamp01(r) * 255, _clamp01(g) * 255, _clamp01(b) * 255
 
+
 def rgb_to_lab(r: int, g: int, b: int) -> Tuple[float, float, float]:
     x, y, z = rgb_to_xyz(r, g, b)
     return xyz_to_lab(x, y, z)
+
 
 def lab_to_lch(l: float, a: float, b: float) -> Tuple[float, float, float]:
     c = math.hypot(a, b)
     h = math.degrees(math.atan2(b, a)) % 360
     return l, c, h
 
+
 def rgb_to_lch(r: int, g: int, b: int) -> Tuple[float, float, float]:
     L, a_, b_ = rgb_to_lab(r, g, b)
     return lab_to_lch(L, a_, b_)
 
+
 def lch_to_rgb(l: float, c: float, h: float) -> Tuple[float, float, float]:
     L, a, b_ = lch_to_lab(l, c, h)
     return lab_to_rgb(L, a, b_)
+
 
 def lch_to_lab(l: float, c: float, h: float) -> Tuple[float, float, float]:
     a = c * math.cos(math.radians(h))
     b = c * math.sin(math.radians(h))
     return l, a, b
 
+
 def lab_to_rgb(l: float, a: float, b: float) -> Tuple[float, float, float]:
     x, y, z = lab_to_xyz(l, a, b)
     return xyz_to_rgb(x, y, z)
+
 
 def rgb_to_oklab(r: int, g: int, b: int) -> Tuple[float, float, float]:
     r_lin = _srgb_to_linear(r)
@@ -221,6 +246,7 @@ def rgb_to_oklab(r: int, g: int, b: int) -> Tuple[float, float, float]:
 
     return ok_l, ok_a, ok_b
 
+
 def oklab_to_rgb(l: float, a: float, b: float) -> Tuple[float, float, float]:
     l_ = l + 0.3963377774 * a + 0.2158037573 * b
     m_ = l - 0.1055613458 * a - 0.0638541728 * b
@@ -240,29 +266,35 @@ def oklab_to_rgb(l: float, a: float, b: float) -> Tuple[float, float, float]:
 
     return _clamp01(r) * 255, _clamp01(g) * 255, _clamp01(b) * 255
 
+
 def oklab_to_oklch(l: float, a: float, b: float) -> Tuple[float, float, float]:
     c = math.hypot(a, b)
     h = math.degrees(math.atan2(b, a)) % 360
     return l, c, h
+
 
 def oklch_to_oklab(l: float, c: float, h: float) -> Tuple[float, float, float]:
     a = c * math.cos(math.radians(h))
     b = c * math.sin(math.radians(h))
     return l, a, b
 
+
 def rgb_to_oklch(r: int, g: int, b: int) -> Tuple[float, float, float]:
     l, a, b_ok = rgb_to_oklab(r, g, b)
     return oklab_to_oklch(l, a, b_ok)
 
+
 def oklch_to_rgb(l: float, c: float, h: float) -> Tuple[float, float, float]:
     l, a, b_ok = oklch_to_oklab(l, c, h)
     return oklab_to_rgb(l, a, b_ok)
+
 
 def rgb_to_hwb(r: int, g: int, b: int) -> Tuple[float, float, float]:
     h, s, v = rgb_to_hsv(r, g, b)
     w = (1 - s) * v
     b_hwb = 1 - v
     return h, w, b_hwb
+
 
 def hwb_to_rgb(h: float, w: float, b: float) -> Tuple[float, float, float]:
     w = _clamp01(w)
@@ -278,6 +310,7 @@ def hwb_to_rgb(h: float, w: float, b: float) -> Tuple[float, float, float]:
     s = 1.0 - (w / v)
     s = _clamp01(s)
     return hsv_to_rgb(h, s, v)
+
 
 def rgb_to_luv(r: int, g: int, b: int) -> Tuple[float, float, float]:
     X, Y, Z = rgb_to_xyz(r, g, b)
@@ -309,6 +342,7 @@ def rgb_to_luv(r: int, g: int, b: int) -> Tuple[float, float, float]:
 
     return L, u, v
 
+
 def luv_to_rgb(L: float, u: float, v: float) -> Tuple[float, float, float]:
     ref_X, ref_Y, ref_Z = 95.047, 100.0, 108.883
     denom_n = (ref_X + 15 * ref_Y + 3 * ref_Z)
@@ -337,4 +371,3 @@ def luv_to_rgb(L: float, u: float, v: float) -> Tuple[float, float, float]:
         Z = Y * (12.0 - 3.0 * u_prime - 20.0 * v_prime) / (4.0 * v_prime)
 
     return xyz_to_rgb(X, Y, Z)
-

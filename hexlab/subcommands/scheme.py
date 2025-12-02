@@ -1,22 +1,29 @@
+# File: scheme.py
 #!/usr/bin/env python3
 
 import argparse
-import sys
 import random
+import sys
 
-from ..utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
-from ..utils.hexlab_logger import log
-from ..utils.truecolor import ensure_truecolor
-from ..utils.print_color_block import print_color_block
-from ..utils.color_names_handler import resolve_color_name_or_exit, get_title_for_hex
-from ..constants.constants import MAX_DEC, SCHEME_KEYS
 from ..color_math.conversions import (
-    hex_to_rgb, rgb_to_hex,
-    rgb_to_hsl, hsl_to_rgb,
-    rgb_to_xyz, xyz_to_lab,
-    lab_to_lch, lch_to_rgb,
-    rgb_to_oklch, oklch_to_rgb
+    hex_to_rgb,
+    hsl_to_rgb,
+    lab_to_lch,
+    lch_to_rgb,
+    oklch_to_rgb,
+    rgb_to_hex,
+    rgb_to_hsl,
+    rgb_to_oklch,
+    rgb_to_xyz,
+    xyz_to_lab,
 )
+from ..constants.constants import MAX_DEC, SCHEME_KEYS
+from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
+from ..utils.hexlab_logger import log
+from ..utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
+from ..utils.print_color_block import print_color_block
+from ..utils.truecolor import ensure_truecolor
+
 
 def handle_scheme_command(args: argparse.Namespace) -> None:
     if args.all_schemes:

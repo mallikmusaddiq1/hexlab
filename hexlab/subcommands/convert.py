@@ -1,33 +1,47 @@
+# File: convert.py
 #!/usr/bin/env python3
 
 import argparse
-import sys
 import random
 import re
+import sys
 from typing import Tuple
 
-from ..utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
-from ..utils.hexlab_logger import log
-from ..utils.string_parser import STRING_PARSERS
-from ..utils.color_names_handler import resolve_color_name_or_exit, get_title_for_hex
-from ..constants.constants import MAX_DEC, FORMAT_ALIASES
-from ..utils.formatting import format_colorspace
 from ..color_math.conversions import (
-    hex_to_rgb, rgb_to_hex,
-    rgb_to_hsl, hsl_to_rgb,
-    rgb_to_hsv, hsv_to_rgb,
-    rgb_to_cmyk, cmyk_to_rgb,
-    rgb_to_xyz, xyz_to_rgb,
-    rgb_to_lab, lab_to_rgb,
-    rgb_to_lch, lch_to_rgb,
-    rgb_to_oklab, oklab_to_rgb,
-    rgb_to_oklch, oklch_to_rgb,
-    rgb_to_hwb, hwb_to_rgb,
-    rgb_to_luv, luv_to_rgb
+    cmyk_to_rgb,
+    hex_to_rgb,
+    hsl_to_rgb,
+    hsv_to_rgb,
+    hwb_to_rgb,
+    lab_to_rgb,
+    lch_to_rgb,
+    luv_to_rgb,
+    oklab_to_rgb,
+    oklch_to_rgb,
+    rgb_to_cmyk,
+    rgb_to_hex,
+    rgb_to_hsl,
+    rgb_to_hsv,
+    rgb_to_hwb,
+    rgb_to_lab,
+    rgb_to_lch,
+    rgb_to_luv,
+    rgb_to_oklab,
+    rgb_to_oklch,
+    rgb_to_xyz,
+    xyz_to_rgb,
 )
+from ..constants.constants import FORMAT_ALIASES, MAX_DEC
+from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
+from ..utils.formatting import format_colorspace
+from ..utils.hexlab_logger import log
+from ..utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
+from ..utils.string_parser import STRING_PARSERS
+
 
 def fmt_hex_for_output(hex_str: str) -> str:
     return f"#{hex_str.upper()}"
+
 
 def _parse_value_to_rgb(clean_val: str, from_fmt: str) -> Tuple[int, int, int]:
     if from_fmt == 'hex':
@@ -69,7 +83,7 @@ def _parse_value_to_rgb(clean_val: str, from_fmt: str) -> Tuple[int, int, int]:
             return oklch_to_rgb(vals[0], vals[1], vals[2])
         elif from_fmt == 'luv':
             return luv_to_rgb(vals[0], vals[1], vals[2])
-    
+
     return (0, 0, 0)
 
 
@@ -104,7 +118,7 @@ def _format_value_from_rgb(r: int, g: int, b: int, to_fmt: str) -> str:
         return format_colorspace('oklch', *rgb_to_oklch(r, g, b))
     elif to_fmt == 'luv':
         return format_colorspace('luv', *rgb_to_luv(r, g, b))
-    
+
     return ""
 
 
@@ -120,7 +134,7 @@ def handle_convert_command(args: argparse.Namespace) -> None:
         sys.exit(2)
 
     r, g, b = (0, 0, 0)
-    
+
     if args.random:
         dec_val = random.randint(0, MAX_DEC)
         r, g, b = hex_to_rgb(f"{dec_val:06X}")
@@ -128,7 +142,7 @@ def handle_convert_command(args: argparse.Namespace) -> None:
         r, g, b = _parse_value_to_rgb(args.value, from_fmt)
 
     output_value_str = _format_value_from_rgb(r, g, b, to_fmt)
-    
+
     if args.verbose:
         input_value_str = _format_value_from_rgb(r, g, b, from_fmt)
         print(f"{input_value_str} -> {output_value_str}")
@@ -181,24 +195,27 @@ def get_convert_parser() -> argparse.ArgumentParser:
 
     input_group = parser.add_mutually_exclusive_group(required=True)
     input_group.add_argument(
-        "-v", "--value",
-        type=str, 
-        help="write value to convert in quotes\n"
-             "examples:\n"
-             '  -v "000000"\n'
-             '  -v "0"\n'
-             '  -v "black"\n'
-             f'  -v "{ex_rgb}"\n'
-             f'  -v "{ex_hsl}"\n'
-             f'  -v "{ex_hsv}"\n'
-             f'  -v "{ex_hwb}"\n'
-             f'  -v "{ex_cmyk}"\n'
-             f'  -v "{ex_xyz}"\n'
-             f'  -v "{ex_lab}"\n'
-             f'  -v "{ex_lch}"\n'
-             f'  -v "{ex_luv}"\n'
-             f'  -v "{ex_oklab}"\n'
-             f'  -v "{ex_oklch}"'
+        "-v",
+        "--value",
+        type=str,
+        help=(
+            "write value to convert in quotes\n"
+            "examples:\n"
+            '  -v "000000"\n'
+            '  -v "0"\n'
+            '  -v "black"\n'
+            f'  -v "{ex_rgb}"\n'
+            f'  -v "{ex_hsl}"\n'
+            f'  -v "{ex_hsv}"\n'
+            f'  -v "{ex_hwb}"\n'
+            f'  -v "{ex_cmyk}"\n'
+            f'  -v "{ex_xyz}"\n'
+            f'  -v "{ex_lab}"\n'
+            f'  -v "{ex_lch}"\n'
+            f'  -v "{ex_luv}"\n'
+            f'  -v "{ex_oklab}"\n'
+            f'  -v "{ex_oklch}"'
+        )
     )
     input_group.add_argument(
         "-r", "--random",

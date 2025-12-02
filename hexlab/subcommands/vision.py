@@ -1,21 +1,25 @@
+# File: vision.py
 #!/usr/bin/env python3
 
 import argparse
-import sys
 import random
+import sys
 from typing import List
 
-from ..utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
-from ..utils.hexlab_logger import log
-from ..utils.truecolor import ensure_truecolor
-from ..utils.print_color_block import print_color_block
-from ..utils.color_names_handler import resolve_color_name_or_exit, get_title_for_hex
-from ..constants.constants import MAX_DEC, CB_MATRICES, SIMULATE_KEYS
-from ..color_math.luminance import get_luminance
 from ..color_math.conversions import (
-    hex_to_rgb, rgb_to_hex,
-    _srgb_to_linear, _linear_to_srgb
+    _linear_to_srgb,
+    _srgb_to_linear,
+    hex_to_rgb,
+    rgb_to_hex,
 )
+from ..color_math.luminance import get_luminance
+from ..constants.constants import CB_MATRICES, MAX_DEC, SIMULATE_KEYS
+from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
+from ..utils.hexlab_logger import log
+from ..utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
+from ..utils.print_color_block import print_color_block
+from ..utils.truecolor import ensure_truecolor
+
 
 def handle_vision_command(args: argparse.Namespace) -> None:
     if args.all_simulates:
@@ -52,43 +56,43 @@ def handle_vision_command(args: argparse.Namespace) -> None:
         r_lin = _srgb_to_linear(r)
         g_lin = _srgb_to_linear(g)
         b_lin = _srgb_to_linear(b)
-        
+
         rr_lin = r_lin * matrix[0][0] + g_lin * matrix[0][1] + b_lin * matrix[0][2]
         gg_lin = r_lin * matrix[1][0] + g_lin * matrix[1][1] + b_lin * matrix[1][2]
         bb_lin = r_lin * matrix[2][0] + g_lin * matrix[2][1] + b_lin * matrix[2][2]
-        
+
         rr_srgb = _linear_to_srgb(rr_lin) * 255
         gg_srgb = _linear_to_srgb(gg_lin) * 255
         bb_srgb = _linear_to_srgb(bb_lin) * 255
-        
+
         return rgb_to_hex(rr_srgb, gg_srgb, bb_srgb)
 
     no_specific_flag = not (
-        args.protanopia or
-        args.deuteranopia or
-        args.tritanopia or
-        args.achromatopsia or
-        args.all_simulates
+        args.protanopia
+        or args.deuteranopia
+        or args.tritanopia
+        or args.achromatopsia
+        or args.all_simulates
     )
 
     if args.protanopia or no_specific_flag or args.all_simulates:
         sim_hex = get_simulated_hex(r, g, b, CB_MATRICES["Protanopia"])
         print_color_block(sim_hex, "protanopia")
-    
+
     if args.deuteranopia or args.all_simulates:
         sim_hex = get_simulated_hex(r, g, b, CB_MATRICES["Deuteranopia"])
         print_color_block(sim_hex, "deuteranopia")
-    
+
     if args.tritanopia or args.all_simulates:
         sim_hex = get_simulated_hex(r, g, b, CB_MATRICES["Tritanopia"])
         print_color_block(sim_hex, "tritanopia")
-    
+
     if args.achromatopsia or args.all_simulates:
         l_lin = get_luminance(r, g, b)
         gray_val = _linear_to_srgb(l_lin) * 255
         sim_hex = rgb_to_hex(gray_val, gray_val, gray_val)
         print_color_block(sim_hex, "achromatopsia")
-    
+
     print()
 
 

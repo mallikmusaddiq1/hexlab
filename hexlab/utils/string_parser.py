@@ -1,10 +1,12 @@
+# File: string_parser.py
+import math
 import re
 import sys
-import math
-from typing import Tuple, List
-from .hexlab_logger import log
-from .clamping import _clamp01
+from typing import List, Tuple
+
 from ..constants.constants import EPS
+from .clamping import _clamp01
+from .hexlab_logger import log
 
 
 def _normalize_value_string(s: str) -> str:
@@ -25,6 +27,7 @@ def _normalize_value_string(s: str) -> str:
     s = re.sub(r'\s+', ' ', s)
     return s.strip()
 
+
 def _safe_float(s: str) -> float:
     try:
         v = float(s)
@@ -35,6 +38,7 @@ def _safe_float(s: str) -> float:
         log('error', f"non-finite numeric value '{s}'")
         sys.exit(2)
     return v
+
 
 def _parse_numerical_string(s: str) -> List[float]:
     s = _normalize_value_string(s)
@@ -50,7 +54,7 @@ def _parse_numerical_string(s: str) -> List[float]:
             m = matches[i]
             token = m.group()
 
-            if (i + 1 < len(matches) and '.' not in token):
+            if i + 1 < len(matches) and '.' not in token:
                 m_next = matches[i + 1]
                 next_token = m_next.group()
                 if next_token.startswith('.'):
@@ -69,6 +73,7 @@ def _parse_numerical_string(s: str) -> List[float]:
     except Exception:
         raise ValueError(f"could not parse numerical values from '{s}'")
 
+
 def _parse_h_ss_string(s: str, model_name: str) -> Tuple[float, float, float]:
     s_norm = _normalize_value_string(s)
     nums = re.findall(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?%?", s_norm)
@@ -80,14 +85,15 @@ def _parse_h_ss_string(s: str, model_name: str) -> Tuple[float, float, float]:
 
     val1 = nums[1]
     val2 = nums[2]
-    
+
     v1_f = _safe_float(re.sub(r'%', '', val1))
     v2_f = _safe_float(re.sub(r'%', '', val2))
-    
+
     v1_f = v1_f / 100.0 if '%' in val1 or v1_f > 1.0 else v1_f
     v2_f = v2_f / 100.0 if '%' in val2 or v2_f > 1.0 else v2_f
-    
+
     return h, _clamp01(v1_f), _clamp01(v2_f)
+
 
 def _parse_3_floats(s: str, model_name: str) -> Tuple[float, float, float]:
     try:
@@ -99,6 +105,7 @@ def _parse_3_floats(s: str, model_name: str) -> Tuple[float, float, float]:
         log('error', f"invalid {model_name} string: {s}")
         sys.exit(2)
     return float(nums[0]), float(nums[1]), float(nums[2])
+
 
 def parse_rgb_string(s: str) -> Tuple[int, int, int]:
     try:
@@ -122,14 +129,18 @@ def parse_rgb_string(s: str) -> Tuple[int, int, int]:
     b = _to_8bit(nums[2])
     return r, g, b
 
+
 def parse_hsl_string(s: str) -> Tuple[float, float, float]:
     return _parse_h_ss_string(s, "hsl")
+
 
 def parse_hsv_string(s: str) -> Tuple[float, float, float]:
     return _parse_h_ss_string(s, "hsv")
 
+
 def parse_hwb_string(s: str) -> Tuple[float, float, float]:
     return _parse_h_ss_string(s, "hwb")
+
 
 def parse_cmyk_string(s: str) -> Tuple[float, float, float, float]:
     s_norm = _normalize_value_string(s)
@@ -144,23 +155,30 @@ def parse_cmyk_string(s: str) -> Tuple[float, float, float, float]:
         vals.append(_clamp01(v))
     return tuple(vals)
 
+
 def parse_xyz_string(s: str) -> Tuple[float, float, float]:
     return _parse_3_floats(s, "xyz")
+
 
 def parse_lab_string(s: str) -> Tuple[float, float, float]:
     return _parse_3_floats(s, "lab")
 
+
 def parse_lch_string(s: str) -> Tuple[float, float, float]:
     return _parse_3_floats(s, "lch")
+
 
 def parse_oklab_string(s: str) -> Tuple[float, float, float]:
     return _parse_3_floats(s, "oklab")
 
+
 def parse_oklch_string(s: str) -> Tuple[float, float, float]:
     return _parse_3_floats(s, "oklch")
 
+
 def parse_luv_string(s: str) -> Tuple[float, float, float]:
     return _parse_3_floats(s, "luv")
+
 
 STRING_PARSERS = {
     'rgb': parse_rgb_string,
@@ -175,4 +193,3 @@ STRING_PARSERS = {
     'oklch': parse_oklch_string,
     'luv': parse_luv_string,
 }
-

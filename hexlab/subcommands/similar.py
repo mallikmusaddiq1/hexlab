@@ -1,31 +1,45 @@
+# File: similar.py
 #!/usr/bin/env python3
 
 import argparse
-import sys
 import random
-from typing import Tuple, List
+import sys
+from typing import List, Tuple
 
-from ..utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
-from ..utils.hexlab_logger import log
-from ..constants.constants import MAX_DEC, DEDUP_DELTA_E_LAB, DEDUP_DELTA_E_OKLAB, DEDUP_DELTA_E_RGB
-from ..utils.color_names_handler import resolve_color_name_or_exit, get_title_for_hex
-from ..utils.print_color_block import print_color_block
-from ..utils.truecolor import ensure_truecolor
-from ..color_math.distance import delta_e_ciede2000, delta_e_euclidean_rgb, delta_e_euclidean_oklab
 from ..color_math.conversions import (
     hex_to_rgb,
+    hsl_to_rgb,
     rgb_to_hex,
     rgb_to_hsl,
-    hsl_to_rgb,
+    rgb_to_oklab,
     rgb_to_xyz,
     xyz_to_lab,
-    rgb_to_oklab
 )
+from ..color_math.distance import (
+    delta_e_ciede2000,
+    delta_e_euclidean_oklab,
+    delta_e_euclidean_rgb,
+)
+from ..constants.constants import (
+    DEDUP_DELTA_E_LAB,
+    DEDUP_DELTA_E_OKLAB,
+    DEDUP_DELTA_E_RGB,
+    MAX_DEC,
+)
+from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
+from ..utils.hexlab_logger import log
+from ..utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
+from ..utils.print_color_block import print_color_block
+from ..utils.truecolor import ensure_truecolor
 
-def _generate_search_cloud(base_rgb: Tuple[int, int, int], count: int = 5000) -> List[Tuple[int, int, int]]:
+
+def _generate_search_cloud(
+    base_rgb: Tuple[int, int, int],
+    count: int = 5000
+) -> List[Tuple[int, int, int]]:
     r, g, b = base_rgb
     h, s, l = rgb_to_hsl(r, g, b)
-    
+
     candidates = set()
 
     for _ in range(count):
@@ -38,12 +52,18 @@ def _generate_search_cloud(base_rgb: Tuple[int, int, int], count: int = 5000) ->
         new_l = max(0.0, min(1.0, l + l_delta))
 
         nr, ng, nb = hsl_to_rgb(new_h, new_s, new_l)
-        
+
         candidates.add((nr, ng, nb))
 
     return list(candidates)
 
-def find_similar_colors_dynamic(base_rgb: Tuple[int, int, int], n: int = 5, metric: str = 'lab', dedup_val: float = 7.7) -> List[Tuple[str, float]]:
+
+def find_similar_colors_dynamic(
+    base_rgb: Tuple[int, int, int],
+    n: int = 5,
+    metric: str = 'lab',
+    dedup_val: float = 7.7
+) -> List[Tuple[str, float]]:
     base_r_i, base_g_i, base_b_i = base_rgb
 
     base_lab, base_oklab = None, None
@@ -140,7 +160,7 @@ def handle_similar_command(args: argparse.Namespace) -> None:
         log('info', "no similar colors found within parameters")
     else:
         for i, (hex_val, diff) in enumerate(similar_list):
-            label = f"similar {i+1}"
+            label = f"similar {i + 1}"
             print_color_block(hex_val, label, end="")
             print(f"  ({metric_label}: {diff:.2f})")
 
@@ -186,7 +206,10 @@ def get_similar_parser() -> argparse.ArgumentParser:
         "-dv", "--dedup-value",
         type=INPUT_HANDLERS["dedup_value"],
         default=None,
-        help=f"custom deduplication threshold (defaults: lab={DEDUP_DELTA_E_LAB}, oklab={DEDUP_DELTA_E_OKLAB}, rgb={DEDUP_DELTA_E_RGB})"
+        help=(
+            f"custom deduplication threshold (defaults: lab={DEDUP_DELTA_E_LAB}, "
+            f"oklab={DEDUP_DELTA_E_OKLAB}, rgb={DEDUP_DELTA_E_RGB})"
+        )
     )
     parser.add_argument(
         "-n", "--number",

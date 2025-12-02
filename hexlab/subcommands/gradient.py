@@ -1,25 +1,34 @@
+# File: gradient.py
 #!/usr/bin/env python3
 
 import argparse
-import sys
 import random
-from typing import Tuple, List
+import sys
+from typing import List, Tuple
 
-from ..utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
-from ..utils.truecolor import ensure_truecolor
-from ..utils.hexlab_logger import log
-from ..utils.color_names_handler import resolve_color_name_or_exit, get_title_for_hex
-from ..utils.print_color_block import print_color_block
-from ..constants.constants import MAX_DEC, MAX_STEPS, MAX_RANDOM_COLORS
 from ..color_math.conversions import (
-    hex_to_rgb, rgb_to_hex,
-    rgb_to_lab, lab_to_rgb,
-    rgb_to_lch, lch_to_rgb,
-    rgb_to_oklab, oklab_to_rgb,
-    rgb_to_oklch, oklch_to_rgb,
-    rgb_to_luv, luv_to_rgb,
-    _srgb_to_linear, _linear_to_srgb
+    _linear_to_srgb,
+    _srgb_to_linear,
+    hex_to_rgb,
+    lab_to_rgb,
+    lch_to_rgb,
+    luv_to_rgb,
+    oklab_to_rgb,
+    oklch_to_rgb,
+    rgb_to_hex,
+    rgb_to_lab,
+    rgb_to_lch,
+    rgb_to_luv,
+    rgb_to_oklab,
+    rgb_to_oklch,
 )
+from ..constants.constants import MAX_DEC, MAX_RANDOM_COLORS, MAX_STEPS
+from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
+from ..utils.hexlab_logger import log
+from ..utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
+from ..utils.print_color_block import print_color_block
+from ..utils.truecolor import ensure_truecolor
+
 
 def _get_interpolated_color(c1, c2, t: float, colorspace: str) -> Tuple[float, float, float]:
     if colorspace == 'srgb':
@@ -95,6 +104,7 @@ def _get_interpolated_color(c1, c2, t: float, colorspace: str) -> Tuple[float, f
 
     return 0, 0, 0
 
+
 def _convert_rgb_to_space(r: int, g: int, b: int, colorspace: str) -> Tuple[float, ...]:
     if colorspace == 'srgb':
         return (r, g, b)
@@ -140,7 +150,10 @@ def handle_gradient_command(args: argparse.Namespace) -> None:
                 input_list.append(hexv)
 
         if len(input_list) < 2:
-            log('error', "at least 2 hex codes, color names, or decimal indexes are required for a gradient")
+            log(
+                'error',
+                "at least 2 hex codes, color names, or decimal indexes are required for a gradient"
+               )
             log('info', "use -H HEX, -cn NAME, -di INDEX multiple times or -r")
             sys.exit(2)
 

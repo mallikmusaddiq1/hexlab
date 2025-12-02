@@ -1,29 +1,41 @@
+# File: adjust.py
 #!/usr/bin/env python3
 
 import argparse
-import sys
-import random
 import math
+import random
+import sys
 from typing import Tuple
 
-from ..utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
-from ..utils.hexlab_logger import log
-from ..utils.truecolor import ensure_truecolor
-from ..utils.print_color_block import print_color_block
-from ..utils.color_names_handler import resolve_color_name_or_exit, get_title_for_hex
-from ..utils.clamping import _clamp01, _clamp255
-from ..color_math.wcag_contrast import _wcag_contrast_ratio_from_rgb
-from ..constants.constants import MAX_DEC, EPS
-from ..color_math.luminance import get_luminance
 from ..color_math.conversions import (
-    hex_to_rgb, rgb_to_hex,
-    rgb_to_hsl, hsl_to_rgb,
-    rgb_to_oklab, oklab_to_rgb,
-    rgb_to_oklch, oklch_to_rgb,
-    rgb_to_hsv, hsv_to_rgb,
-    rgb_to_hwb, hwb_to_rgb,
-    _srgb_to_linear, _linear_to_srgb
+    _linear_to_srgb,
+    _srgb_to_linear,
+    hex_to_rgb,
+    hsl_to_rgb,
+    hsv_to_rgb,
+    hwb_to_rgb,
+    oklab_to_rgb,
+    oklch_to_rgb,
+    rgb_to_hex,
+    rgb_to_hsl,
+    rgb_to_hsv,
+    rgb_to_hwb,
+    rgb_to_oklab,
+    rgb_to_oklch,
 )
+from ..color_math.luminance import get_luminance
+from ..color_math.wcag_contrast import _wcag_contrast_ratio_from_rgb
+from ..constants.constants import EPS, MAX_DEC
+from ..utils.clamping import _clamp01, _clamp255
+from ..utils.color_names_handler import (
+    get_title_for_hex,
+    resolve_color_name_or_exit,
+)
+from ..utils.hexlab_logger import log
+from ..utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
+from ..utils.print_color_block import print_color_block
+from ..utils.truecolor import ensure_truecolor
+
 
 def _get_oklab_mid_gray() -> float:
     g = 0.18
@@ -37,7 +49,9 @@ def _get_oklab_mid_gray() -> float:
 
     return 0.2104542553 * l_root + 0.7936177850 * m_root - 0.0040720468 * s_root
 
+
 OKLAB_MID_GRAY_L = _get_oklab_mid_gray()
+
 
 def _oklab_to_rgb_unclamped(l: float, a: float, b: float) -> Tuple[float, float, float]:
     l_ = l + 0.3963377774 * a + 0.2158037573 * b
@@ -52,11 +66,16 @@ def _oklab_to_rgb_unclamped(l: float, a: float, b: float) -> Tuple[float, float,
     gl = -1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3
     bl = -0.0041960863 * l3 - 0.7034186147 * m3 + 1.7076147010 * s3
 
-    return _linear_to_srgb(rl) * 255.0, _linear_to_srgb(gl) * 255.0, _linear_to_srgb(bl) * 255.0
+    return (
+        _linear_to_srgb(rl) * 255.0,
+        _linear_to_srgb(gl) * 255.0,
+        _linear_to_srgb(bl) * 255.0,
+    )
+
 
 def _gamut_map_oklab_to_srgb(l: float, a: float, b: float) -> Tuple[float, float, float]:
     fr, fg, fb = _oklab_to_rgb_unclamped(l, a, b)
-    
+
     if -0.5 <= fr <= 255.5 and -0.5 <= fg <= 255.5 and -0.5 <= fb <= 255.5:
         return _clamp255(fr), _clamp255(fg), _clamp255(fb)
 
@@ -74,7 +93,7 @@ def _gamut_map_oklab_to_srgb(l: float, a: float, b: float) -> Tuple[float, float
         new_a = mid_C * math.cos(h_rad)
         new_b = mid_C * math.sin(h_rad)
         tr, tg, tb = _oklab_to_rgb_unclamped(l, new_a, new_b)
-        
+
         if -0.5 <= tr <= 255.5 and -0.5 <= tg <= 255.5 and -0.5 <= tb <= 255.5:
             best_rgb = (tr, tg, tb)
             low = mid_C
@@ -83,31 +102,45 @@ def _gamut_map_oklab_to_srgb(l: float, a: float, b: float) -> Tuple[float, float
 
     return _clamp255(best_rgb[0]), _clamp255(best_rgb[1]), _clamp255(best_rgb[2])
 
+
 def _finalize_rgb(fr: float, fg: float, fb: float) -> Tuple[int, int, int]:
     l, a, bk = rgb_to_oklab(fr, fg, fb)
     fr_mapped, fg_mapped, fb_mapped = _gamut_map_oklab_to_srgb(l, a, bk)
-    
+
     return (
         max(0, min(255, int(round(fr_mapped)))),
         max(0, min(255, int(round(fg_mapped)))),
         max(0, min(255, int(round(fb_mapped)))),
     )
 
-def _apply_linear_gain_rgb(fr: float, fg: float, fb: float, factor: float) -> Tuple[float, float, float]:
+
+def _apply_linear_gain_rgb(
+    fr: float, fg: float, fb: float, factor: float
+) -> Tuple[float, float, float]:
     rl, gl, bl = _srgb_to_linear(fr), _srgb_to_linear(fg), _srgb_to_linear(fb)
     rl = _clamp01(rl * factor)
     gl = _clamp01(gl * factor)
     bl = _clamp01(bl * factor)
-    return _linear_to_srgb(rl) * 255.0, _linear_to_srgb(gl) * 255.0, _linear_to_srgb(bl) * 255.0
+    return (
+        _linear_to_srgb(rl) * 255.0,
+        _linear_to_srgb(gl) * 255.0,
+        _linear_to_srgb(bl) * 255.0,
+    )
 
-def _apply_srgb_brightness(fr: float, fg: float, fb: float, amount: float) -> Tuple[float, float, float]:
+
+def _apply_srgb_brightness(
+    fr: float, fg: float, fb: float, amount: float
+) -> Tuple[float, float, float]:
     factor = 1.0 + (amount / 100.0)
     fr = _clamp255(fr * factor)
     fg = _clamp255(fg * factor)
     fb = _clamp255(fb * factor)
     return fr, fg, fb
 
-def _apply_linear_contrast_rgb(fr: float, fg: float, fb: float, contrast_amount: float) -> Tuple[float, float, float]:
+
+def _apply_linear_contrast_rgb(
+    fr: float, fg: float, fb: float, contrast_amount: float
+) -> Tuple[float, float, float]:
     c = max(-100.0, min(100.0, float(contrast_amount)))
     if abs(c) < 1e-8:
         return fr, fg, fb
@@ -118,15 +151,25 @@ def _apply_linear_contrast_rgb(fr: float, fg: float, fb: float, contrast_amount:
     l_new = _clamp01(l_new)
     return _gamut_map_oklab_to_srgb(l_new, a_ok, b_ok)
 
-def _apply_opacity_on_black(fr: float, fg: float, fb: float, opacity_percent: float) -> Tuple[float, float, float]:
+
+def _apply_opacity_on_black(
+    fr: float, fg: float, fb: float, opacity_percent: float
+) -> Tuple[float, float, float]:
     alpha = _clamp01(opacity_percent / 100.0)
     rl, gl, bl = _srgb_to_linear(fr), _srgb_to_linear(fg), _srgb_to_linear(fb)
     rl *= alpha
     gl *= alpha
     bl *= alpha
-    return _linear_to_srgb(rl) * 255.0, _linear_to_srgb(gl) * 255.0, _linear_to_srgb(bl) * 255.0
+    return (
+        _linear_to_srgb(rl) * 255.0,
+        _linear_to_srgb(gl) * 255.0,
+        _linear_to_srgb(bl) * 255.0,
+    )
 
-def _lock_relative_luminance(fr: float, fg: float, fb: float, base_Y: float) -> Tuple[float, float, float]:
+
+def _lock_relative_luminance(
+    fr: float, fg: float, fb: float, base_Y: float
+) -> Tuple[float, float, float]:
     curr_Y = get_luminance(int(round(fr)), int(round(fg)), int(round(fb)))
     if curr_Y <= 0.0 or base_Y <= 0.0 or abs(curr_Y - base_Y) < 1e-9:
         return fr, fg, fb
@@ -137,9 +180,16 @@ def _lock_relative_luminance(fr: float, fg: float, fb: float, base_Y: float) -> 
     rl = _clamp01(rl)
     gl = _clamp01(gl)
     bl = _clamp01(bl)
-    return _linear_to_srgb(rl) * 255.0, _linear_to_srgb(gl) * 255.0, _linear_to_srgb(bl) * 255.0
+    return (
+        _linear_to_srgb(rl) * 255.0,
+        _linear_to_srgb(gl) * 255.0,
+        _linear_to_srgb(bl) * 255.0,
+    )
 
-def _apply_gamma(fr: float, fg: float, fb: float, gamma: float) -> Tuple[float, float, float]:
+
+def _apply_gamma(
+    fr: float, fg: float, fb: float, gamma: float
+) -> Tuple[float, float, float]:
     if gamma <= 0.0:
         return fr, fg, fb
     rl = _srgb_to_linear(fr)
@@ -149,9 +199,16 @@ def _apply_gamma(fr: float, fg: float, fb: float, gamma: float) -> Tuple[float, 
     rl = _clamp01(rl ** inv_gamma)
     gl = _clamp01(gl ** inv_gamma)
     bl = _clamp01(bl ** inv_gamma)
-    return _linear_to_srgb(rl) * 255.0, _linear_to_srgb(gl) * 255.0, _linear_to_srgb(bl) * 255.0
+    return (
+        _linear_to_srgb(rl) * 255.0,
+        _linear_to_srgb(gl) * 255.0,
+        _linear_to_srgb(bl) * 255.0,
+    )
 
-def _apply_vibrance_oklch(fr: float, fg: float, fb: float, amount: float) -> Tuple[float, float, float]:
+
+def _apply_vibrance_oklch(
+    fr: float, fg: float, fb: float, amount: float
+) -> Tuple[float, float, float]:
     l_ok, c_ok, h_ok = rgb_to_oklch(fr, fg, fb)
     if c_ok <= 0.0:
         return fr, fg, fb
@@ -168,7 +225,10 @@ def _apply_vibrance_oklch(fr: float, fg: float, fb: float, amount: float) -> Tup
     l_final, a_final, b_final = rgb_to_oklab(fr2, fg2, fb2)
     return _gamut_map_oklab_to_srgb(l_final, a_final, b_final)
 
-def _posterize_rgb(fr: float, fg: float, fb: float, levels: int) -> Tuple[float, float, float]:
+
+def _posterize_rgb(
+    fr: float, fg: float, fb: float, levels: int
+) -> Tuple[float, float, float]:
     levels = max(2, min(256, int(abs(levels))))
     step = 255.0 / float(levels - 1)
     fr2 = round(fr / step) * step
@@ -176,7 +236,10 @@ def _posterize_rgb(fr: float, fg: float, fb: float, levels: int) -> Tuple[float,
     fb2 = round(fb / step) * step
     return _clamp255(fr2), _clamp255(fg2), _clamp255(fb2)
 
-def _solarize_smart(fr: float, fg: float, fb: float, threshold_percent: float) -> Tuple[float, float, float]:
+
+def _solarize_smart(
+    fr: float, fg: float, fb: float, threshold_percent: float
+) -> Tuple[float, float, float]:
     t_perceptual = _clamp01(threshold_percent / 100.0)
     l_ok, _, _ = rgb_to_oklab(fr, fg, fb)
     rl, gl, bl = _srgb_to_linear(fr), _srgb_to_linear(fg), _srgb_to_linear(fb)
@@ -189,7 +252,10 @@ def _solarize_smart(fr: float, fg: float, fb: float, threshold_percent: float) -
     fb2 = _linear_to_srgb(bl) * 255.0
     return _clamp255(fr2), _clamp255(fg2), _clamp255(fb2)
 
-def _tint_oklab(fr: float, fg: float, fb: float, tint_hex: str, strength_percent: float) -> Tuple[float, float, float]:
+
+def _tint_oklab(
+    fr: float, fg: float, fb: float, tint_hex: str, strength_percent: float
+) -> Tuple[float, float, float]:
     tr, tg, tb = hex_to_rgb(tint_hex)
     l1, a1, b1 = rgb_to_oklab(fr, fg, fb)
     l2, a2, b2 = rgb_to_oklab(float(tr), float(tg), float(tb))
@@ -198,6 +264,7 @@ def _tint_oklab(fr: float, fg: float, fb: float, tint_hex: str, strength_percent
     a = a1 * (1.0 - alpha) + a2 * alpha
     b = b1 * (1.0 - alpha) + b2 * alpha
     return _gamut_map_oklab_to_srgb(l, a, b)
+
 
 def _ensure_min_contrast_with(
     fr: float, fg: float, fb: float, bg_hex: str, min_ratio: float
@@ -222,11 +289,11 @@ def _ensure_min_contrast_with(
         for _ in range(30):
             mid = (low + high) / 2.0
             fr_mid, fg_mid, fb_mid = _oklab_to_rgb_unclamped(mid, a0, b0)
-            
+
             r_check = max(0, min(255, int(round(fr_mid))))
             g_check = max(0, min(255, int(round(fg_mid))))
             b_check = max(0, min(255, int(round(fb_mid))))
-            
+
             y_mid = get_luminance(r_check, g_check, b_check)
             if y_mid < target_Y:
                 low = mid
@@ -242,12 +309,16 @@ def _ensure_min_contrast_with(
     if 0.0 <= Y_light <= 1.0:
         l_light, fr_light, fg_light, fb_light, ratio_light = _find_color_for_target_Y(Y_light)
         if ratio_light >= min_ratio:
-            candidates.append((abs(l_light - l0), l_light, fr_light, fg_light, fb_light, ratio_light))
+            candidates.append(
+                (abs(l_light - l0), l_light, fr_light, fg_light, fb_light, ratio_light)
+            )
 
     if 0.0 <= Y_dark <= 1.0:
         l_dark, fr_dark, fg_dark, fb_dark, ratio_dark = _find_color_for_target_Y(Y_dark)
         if ratio_dark >= min_ratio:
-            candidates.append((abs(l_dark - l0), l_dark, fr_dark, fg_dark, fb_dark, ratio_dark))
+            candidates.append(
+                (abs(l_dark - l0), l_dark, fr_dark, fg_dark, fb_dark, ratio_dark)
+            )
 
     if not candidates:
         black_ratio = _wcag_contrast_ratio_from_rgb(0.0, 0.0, 0.0, br, bg, bb)
@@ -268,6 +339,7 @@ def _ensure_min_contrast_with(
     _, _, fr_best, fg_best, fb_best, _ = candidates[0]
     return fr_best, fg_best, fb_best, True
 
+
 def _format_steps(mods):
     parts = []
     for label, val in mods:
@@ -276,6 +348,7 @@ def _format_steps(mods):
         else:
             parts.append(label)
     return parts
+
 
 def _print_steps(mods, verbose: bool) -> None:
     if not verbose:
@@ -286,17 +359,25 @@ def _print_steps(mods, verbose: bool) -> None:
     parts = _format_steps(mods)
     log("info", "steps: " + " -> ".join(parts))
 
+
 def handle_adjust_command(args: argparse.Namespace) -> None:
     if args.seed is not None:
         random.seed(args.seed)
 
     locks = 0
-    if getattr(args, "lock_luminance", False): locks += 1
-    if getattr(args, "lock_rel_luminance", False): locks += 1
-    if getattr(args, "target_rel_lum", None) is not None: locks += 1
+    if getattr(args, "lock_luminance", False):
+        locks += 1
+    if getattr(args, "lock_rel_luminance", False):
+        locks += 1
+    if getattr(args, "target_rel_lum", None) is not None:
+        locks += 1
 
     if locks > 1:
-        log("error", "conflicting luminance locks: use only one of --lock-luminance, --lock-rel-luminance, or --target-rel-lum")
+        log(
+            "error",
+            "conflicting luminance locks: use only one of --lock-luminance, "
+            "--lock-rel-luminance, or --target-rel-lum"
+        )
         sys.exit(2)
 
     if getattr(args, "min_contrast_with", None) and locks > 0:
@@ -308,7 +389,8 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
     elif args.color_name:
         base_hex = resolve_color_name_or_exit(args.color_name)
         title = get_title_for_hex(base_hex)
-        if title.lower() == 'unknown': title = args.color_name
+        if title.lower() == 'unknown':
+            title = args.color_name
     elif args.hex:
         base_hex, title = args.hex, get_title_for_hex(args.hex)
     elif getattr(args, "decimal_index", None):
@@ -318,9 +400,11 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
         log("error", "no input color")
         sys.exit(2)
 
-    if (getattr(args, "min_contrast_with", None) and getattr(args, "min_contrast", None) is None) or (
-        getattr(args, "min_contrast_with", None) is None and getattr(args, "min_contrast", None) is not None
-    ):
+    # use repeated vars for readability to avoid massive if-stmt line
+    mc_with = getattr(args, "min_contrast_with", None)
+    mc_val = getattr(args, "min_contrast", None)
+
+    if (mc_with and mc_val is None) or (mc_with is None and mc_val is not None):
         log("error", "--min-contrast-with and --min-contrast must be used together")
         sys.exit(2)
 
@@ -381,7 +465,9 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
         fr, fg, fb = _apply_linear_gain_rgb(fr, fg, fb, factor)
         mods.append(("exposure-stops", f"{args.exposure:+.3f}"))
 
-    if any(x is not None for x in [args.lighten, args.darken, args.saturate, args.desaturate]):
+    if any(x is not None for x in [
+        args.lighten, args.darken, args.saturate, args.desaturate
+    ]):
         h, s, l = rgb_to_hsl(fr, fg, fb)
         if args.lighten is not None:
             amount = args.lighten / 100.0
@@ -401,7 +487,9 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
             mods.append(("desaturate", f"-{args.desaturate:.2f}%%"))
         fr, fg, fb = hsl_to_rgb(h, s, l)
 
-    if getattr(args, "whiten_hwb", None) is not None or getattr(args, "blacken_hwb", None) is not None:
+    if getattr(args, "whiten_hwb", None) is not None or getattr(
+        args, "blacken_hwb", None
+    ) is not None:
         h, w, b_val = rgb_to_hwb(fr, fg, fb)
         if getattr(args, "whiten_hwb", None) is not None:
             w = _clamp01(w + args.whiten_hwb / 100.0)
@@ -497,15 +585,26 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
         fr, fg, fb = _lock_relative_luminance(fr, fg, fb, target_Y)
         mods.append(("target-rel-luminance", f"{target_Y:.4f}"))
 
-    if getattr(args, "min_contrast_with", None) and getattr(args, "min_contrast", None) is not None:
-        fr, fg, fb, changed = _ensure_min_contrast_with(fr, fg, fb, args.min_contrast_with, args.min_contrast)
+    if getattr(args, "min_contrast_with", None) and getattr(
+        args, "min_contrast", None
+    ) is not None:
+        fr, fg, fb, changed = _ensure_min_contrast_with(
+            fr, fg, fb, args.min_contrast_with, args.min_contrast
+        )
         if changed:
-            mods.append(("min-contrast", f">={float(args.min_contrast):.2f} vs #{args.min_contrast_with.upper()}"))
+            mods.append((
+                "min-contrast",
+                f">={float(args.min_contrast):.2f} vs #{args.min_contrast_with.upper()}"
+            ))
 
     ri, gi, bi = _finalize_rgb(fr, fg, fb)
     res_hex = rgb_to_hex(ri, gi, bi)
     base_hex_upper = base_hex.upper()
-    is_hex_title = isinstance(title, str) and title.startswith("#") and title[1:].upper() == base_hex_upper
+    is_hex_title = (
+        isinstance(title, str) and
+        title.startswith("#") and
+        title[1:].upper() == base_hex_upper
+    )
 
     print()
     base_label = "original" if is_hex_title else title
@@ -543,7 +642,10 @@ def get_adjust_parser() -> argparse.ArgumentParser:
     def custom_print_help(file=None):
         if file is None:
             file = sys.stdout
-        print("usage: hexlab adjust [-h] (-H HEX | -r | -cn NAME | -di INDEX) [OPTIONS...]", file=file)
+        print(
+            "usage: hexlab adjust [-h] (-H HEX | -r | -cn NAME | -di INDEX) [OPTIONS...]",
+            file=file
+        )
         print("")
         original_print_help(file)
 
@@ -732,7 +834,8 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         dest="min_contrast",
         type=INPUT_HANDLERS["float"],
         metavar="RATIO",
-        help="minimum WCAG contrast ratio with --min-contrast-with, best effort within srgb gamut",
+        help=("minimum WCAG contrast ratio with --min-contrast-with, "
+              "best effort within srgb gamut"),
     )
     adv_group.add_argument(
         "--gamma",

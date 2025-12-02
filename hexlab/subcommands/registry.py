@@ -1,7 +1,10 @@
 from . import (
-   gradient, mix,
-   scheme, vision,
-   similar, convert,
+   gradient,
+   mix,
+   scheme,
+   vision,
+   similar,
+   convert,
    adjust
 )
 

@@ -1,23 +1,30 @@
+# File: mix.py
 #!/usr/bin/env python3
 
 import argparse
-import sys
 import random
+import sys
 from typing import List, Tuple
 
-from ..utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
-from ..utils.hexlab_logger import log
-from ..utils.truecolor import ensure_truecolor
-from ..utils.print_color_block import print_color_block
-from ..utils.color_names_handler import resolve_color_name_or_exit
-from ..constants.constants import MAX_DEC, MAX_RANDOM_COLORS
 from ..color_math.conversions import (
-    hex_to_rgb, rgb_to_hex,
-    rgb_to_lab, lab_to_rgb,
-    rgb_to_oklab, oklab_to_rgb,
-    rgb_to_luv, luv_to_rgb,
-    _srgb_to_linear, _linear_to_srgb
+    _linear_to_srgb,
+    _srgb_to_linear,
+    hex_to_rgb,
+    lab_to_rgb,
+    luv_to_rgb,
+    oklab_to_rgb,
+    rgb_to_hex,
+    rgb_to_lab,
+    rgb_to_luv,
+    rgb_to_oklab,
 )
+from ..constants.constants import MAX_DEC, MAX_RANDOM_COLORS
+from ..utils.color_names_handler import resolve_color_name_or_exit
+from ..utils.hexlab_logger import log
+from ..utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
+from ..utils.print_color_block import print_color_block
+from ..utils.truecolor import ensure_truecolor
+
 
 def _convert_rgb_to_space(r: int, g: int, b: int, colorspace: str) -> Tuple[float, ...]:
     if colorspace == 'srgb':
@@ -31,6 +38,7 @@ def _convert_rgb_to_space(r: int, g: int, b: int, colorspace: str) -> Tuple[floa
     if colorspace == 'luv':
         return rgb_to_luv(r, g, b)
     return (r, g, b)
+
 
 def handle_mix_command(args: argparse.Namespace) -> None:
     if args.seed is not None:
@@ -60,7 +68,10 @@ def handle_mix_command(args: argparse.Namespace) -> None:
                 input_list.append(hexv)
 
         if len(input_list) < 2:
-            log('error', "at least 2 hex codes, color names, or decimal indexes are required for a gradient")
+            log(
+                'error',
+                "at least 2 hex codes, color names, or decimal indexes are required for a gradient"
+            )
             log('info', "use -H HEX, -cn NAME, -di INDEX multiple times or -r")
             sys.exit(2)
 
@@ -115,11 +126,11 @@ def handle_mix_command(args: argparse.Namespace) -> None:
         print_color_block(hex_code, f"input {i + 1}")
 
     print()
-    
+
     label_suffix = ""
     if len(colors_hex) == 2 and amount != 0.5:
-        label_suffix = f" {int(amount*100)}%"
-        
+        label_suffix = f" {int(amount * 100)}%"
+
     print_color_block(mixed_hex, f"result{label_suffix}")
     print()
 

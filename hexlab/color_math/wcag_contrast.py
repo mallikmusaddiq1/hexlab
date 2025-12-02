@@ -1,4 +1,7 @@
+# File: wcag_contrast.py
+
 def get_wcag_contrast(lum: float) -> dict:
+    """Calculate WCAG contrast ratios against black and white."""
     contrast_white = (1.0 + 0.05) / (lum + 0.05)
     contrast_black = (lum + 0.05) / (0.0 + 0.05)
 
@@ -15,7 +18,10 @@ def get_wcag_contrast(lum: float) -> dict:
         "black": {"ratio": contrast_black, "levels": get_pass_fail(contrast_black)},
     }
 
-def _wcag_contrast_ratio_from_rgb(fr: float, fg: float, fb: float, br: float, bg: float, bb: float) -> float:
+
+def _wcag_contrast_ratio_from_rgb(
+    fr: float, fg: float, fb: float, br: float, bg: float, bb: float
+) -> float:
     y1 = get_luminance(int(round(fr)), int(round(fg)), int(round(fb)))
     y2 = get_luminance(int(round(br)), int(round(bg)), int(round(bb)))
     if y1 < y2:

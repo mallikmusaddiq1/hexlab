@@ -1,8 +1,13 @@
+# File: distance.py
 import math
 from typing import Tuple
+
 from ..constants.constants import EPS
 
-def delta_e_ciede2000(lab1: Tuple[float, float, float], lab2: Tuple[float, float, float]) -> float:
+
+def delta_e_ciede2000(
+    lab1: Tuple[float, float, float], lab2: Tuple[float, float, float]
+) -> float:
     L1, a1, b1 = lab1
     L2, a2, b2 = lab2
 
@@ -37,9 +42,12 @@ def delta_e_ciede2000(lab1: Tuple[float, float, float], lab2: Tuple[float, float
     else:
         delta_h_prime_deg = (h2_prime_deg - h1_prime_deg) + 360
 
-    delta_H_prime = 2 * math.sqrt(max(0.0, C1_prime * C2_prime)) * math.sin(math.radians(delta_h_prime_deg) / 2)
+    delta_H_prime = 2 * math.sqrt(max(0.0, C1_prime * C2_prime)) * math.sin(
+        math.radians(delta_h_prime_deg) / 2
+    )
 
     L_prime_bar = (L1 + L2) / 2
+
     if C1_prime * C2_prime == 0:
         h_prime_bar_deg = h1_prime_deg + h2_prime_deg
     elif abs(h2_prime_deg - h1_prime_deg) <= 180:
@@ -57,7 +65,9 @@ def delta_e_ciede2000(lab1: Tuple[float, float, float], lab2: Tuple[float, float
         - 0.20 * math.cos(math.radians(4 * h_prime_bar_deg - 63))
     )
 
-    S_L = 1 + (0.015 * (L_prime_bar - 50) ** 2) / math.sqrt(20 + (L_prime_bar - 50) ** 2 + EPS)
+    S_L = 1 + (0.015 * (L_prime_bar - 50) ** 2) / math.sqrt(
+        20 + (L_prime_bar - 50) ** 2 + EPS
+    )
     S_C = 1 + 0.045 * C_prime_bar
     S_H = 1 + 0.015 * C_prime_bar * T
 
@@ -76,10 +86,14 @@ def delta_e_ciede2000(lab1: Tuple[float, float, float], lab2: Tuple[float, float
 
     return delta_E
 
+
 def delta_e_euclidean_rgb(r1: int, g1: int, b1: int, r2: int, g2: int, b2: int) -> float:
     return math.sqrt((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2)
 
-def delta_e_euclidean_oklab(oklab1: Tuple[float, float, float], oklab2: Tuple[float, float, float]) -> float:
+
+def delta_e_euclidean_oklab(
+    oklab1: Tuple[float, float, float], oklab2: Tuple[float, float, float]
+) -> float:
     l1, a1, b1 = oklab1
     l2, a2, b2 = oklab2
     return math.sqrt((l1 - l2) ** 2 + (a1 - a2) ** 2 + (b1 - b2) ** 2)
