@@ -1,5 +1,8 @@
 # File: wcag_contrast.py
 
+from .luminance import get_luminance
+
+
 def get_wcag_contrast(lum: float) -> dict:
     """Calculate WCAG contrast ratios against black and white."""
     contrast_white = (1.0 + 0.05) / (lum + 0.05)
