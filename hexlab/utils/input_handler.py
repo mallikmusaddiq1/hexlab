@@ -213,13 +213,13 @@ INPUT_HANDLERS = {
     "float_0_1": handle_float_range(0.0, 1.0),
     "float_0_100": handle_float_range(0.0, 100.0),
     "float_signed_100": handle_float_range(-100.0, 100.0),
-    "float_signed_360": handle_float_range(-360.0, 360.0),
 
     "number": handle_int_range(2, 1000),
     "seed": handle_int_range(0, 999_999_999_999_999_999),
     "steps": handle_int_range(1, MAX_STEPS),
     "total_random": handle_int_range(2, MAX_RANDOM_COLORS),
     "int_channel": handle_int_range(-255, 255),
+    "custom_scheme": handle_int_range(-360, 360)
 }
 
 
