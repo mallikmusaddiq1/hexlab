@@ -152,7 +152,8 @@ def handle_scheme_command(args: argparse.Namespace) -> None:
 
         if _has_custom_scheme(args.custom_scheme):
             for angle in args.custom_scheme:
-                print_color_block(get_scheme_hex(angle), f"         {angle}°")
+                print_color_block(get_scheme_hex(angle), f"custom{f'{angle}°':>10}")
+
     print()
 
 
@@ -241,7 +242,7 @@ def get_scheme_parser() -> argparse.ArgumentParser:
     scheme_group.add_argument(
         '-cs', '--custom-scheme',
         action="append",
-        type=INPUT_HANDLERS["float_signed_360"],
+        type=INPUT_HANDLERS["custom_scheme"],
         help="custom hue shift in degrees (-360.0 to 360.0)"
     )
     return parser
