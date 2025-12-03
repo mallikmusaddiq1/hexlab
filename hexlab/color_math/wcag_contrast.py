@@ -1,5 +1,4 @@
 # File: wcag_contrast.py
-
 from .luminance import get_luminance
 
 
