@@ -24,7 +24,7 @@ from ..utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
 from ..utils.print_color_block import print_color_block
 from ..utils.truecolor import ensure_truecolor
 
-CANDIDATES_PER_STEP = 500
+CANDIDATES_PER_STEP = 200
 
 
 def _generate_random_rgb() -> Tuple[int, int, int]:
@@ -43,13 +43,6 @@ def _to_metric_space(rgb: Tuple[int, int, int], metric: str):
     else:
         x, y, z = rgb_to_xyz(*rgb)
         return xyz_to_lab(x, y, z)
-
-
-def _dist_sq_euclidean(t1: Tuple[float, ...], t2: Tuple[float, ...]) -> float:
-    d0 = t1[0] - t2[0]
-    d1 = t1[1] - t2[1]
-    d2 = t1[2] - t2[2]
-    return d0*d0 + d1*d1 + d2*d2
 
 
 def generate_distinct_colors_greedy(
@@ -80,7 +73,10 @@ def generate_distinct_colors_greedy(
 
             if is_euclidean:
                 for existing_metric, _ in selected_data:
-                    d_sq = _dist_sq_euclidean(cand_metric, existing_metric)
+                    d0 = cand_metric[0] - existing_metric[0]
+                    d1 = cand_metric[1] - existing_metric[1]
+                    d2 = cand_metric[2] - existing_metric[2]
+                    d_sq = d0*d0 + d1*d1 + d2*d2
                     
                     if d_sq < min_dist_for_this_cand:
                         min_dist_for_this_cand = d_sq
