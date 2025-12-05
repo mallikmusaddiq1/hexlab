@@ -414,7 +414,7 @@ def main() -> None:
         help="show all technical information"
     )
     info_group.add_argument(
-        "--hide-bars",
+        "-hb", "--hide-bars",
         action="store_true",
         help="hide visual color bars"
     )
