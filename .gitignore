@@ -1,0 +1,52 @@
+# Python bytecode files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environments
+# Never commit your virtual environment folder
+venv/
+.venv/
+env/
+.env/
+
+# Build, distribution, and packaging artifacts
+build/
+dist/
+*.egg-info/
+*.egg
+wheels/
+
+# IDE and editor configuration files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Testing and coverage reports
+.pytest_cache/
+.coverage
+htmlcov/
+nosetests.xml
+coverage.xml
+
+# Operating System generated files
+# macOS
+.DS_Store
+# Windows
+Thumbs.db
+
+# Log files
+*.log
+*.log.*
+
+# Environment variables
+# Store sensitive information like API keys in .env files and ignore them
+.env
+.env.*
+# An exception to allow committing an example file for others
+!/.env.example
+
+# Instance folder (common in Flask)
+instance/
