@@ -61,21 +61,17 @@ def _extract_signed_int(value: str) -> int:
     if value is None:
         return None
 
-    s = str(value).strip()
-    if not s:
+    s = str(value)
+    
+    is_negative = s.strip().startswith("-")
+
+    digits_only = "".join(re.findall(r"[0-9]", s))
+
+    if not digits_only:
         return None
-
-    match = re.search(r"\d+", s)
-
-    if not match:
-        return None
-
-    prefix_garbage = s[:match.start()]
-
-    is_negative = "-" in prefix_garbage
 
     try:
-        val = int(match.group())
+        val = int(digits_only)
         if is_negative:
             val = -val
         return val
@@ -87,20 +83,31 @@ def _extract_signed_float(value: str) -> float:
     if value is None:
         return None
 
-    s = str(value).strip()
-    if not s:
+    s = str(value)
+    
+    is_negative = s.strip().startswith("-")
+
+    
+    raw_chars = re.findall(r"[0-9\.]", s)
+    if not raw_chars:
         return None
-
-    match = re.search(r"(\d+\.\d+|\.\d+|\d+)", s)
-
-    if not match:
+    
+    clean_str = ""
+    dot_seen = False
+    
+    for char in raw_chars:
+        if char == '.':
+            if not dot_seen:
+                clean_str += char
+                dot_seen = True
+        else:
+            clean_str += char
+            
+    if not clean_str or clean_str == '.':
         return None
-
-    prefix_garbage = s[:match.start()]
-    is_negative = "-" in prefix_garbage
 
     try:
-        val = float(match.group())
+        val = float(clean_str)
         if is_negative:
             val = -val
         return val
@@ -165,10 +172,7 @@ def handle_float_any(v: str) -> float:
 
 def handle_int_range(min_v: int, max_v: int):
     def validator(v: str) -> int:
-        if min_v < 0:
-            val = _extract_signed_int(v)
-        else:
-            val = _extract_positive_only_int(v)
+        val = _extract_signed_int(v)
 
         if val is None:
             raw = _sanitize_for_log(v)
