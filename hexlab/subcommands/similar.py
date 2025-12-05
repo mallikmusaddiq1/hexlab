@@ -4,7 +4,7 @@
 import argparse
 import random
 import sys
-from typing import List, Tuple
+from typing import Generator, Tuple, Set
 
 from ..color_math.conversions import (
     hex_to_rgb,
@@ -33,75 +33,70 @@ from ..utils.print_color_block import print_color_block
 from ..utils.truecolor import ensure_truecolor
 
 
-def _generate_search_cloud(
-    base_rgb: Tuple[int, int, int],
-    count: int = 5000
-) -> List[Tuple[int, int, int]]:
-    r, g, b = base_rgb
-    h, s, l = rgb_to_hsl(r, g, b)
-
-    candidates = set()
-
-    for _ in range(count):
-        h_delta = random.uniform(-20, 20)
-        s_delta = random.uniform(-0.15, 0.15)
-        l_delta = random.uniform(-0.15, 0.15)
-
-        new_h = (h + h_delta) % 360
-        new_s = max(0.0, min(1.0, s + s_delta))
-        new_l = max(0.0, min(1.0, l + l_delta))
-
-        nr, ng, nb = hsl_to_rgb(new_h, new_s, new_l)
-
-        candidates.add((nr, ng, nb))
-
-    return list(candidates)
+def _to_metric_space(rgb: Tuple[int, int, int], metric: str):
+    if metric == 'rgb':
+        return rgb
+    elif metric == 'oklab':
+        return rgb_to_oklab(*rgb)
+    else:
+        x, y, z = rgb_to_xyz(*rgb)
+        return xyz_to_lab(x, y, z)
 
 
-def find_similar_colors_dynamic(
+def generate_similar_colors_streaming(
     base_rgb: Tuple[int, int, int],
     n: int = 5,
     metric: str = 'lab',
     dedup_val: float = 7.7
-) -> List[Tuple[str, float]]:
-    base_r_i, base_g_i, base_b_i = base_rgb
+) -> Generator[Tuple[str, float], None, None]:
+    
+    base_metric_val = _to_metric_space(base_rgb, metric)
+    
+    r, g, b = base_rgb
+    h_base, s_base, l_base = rgb_to_hsl(r, g, b)
 
-    base_lab, base_oklab = None, None
+    count_found = 0
+    seen_hex: Set[str] = set()
+    seen_hex.add(rgb_to_hex(r, g, b))
 
-    if metric == 'lab':
-        x, y, z = rgb_to_xyz(base_r_i, base_g_i, base_b_i)
-        base_lab = xyz_to_lab(x, y, z)
-    elif metric == 'oklab':
-        base_oklab = rgb_to_oklab(base_r_i, base_g_i, base_b_i)
+    attempts = 0
+    max_attempts = n * 500
 
-    pool_size = max(5000, n * 10)
-    candidate_pool = _generate_search_cloud(base_rgb, count=pool_size)
+    while count_found < n and attempts < max_attempts:
+        attempts += 1
+        
+        h_delta = random.uniform(-20, 20)
+        s_delta = random.uniform(-0.15, 0.15)
+        l_delta = random.uniform(-0.15, 0.15)
 
-    valid_similar = []
+        new_h = (h_base + h_delta) % 360
+        new_s = max(0.0, min(1.0, s_base + s_delta))
+        new_l = max(0.0, min(1.0, l_base + l_delta))
 
-    for cand_rgb in candidate_pool:
-        r, g, b = cand_rgb
-        if r == base_r_i and g == base_g_i and b == base_b_i:
+        nr, ng, nb = hsl_to_rgb(new_h, new_s, new_l)
+        nr_i, ng_i, nb_i = int(round(nr)), int(round(ng)), int(round(nb))
+        
+        cand_hex = rgb_to_hex(nr_i, ng_i, nb_i)
+        
+        if cand_hex in seen_hex:
             continue
 
+        cand_rgb = (nr_i, ng_i, nb_i)
+        
         diff = 0.0
-
         if metric == 'lab':
-            x, y, z = rgb_to_xyz(r, g, b)
-            cand_lab = xyz_to_lab(x, y, z)
-            diff = delta_e_ciede2000(base_lab, cand_lab)
+            cand_metric = _to_metric_space(cand_rgb, 'lab')
+            diff = delta_e_ciede2000(base_metric_val, cand_metric)
         elif metric == 'oklab':
-            cand_oklab = rgb_to_oklab(r, g, b)
-            diff = delta_e_euclidean_oklab(base_oklab, cand_oklab)
+            cand_metric = _to_metric_space(cand_rgb, 'oklab')
+            diff = delta_e_euclidean_oklab(base_metric_val, cand_metric)
         elif metric == 'rgb':
-            diff = delta_e_euclidean_rgb(base_r_i, base_g_i, base_b_i, r, g, b)
+            diff = delta_e_euclidean_rgb(base_rgb[0], base_rgb[1], base_rgb[2], nr_i, ng_i, nb_i)
 
         if diff >= dedup_val:
-            valid_similar.append((rgb_to_hex(r, g, b), diff))
-
-    valid_similar.sort(key=lambda x: x[1])
-
-    return valid_similar[:n]
+            seen_hex.add(cand_hex)
+            count_found += 1
+            yield (cand_hex, diff)
 
 
 def handle_similar_command(args: argparse.Namespace) -> None:
@@ -117,8 +112,8 @@ def handle_similar_command(args: argparse.Namespace) -> None:
     elif args.color_name:
         clean_hex = resolve_color_name_or_exit(args.color_name)
         title = get_title_for_hex(clean_hex)
-    elif args.hexcode:
-        clean_hex = args.hexcode
+    elif args.hex:
+        clean_hex = args.hex
         title = get_title_for_hex(clean_hex)
     elif getattr(args, "decimal_index", None) is not None:
         clean_hex = args.decimal_index
@@ -146,7 +141,7 @@ def handle_similar_command(args: argparse.Namespace) -> None:
 
     num_results = args.number
 
-    similar_list = find_similar_colors_dynamic(
+    similar_gen = generate_similar_colors_streaming(
         base_rgb,
         n=num_results,
         metric=metric,
@@ -156,13 +151,16 @@ def handle_similar_command(args: argparse.Namespace) -> None:
     metric_map = {'lab': 'ΔE2000', 'oklab': 'ΔE(OKLAB)', 'rgb': 'ΔE(RGB)'}
     metric_label = metric_map.get(metric, 'ΔE')
 
-    if not similar_list:
+    found_any = False
+    for i, (hex_val, diff) in enumerate(similar_gen):
+        found_any = True
+        label = f"similar {i + 1}"
+        print_color_block(hex_val, label, end="")
+        print(f"  ({metric_label}: {diff:.2f})")
+        sys.stdout.flush()
+
+    if not found_any:
         log('info', "no similar colors found within parameters")
-    else:
-        for i, (hex_val, diff) in enumerate(similar_list):
-            label = f"similar {i + 1}"
-            print_color_block(hex_val, label, end="")
-            print(f"  ({metric_label}: {diff:.2f})")
 
     print()
 
@@ -176,7 +174,7 @@ def get_similar_parser() -> argparse.ArgumentParser:
     input_group = parser.add_mutually_exclusive_group(required=True)
     input_group.add_argument(
         "-H", "--hex",
-        dest="hexcode",
+        dest="hex",
         type=INPUT_HANDLERS["hex"],
         help="base hex code"
     )
@@ -213,9 +211,9 @@ def get_similar_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "-n", "--number",
-        type=INPUT_HANDLERS["number"],
-        default=5,
-        help="number of similar colors to find (min: 2, max: 1000, default: 5)"
+        type=INPUT_HANDLERS["number_similar"],
+        default=10,
+        help="number of similar colors to find (min: 2, max: 500, default: 10)"
     )
     parser.add_argument(
         "-s", "--seed",

@@ -281,8 +281,8 @@ def handle_color_command(args: argparse.Namespace) -> None:
     elif args.color_name:
         clean_hex = resolve_color_name_or_exit(args.color_name)
         title = get_title_for_hex(clean_hex)
-    elif args.hexcode:
-        clean_hex = args.hexcode
+    elif args.hex:
+        clean_hex = args.hex
         title = get_title_for_hex(clean_hex)
     elif getattr(args, "decimal_index", None) is not None:
         clean_hex = args.decimal_index
@@ -362,7 +362,7 @@ def main() -> None:
     color_input_group = parser.add_mutually_exclusive_group()
     color_input_group.add_argument(
         "-H", "--hex",
-        dest="hexcode",
+        dest="hex",
         type=INPUT_HANDLERS["hex"],
         help="6-digit hex color code without # sign"
     )

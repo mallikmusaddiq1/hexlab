@@ -4,6 +4,7 @@ from . import (
    scheme,
    vision,
    similar,
+   distinct,
    convert,
    adjust
 )
@@ -14,6 +15,7 @@ SUBCOMMANDS = {
     'scheme': scheme,
     'vision': vision,
     'similar': similar,
+    'distinct': distinct,
     'convert': convert,
     'adjust': adjust
 }

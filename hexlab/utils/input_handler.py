@@ -215,7 +215,8 @@ INPUT_HANDLERS = {
     "float_signed_100": handle_float_range(-100.0, 100.0),
     "float_signed_360": handle_float_range(-360.0, 360.0),
 
-    "number": handle_int_range(2, 1000),
+    "number_similar": handle_int_range(2, 500),
+    "number_distinct": handle_int_range(2, 250),
     "seed": handle_int_range(0, 999_999_999_999_999_999),
     "steps": handle_int_range(1, MAX_STEPS),
     "total_random": handle_int_range(2, MAX_RANDOM_COLORS),
