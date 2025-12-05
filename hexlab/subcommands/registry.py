@@ -1,12 +1,12 @@
 from . import (
-   gradient,
-   mix,
-   scheme,
-   vision,
-   similar,
-   distinct,
-   convert,
-   adjust
+    gradient,
+    mix,
+    scheme,
+    vision,
+    similar,
+    distinct,
+    convert,
+    adjust
 )
 
 SUBCOMMANDS = {
