@@ -46,7 +46,6 @@ def _to_metric_space(rgb: Tuple[int, int, int], metric: str):
 
 
 def _dist_sq_euclidean(t1: Tuple[float, ...], t2: Tuple[float, ...]) -> float:
-    """Calculates Squared Euclidean distance (No Sqrt) for speed."""
     d0 = t1[0] - t2[0]
     d1 = t1[1] - t2[1]
     d2 = t1[2] - t2[2]
