@@ -184,7 +184,7 @@ def get_mix_parser() -> argparse.ArgumentParser:
         "-c", "--count",
         type=INPUT_HANDLERS["count"],
         default=2,
-        help=f"number of random colors for input (default: 2, max: 1000)"
+        help=f"number of random colors for input (default: 2, max: {MAX_COUNT})"
     )
     parser.add_argument(
         "-s", "--seed",
