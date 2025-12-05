@@ -139,7 +139,7 @@ def handle_similar_command(args: argparse.Namespace) -> None:
         else:
             dedup_val = DEDUP_DELTA_E_LAB
 
-    num_results = args.number
+    num_results = args.count
 
     similar_gen = generate_similar_colors_streaming(
         base_rgb,
@@ -210,8 +210,8 @@ def get_similar_parser() -> argparse.ArgumentParser:
         )
     )
     parser.add_argument(
-        "-n", "--number",
-        type=INPUT_HANDLERS["number_similar"],
+        "-c", "--count",
+        type=INPUT_HANDLERS["count_similar"],
         default=10,
         help="number of similar colors to find (min: 2, max: 500, default: 10)"
     )

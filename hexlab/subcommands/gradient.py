@@ -22,7 +22,7 @@ from ..color_math.conversions import (
     rgb_to_oklab,
     rgb_to_oklch,
 )
-from ..constants.constants import MAX_DEC, MAX_RANDOM_COLORS, MAX_STEPS
+from ..constants.constants import MAX_DEC, MAX_COUNT, MAX_STEPS
 from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
 from ..utils.hexlab_logger import log
 from ..utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
@@ -131,10 +131,10 @@ def handle_gradient_command(args: argparse.Namespace) -> None:
 
     colors_hex: List[str] = []
     if args.random:
-        num_hex = args.total_random_hex
+        num_hex = args.count
         if num_hex == 0:
             num_hex = random.randint(2, 3)
-        num_hex = max(2, min(MAX_RANDOM_COLORS, num_hex))
+        num_hex = max(2, min(MAX_COUNT, num_hex))
         colors_hex = [f"{random.randint(0, MAX_DEC):06X}" for _ in range(num_hex)]
     else:
         input_list: List[str] = []
@@ -235,10 +235,10 @@ def get_gradient_parser() -> argparse.ArgumentParser:
         help="colorspace for interpolation (default: lab)"
     )
     parser.add_argument(
-        "-trh", "--total-random-hex",
-        type=INPUT_HANDLERS["total_random"],
+        "-c", "--count",
+        type=INPUT_HANDLERS["count"],
         default=0,
-        help=f"number of random colors (default: 2-3, max: {MAX_RANDOM_COLORS})"
+        help=f"number of random colors for input (default: 2-3, max: {MAX_COUNT})"
     )
     parser.add_argument(
         "-s", "--seed",

@@ -141,7 +141,7 @@ def handle_distinct_command(args: argparse.Namespace) -> None:
     
     distinct_gen = generate_distinct_colors_greedy(
         base_rgb,
-        n=args.number,
+        n=args.count,
         metric=metric,
         candidates_per_step=CANDIDATES_PER_STEP
     )
@@ -188,8 +188,8 @@ def get_distinct_parser() -> argparse.ArgumentParser:
     )
     
     parser.add_argument(
-        "-n", "--number",
-        type=INPUT_HANDLERS["number_distinct"],
+        "-c", "--count",
+        type=INPUT_HANDLERS["count_distinct"],
         default=10,
         help="number of distinct colors to generate (min: 2, max: 250, default: 10)"
     )
