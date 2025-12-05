@@ -88,7 +88,9 @@ def handle_mix_command(args: argparse.Namespace) -> None:
     if len(colors_in_space) == 2:
         c1 = colors_in_space[0]
         c2 = colors_in_space[1]
-        t = amount
+        
+        t = amount / 100.0
+        
         final_c1 = c1[0] * (1 - t) + c2[0] * t
         final_c2 = c1[1] * (1 - t) + c2[1] * t
         final_c3 = c1[2] * (1 - t) + c2[2] * t
@@ -128,8 +130,9 @@ def handle_mix_command(args: argparse.Namespace) -> None:
     print()
 
     label_suffix = ""
-    if len(colors_hex) == 2 and amount != 0.5:
-        label_suffix = f" {int(amount * 100)}%"
+
+    if len(colors_hex) == 2 and amount != 50.0:
+        label_suffix = f" {amount:g}%"
 
     print_color_block(mixed_hex, f"result{label_suffix}")
     print()
@@ -166,9 +169,9 @@ def get_mix_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "-a", "--amount",
-        type=INPUT_HANDLERS["float_0_1"],
-        default=0.5,
-        help="mix ratio for 2 colors (0.0 to 1.0, default: 0.5)"
+        type=INPUT_HANDLERS["float_0_100"],
+        default=50.0,
+        help="mix ratio for 2 colors (0 to 100, default: 50)"
     )
     parser.add_argument(
         "-cs", "--colorspace",
@@ -180,8 +183,8 @@ def get_mix_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-c", "--count",
         type=INPUT_HANDLERS["count"],
-        default=0,
-        help=f"number of random colors for input (default: 2, max: {MAX_COUNT})"
+        default=2,
+        help=f"number of random colors for input (default: 2, max: 1000)"
     )
     parser.add_argument(
         "-s", "--seed",
