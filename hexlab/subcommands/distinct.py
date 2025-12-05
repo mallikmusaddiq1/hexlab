@@ -36,7 +36,6 @@ def _generate_random_rgb() -> Tuple[int, int, int]:
 
 
 def _to_metric_space(rgb: Tuple[int, int, int], metric: str):
-    """Convert RGB tuple to the target metric space tuple ONCE."""
     if metric == 'rgb':
         return rgb
     elif metric == 'oklab':
