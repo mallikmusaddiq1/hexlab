@@ -380,7 +380,7 @@ def main() -> None:
         "-di", "--decimal-index",
         dest="decimal_index",
         type=INPUT_HANDLERS["decimal_index"],
-        help=f"decimal index of the color: 0 to {MAX_DEC}"
+        help=f"decimal index of the color (0 to {MAX_DEC})"
     )
 
     parser.add_argument(
