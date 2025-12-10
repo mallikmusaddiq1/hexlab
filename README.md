@@ -2,7 +2,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/hexlab.svg)](https://pypi.org/project/hexlab/)
 [![Python versions](https://img.shields.io/pypi/pyversions/hexlab.svg)](https://pypi.org/project/hexlab/)
-[![Downloads](https://static.pepy.tech/badge/mediacrop)](https://pepy.tech/project/mediacrop)
+[![Downloads](https://static.pepy.tech/badge/hexlab)](https://pepy.tech/project/mediacrop)
 
 **hexlab** is a 24‑bit hex color exploration and manipulation tool for the terminal.  
 It lets you inspect a color in multiple color spaces, see neighbors and negatives, and check WCAG contrast, all with truecolor previews and visual component bars.
