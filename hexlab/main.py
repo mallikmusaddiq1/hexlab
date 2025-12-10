@@ -326,7 +326,7 @@ def main() -> None:
 
     parser = HexlabArgumentParser(
         prog="hexlab",
-        description="hexlab: 24-bit hex color exploration and manipulation tool",
+        description="hexlab: a feature-rich hex color exploration and manipulation tool",
         formatter_class=argparse.RawTextHelpFormatter,
         add_help=False
     )
