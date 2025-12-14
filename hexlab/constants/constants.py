@@ -86,3 +86,54 @@ FORMAT_ALIASES = {
     'index': 'index',
     'name': 'name',
 }
+
+PIPELINE = [
+    # tonal foundation (linear / OKLab-aware ops)
+   "exposure",
+    "gamma",
+    "brightness",
+    "contrast",
+
+    # hue/lightness HSL & OKLCH
+    "rotate",
+    "rotate_oklch",
+    "lighten",
+    "darken",
+
+    # saturation / chroma / vibrance
+    "saturate",
+    "desaturate",
+    "chroma_oklch",
+    "vibrance_oklch",
+
+    # HWB adjustments
+    "whiten_hwb",
+    "blacken_hwb",
+
+    # warm/cool/tint (OKLab)
+    "warm_oklab",
+    "cool_oklab",
+    "tint",
+
+    # channel arithmetic
+    "red_channel",
+    "green_channel",
+    "blue_channel",
+
+    # destructive / stylized ops (late)
+    "posterize",
+    "threshold",
+    "solarize",
+    "sepia",
+    "grayscale",
+    "invert",
+
+    # luminance / contrast locks & accessibility (near-final)
+    "lock_luminance",
+    "lock_rel_luminance",
+    "target_rel_lum",
+    "min_contrast",
+
+    # final compositing
+    "opacity",
+]

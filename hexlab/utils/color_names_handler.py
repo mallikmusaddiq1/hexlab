@@ -1,39 +1,27 @@
-# File: color_names_handler.py
 #!/usr/bin/env python3
 
 import json
-import os
 import re
 import sys
 from typing import Optional
 
 from .hexlab_logger import log
 from .input_handler import normalize_hex
+from ..constants.color_names import COLOR_NAMES 
 
 
 def _norm_name_key(s: str) -> str:
     """Normalize color name to alphanumeric lower case."""
     return re.sub(r'[^0-9a-z]', '', str(s).lower())
 
+COLOR_NAMES = {k: normalize_hex(v) for k, v in COLOR_NAMES.items()}
 
-_json_path = os.path.join(os.path.dirname(__file__), '..', 'constants', 'color_names.json')
-
-try:
-    with open(_json_path, 'r', encoding='utf-8') as _f:
-        _raw_colors = json.load(_f)
-except FileNotFoundError:
-    log('error', f"color names file not found at: {_json_path}")
-    sys.exit(1)
-except json.JSONDecodeError:
-    log('error', f"invalid JSON in color names file: {_json_path}")
-    sys.exit(1)
-
-COLOR_NAMES = {k: normalize_hex(v) for k, v in _raw_colors.items()}
 HEX_TO_NAME = {v.upper(): k for k, v in COLOR_NAMES.items()}
 
 _norm_map = {}
 for k, v in COLOR_NAMES.items():
     key = _norm_name_key(k)
+
     if key in _norm_map and _norm_map.get(key) != v:
         original_hex = _norm_map.get(key)
         original_name = HEX_TO_NAME.get(original_hex.upper(), '???')
@@ -72,6 +60,7 @@ def get_title_for_hex(hex_code: str, fallback: Optional[str] = None) -> str:
 
 
 def handle_list_color_names_action(fmt: str) -> None:
+
     color_keys = sorted(list(COLOR_NAMES.keys()))
 
     if fmt == 'text':

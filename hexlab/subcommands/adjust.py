@@ -24,7 +24,7 @@ from ..color_math.conversions import (
 )
 from ..color_math.luminance import get_luminance
 from ..color_math.wcag_contrast import _wcag_contrast_ratio_from_rgb
-from ..constants.constants import EPS, MAX_DEC
+from ..constants.constants import EPS, MAX_DEC, PIPELINE
 from ..utils.clamping import _clamp01, _clamp255
 from ..utils.color_names_handler import (
     get_title_for_hex,
@@ -444,64 +444,15 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
     if locks > 1:
         log(
             "error",
-            "conflicting luminance locks: use only one of --lock-luminance, "
-            "--lock-rel-luminance, or --target-rel-lum"
+            "conflicting luminance locks: use only one of --lock-luminance,"
+            "--lock-rel-luminance or --target-rel-lum"
         )
         sys.exit(2)
 
     if getattr(args, "min_contrast_with", None) and locks > 0:
         log("warning", "--min-contrast-with will override previous luminance locks")
 
-    pipeline = [
-        # tonal foundation (linear / OKLab-aware ops)
-        "exposure",
-        "gamma",
-        "brightness",
-        "contrast",
-
-        # hue/lightness HSL & OKLCH
-        "rotate",
-        "rotate_oklch",
-        "lighten",
-        "darken",
-
-        # saturation / chroma / vibrance
-        "saturate",
-        "desaturate",
-        "chroma_oklch",
-        "vibrance_oklch",
-
-        # HWB adjustments
-        "whiten_hwb",
-        "blacken_hwb",
-
-        # warm/cool/tint (OKLab)
-        "warm_oklab",
-        "cool_oklab",
-        "tint",
-
-        # channel arithmetic
-        "red_channel",
-        "green_channel",
-        "blue_channel",
-
-        # destructive / stylized ops (late)
-        "posterize",
-        "threshold",
-        "solarize",
-        "sepia",
-        "grayscale",
-        "invert",
-
-        # luminance / contrast locks & accessibility (near-final)
-        "lock_luminance",
-        "lock_rel_luminance",
-        "target_rel_lum",
-        "min_contrast",
-
-        # final compositing
-        "opacity",
-    ]
+    pipeline = PIPELINE
 
     if getattr(args, "list_fixed_pipeline", False):
         for step in pipeline:
