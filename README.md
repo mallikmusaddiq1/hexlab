@@ -2,315 +2,280 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/hexlab.svg)](https://pypi.org/project/hexlab/)
 [![Python versions](https://img.shields.io/pypi/pyversions/hexlab.svg)](https://pypi.org/project/hexlab/)
-[![Downloads](https://static.pepy.tech/badge/hexlab)](https://pepy.tech/project/mediacrop)
+[![Downloads](https://static.pepy.tech/badge/hexlab)](https://pepy.tech/project/hexlab)
 
-**hexlab** is a 24‑bit hex color exploration and manipulation tool for the terminal.  
-It lets you inspect a color in multiple color spaces, see neighbors and negatives, and check WCAG contrast, all with truecolor previews and visual component bars.
+A professional, feature-rich hex color exploration and manipulation tool for the command line.
 
----
+## Introduction
 
-## Features
+**hexlab** is a powerful CLI utility for developers, designers, and accessibility experts. It provides deep insight into 24-bit colors, supporting advanced color spaces like **OKLAB, OKLCH, CIE LAB, CIE XYZ**, and standard formats like RGB, HSL, and CMYK.
 
-- 24‑bit color space support from `#000000` to `#FFFFFF` (0 to `MAX_DEC`).
-- Multiple ways to pick a color:
-  - Direct hex input (`-H/--hex`).
-  - Random color generation (`-r/--random`) with optional seed for reproducibility (`-s/--seed`).
-  - Named colors (`-cn/--color-name`) backed by a color name database.
-  - Decimal index input (`-di/--decimal-index`) over the full 24‑bit range.
-- Rich technical output:
-  - Relative luminance and WCAG contrast against white and black.
-  - RGB, HSL, HSV, HWB, CMYK.
-  - CIE XYZ, CIE Lab, CIE LCh, CIE Luv.
-  - OKLab and OKLCh.
-- Visual terminal output:
-  - Truecolor swatches rendered directly in the terminal.
-  - Colored bar graphs for each component (R/G/B, H/S/L, etc.), with automatic clamping and near‑zero cleanup.
-- Navigation in color space:
-  - `--next`, `--previous` to step through indices.
-  - `--negative` to show the inverse color.
-- Color name tooling:
-  - `--list-color-names` in `text`, `json`, or `prettyjson` formats.
-  - `--name` to show the resolved color name for the current color, if known.
-- Extensible subcommand system:
-  - `hexlab <subcommand> ...` dispatches to additional tools shipped as submodules.
-  - `--help-full` prints help for the main CLI and all registered subcommands.
-
----
+Beyond inspection, hexlab offers sophisticated manipulation capabilities, including gradient generation using interpolation in perceptual color spaces, vision simulation for color blindness, and a robust adjustment pipeline for fine-tuning colors.
 
 ## Installation
 
-Install from PyPI:
+hexlab requires **Python 3.7+**.
 
-```
+### Via PyPI (Recommended)
+
+```bash
 pip install hexlab
 ```
 
-You can also install from source:
+### From Source
 
-```
+```bash
 git clone https://github.com/mallikmusaddiq1/hexlab.git
 cd hexlab
 pip install .
 ```
 
----
+## Quick Start
 
-## Quick start
+Inspect a hex color with visual bars and WCAG contrast:
 
-Show basic info for a specific hex color:
-
-```
-hexlab -H FF5733 -rgb -hsl -wcag --name
+```bash
+hexlab -H FF5733 -rgb -hsl -wcag
 ```
 
-Generate a random color and show all technical information:
+Generate a smooth gradient in OKLAB space:
 
-```
-hexlab -r --all-tech-infos
-```
-
-Look up a named color and inspect it in multiple color spaces:
-
-```
-hexlab -cn "dodgerblue" -rgb -hsl -oklab -oklch
+```bash
+hexlab gradient -H FF0000 -H 0000FF -cs oklab --steps 15
 ```
 
-Work with decimal indices instead of hex codes:
+Simulate color blindness (Deuteranopia):
 
-```
-hexlab -di 16711680 -rgb -luminance
-```
-
-Explore neighboring and inverse colors:
-
-```
-hexlab -H 00FF00 -n -p -N -rgb -hsl
+```bash
+hexlab vision -cn "chartreuse" -d
 ```
 
-List all available color names (for use with `-cn/--color-name`):
+## Main Command
 
-```
-hexlab --list-color-names           # text
-hexlab --list-color-names json      # machine-readable
-hexlab --list-color-names prettyjson
-```
+The base command allows you to inspect a single color, view its neighbors, and retrieve technical specifications in various formats.
 
----
-
-## CLI usage
-
-### Basic syntax
-
-```
-hexlab [OPTIONS]
-hexlab <subcommand> [OPTIONS]
+```bash
+usage: hexlab [-h] [-H HEX | -r | -cn NAME | -di INDEX] [OPTIONS...]
 ```
 
-If the first argument matches a known subcommand, `hexlab` dispatches directly to that subcommand.  
-Otherwise, it treats the arguments as options for the main color inspection command.
+### Input Options
 
-### Color selection options
+Exactly one input method is required.
 
-Exactly one of these is required for the main color command:
+| Flag                  | Description |
+|-----------------------|-------------|
+| `-H, --hex`           | 6-digit hex color code (e.g., `FF5500`). Do not include the `#`. |
+| `-r, --random`        | Generate a random 24-bit color. |
+| `-cn, --color-name`   | Use a named color (e.g., `tomato`, `azure`). See `--list-color-names`. |
+| `-di, --decimal-index`| Input integer index (0 to 16777215). Useful for programmatic iteration. |
+| `-s, --seed`          | Seed for random generation reproducibility. |
 
-- `-H HEX`, `--hex HEX`  
-  6‑digit hex color code without the `#` sign (e.g. `FFAA00`).
+### Navigation & Modifications
 
-- `-r`, `--random`  
-  Generate a random 24‑bit hex color.
+| Flag             | Description |
+|------------------|-------------|
+| `-n, --next`     | Show the next color (index + 1). |
+| `-p, --previous` | Show the previous color (index - 1). |
+| `-N, --negative` | Show the inverse (negative) color. |
 
-- `-cn NAME`, `--color-name NAME`  
-  Color name from the database (`hexlab --list-color-names` to see valid names).
+### Technical Information Flags
 
-- `-di INDEX`, `--decimal-index INDEX`  
-  Decimal index of the color, from `0` to `MAX_DEC` (full 24‑bit range).
+Toggle specific color space outputs or information blocks.
 
-Random generation can be made reproducible with:
+| Flag            | Description |
+|-----------------|-------------|
+| `-all`          | Show **all** available technical information. |
+| `-wcag`         | Show WCAG contrast ratios (AA/AAA) against Black and White. |
+| `-hb, --hide-bars` | Hide the visual ANSI color bars (raw text output only). |
+| `-rgb`          | Red, Green, Blue (0-255). |
+| `-hsl`          | Hue, Saturation, Lightness. |
+| `-hsv`          | Hue, Saturation, Value. |
+| `-hwb`          | Hue, Whiteness, Blackness. |
+| `-cmyk`         | Cyan, Magenta, Yellow, Key (Black). |
+| `-lab`          | CIE 1976 Lab (Perceptually uniform). |
+| `--oklab`       | OKLAB (Improved perceptual uniformity). |
+| `--oklch`       | OKLCH (Cylindrical form of OKLAB). |
+| `-xyz`          | CIE 1931 XYZ. |
+| `-lch`          | CIE LCH (Cylindrical Lab). |
+| `--cieluv`      | CIE 1976 LUV. |
+| `-l, --luminance` | Relative Luminance (0.0 - 1.0). |
 
-- `-s SEED`, `--seed SEED`  
-  Seed for the internal RNG so repeated runs give the same random color.
+### Meta Options
 
-### Color navigation options
-
-These operate on the current base color (no extra arguments):
-
-- `-n`, `--next`  
-  Show the next color (`index + 1` modulo the 24‑bit range).
-
-- `-p`, `--previous`  
-  Show the previous color (`index - 1` modulo the 24‑bit range).
-
-- `-N`, `--negative`  
-  Show the inverse color (`MAX_DEC - index`).
-
-When enabled, neighbors are shown as additional truecolor swatches, each with its own label (e.g. `next`, `previous`, `negative`).
+| Flag                          | Description |
+|-------------------------------|-------------|
+| `--list-color-names [fmt]`    | List all supported color names. Format can be `text`, `json`, or `prettyjson`. |
+| `-hf, --help-all`            | Print help for the main command AND all subcommands. |
 
 ---
 
-## Technical output flags
+## Subcommands
 
-### Meta and general controls
+hexlab features a suite of specialized tools invoked via `hexlab <subcommand>`.
 
-- `-i`, `--index`  
-  Show the decimal index of the current color.
+### 1. Gradient
 
-- `--name`  
-  Print the resolved color name if the color exists in the name database.
+Generate interpolated color steps between two or more colors. Supports interpolation in perceptual spaces like OKLAB for smoother results.
 
-- `-all`, `--all-tech-infos`  
-  Enable all technical information flags at once by setting all keys from the internal `TECH_INFO_KEYS`.
-
-- `--hide-bars`  
-  Suppress the colored bar graphs and show only raw values.
-
-### Color space and metric flags
-
-Each flag adds one block of information to the output:
-
-- `-rgb`, `--red-green-blue`  
-  RGB triplet and per‑channel bars.
-
-- `-l`, `--luminance`  
-  Relative luminance of the color.
-
-- `-hsl`, `--hue-saturation-lightness`  
-  HSL coordinates plus bar graphs for H, S, and L.
-
-- `-hsv`, `--hue-saturation-value`  
-  HSV coordinates with component bars.
-
-- `-hwb`, `--hue-whiteness-blackness`  
-  HWB coordinates with bars for whiteness and blackness.
-
-- `-cmyk`, `--cyan-magenta-yellow-key`  
-  CMYK values and per‑channel bars.
-
-- `-xyz`, `--ciexyz`  
-  CIE 1931 XYZ values; bars are normalized to `[0, 1]`.
-
-- `-lab`, `--cielab`  
-  CIE 1976 Lab coordinates.  
-  Small numerical noise in a and b components is cleaned up near zero for nicer output.
-
-- `-lch`, `--lightness-chroma-hue`  
-  LCh representation derived from Lab.
-
-- `--cieluv`, `-luv`  
-  CIE 1976 Luv coordinates, also with near‑zero cleanup for U and V.
-
-- `--oklab`  
-  OKLab coordinates with bars scaled around the typical a/b range.
-
-- `--oklch`  
-  OKLCh coordinates derived from OKLab.
-
-- `-wcag`, `--contrast`  
-  WCAG contrast ratio against both pure white and pure black, including AA/AAA status labels.  
-  The output includes a truecolor background block showing how white and black text look on the current color.
-
----
-
-## Help and subcommands
-
-Standard help flags:
-
-- `-h`, `--help`  
-  Show basic help for the main CLI.
-
-- `-v`, `--version`  
-  Show the installed `hexlab` version.
-
-Extended help including subcommands:
-
-- `-hf`, `--help-full`  
-  Print the main help, then iterate over all registered subcommands and print each subcommand’s help if available.
-
-Subcommands are invoked by placing the command name first:
-
-```
-hexlab <subcommand> [OPTIONS...]
+```bash
+hexlab gradient -H FF0000 -H 00FF00 -S 10 -cs oklab
 ```
 
-- If `<subcommand>` is recognized, `hexlab`:
-  - Ensures truecolor support.
-  - Dispatches to `SUBCOMMANDS[<name>].main()` in the corresponding module.
-- If you pass a subcommand name later in the argument list, `hexlab` treats it as an error and prints a helpful message that the command must be the first argument.
+| Option              | Description |
+|---------------------|-------------|
+| `-H, -cn, -di, -r`  | Input colors. **Must provide at least 2 inputs** (or use `-c` with `-r`). |
+| `-S, --steps`       | Total number of steps in the gradient (default: 10). |
+| `-cs, --colorspace` | Interpolation space. Choices: `srgb`, `srgblinear`, `lab`, `lch`, `oklab` (default), `oklch`, `luv`. |
 
-Each subcommand module can optionally expose a `get_<name>_parser()` function to integrate with `--help-full` so that its individual parser help is shown automatically.
+### 2. Mix
 
-> You can document each subcommand in more detail in this README once those modules are finalized.
+Mix (average) multiple colors together. Useful for finding the midpoint or blending pigments conceptually.
 
----
+```bash
+hexlab mix -cn red -cn blue -a 50
+```
 
-## Internal design notes
+| Option           | Description |
+|------------------|-------------|
+| `-a, --amount`   | Mix ratio for 2 colors (0-100%). Default 50% (perfect average). |
+| `-cs, --colorspace` | Mixing space. Averaging in `srgblinear` often yields more physically accurate light mixing than `srgb`. |
 
-For contributors and advanced users, the main workflow is:
+### 3. Scheme
 
-1. **Argument parsing**  
-   - Uses a custom `HexlabArgumentParser` wrapper around `argparse`, with an explicit `add_help=False` so that `-h/--help` is controlled manually.  
-   - A mutually exclusive group enforces “exactly one” of hex, random, color name, or decimal index.
+Generate standard color harmonies based on color theory wheels.
 
-2. **Color selection and neighbors**  
-   - Once the base color hex code is decided, its integer index is computed and neighbor indices are derived by modular arithmetic over `[0, MAX_DEC]`.  
-   - Optional “next”, “previous”, and “negative” colors are collected into a `neighbors` dict and passed to the renderer.
+```bash
+hexlab scheme -H FF5733 -triadic -hm oklch
+```
 
-3. **Color math pipeline**  
-   - All conversions start from the RGB triplet.  
-   - Intermediate XYZ and Lab values are only computed if needed (e.g. if Lab or LCh output is requested) to avoid unnecessary work.  
-   - OKLab and OKLCh are derived via dedicated conversion functions, keeping implementation isolated from the CLI layer.
+| Option                  | Description |
+|-------------------------|-------------|
+| `-hm, --harmony-model`  | The color wheel model to rotate hue on. Choices: `hsl` (classic), `lch`, `oklch` (modern). |
+| `-co, --complementary`  | 180° rotation. |
+| `-sco, --split-complementary` | 150° and 210° rotations. |
+| `-tr, --triadic`        | 120° and 240° rotations. |
+| `-an, --analogous`      | -30° and +30° rotations. |
+| `-tsq, -trc`            | Tetradic Square (90° steps) and Rectangular (60°/180°). |
+| `-mch`                  | Monochromatic (Lightness variations). |
+| `-cs`                   | Custom degree shift (e.g., `-cs 45`). |
 
-4. **Output rendering**  
-   - `print_color_block` prints large truecolor swatches for the base color and any neighbors.  
-   - `_draw_bar` builds 16‑character colored bars with filled (`█`) and empty (`░`) segments, using ANSI 24‑bit foreground colors and a dim style for the empty portion.  
-   - `_zero_small` clamps tiny floating‑point noise to zero so that Lab, Luv, OKLab, and OKLCh outputs look clean.
+### 4. Vision
 
-5. **Contrast and WCAG checks**  
-   - Relative luminance is computed in a dedicated module, then passed to a WCAG contrast helper that returns detailed ratios and pass/fail levels for AA/AAA.  
-   - The CLI prints a compact three‑line block: white text on the color, a separator row, and black text on the color, each annotated with its contrast ratio and conformance levels.
+Simulate various forms of Color Blindness (CVD) to test accessibility.
 
-This structure keeps the CLI logic thin, with the heavy lifting done by specialized modules in `color_math`, `utils`, and `constants`.
+```bash
+hexlab vision -r -all
+```
 
----
+| Flag                  | Description |
+|-----------------------|-------------|
+| `-p, --protanopia`    | Red-blind simulation. |
+| `-d, --deuteranopia`  | Green-blind simulation (most common). |
+| `-t, --tritanopia`    | Blue-blind simulation. |
+| `-a, --achromatopsia` | Total color blindness (grayscale). |
+
+### 5. Similar
+
+Find perceptually similar colors by searching the 24-bit space around a base color.
+
+```bash
+hexlab similar -H 336699 -dm oklab -c 5
+```
+
+| Option                | Description |
+|-----------------------|-------------|
+| `-dm, --distance-metric` | Algorithm to calculate "similarity". Choices: `lab` (CIEDE2000), `oklab` (Euclidean), `rgb`. |
+| `-dv, --dedup-value`  | Threshold to consider colors "different". Higher values result in more distinct results. |
+| `-c, --count`         | Number of similar colors to generate. |
+
+### 6. Distinct
+
+Generate a palette of visually distinct colors starting from a base. Uses a greedy algorithm to maximize distance.
+
+```bash
+hexlab distinct -r -c 10 -dm oklab
+```
+
+| Option           | Description |
+|------------------|-------------|
+| `-c, --count`    | Number of distinct colors to find. |
+
+### 7. Convert
+
+Utility to convert numerical color strings between formats.
+
+```bash
+hexlab convert -f hex -t rgb -v "FF0000"
+hexlab convert -f oklch -t hex -v "oklch(0.6 0.15 45deg)"
+```
+
+| Option             | Description |
+|--------------------|-------------|
+| `-f, --from-format`| Source format (e.g., `oklch`, `rgb`, `hex`). |
+| `-t, --to-format`  | Target format. |
+| `-v, --value`      | The value string. Use quotes! |
+| `-V, --verbose`    | Show input -> output format. |
+
+### 8. Adjust
+
+An advanced color manipulation pipeline. Operations are deterministic. By default, a fixed pipeline is used, but you can define custom order.
+
+```bash
+hexlab adjust -H 663399 --lighten 20 --rotate 15 --posterize 8
+```
+
+#### Tone & Vividness
+
+| Flag                          | Description |
+|-------------------------------|-------------|
+| `--brightness / --brightness-srgb` | Adjust linear or sRGB brightness (-100% to 100%). |
+| `--contrast`                  | Adjust contrast. |
+| `--gamma`                     | Apply gamma correction. |
+| `--exposure`                  | Adjust exposure in stops. |
+| `--chroma-oklch`              | Scale chroma using OKLCH space. |
+| `--vibrance-oklch`            | Smart saturation that boosts low-chroma colors more than high-chroma ones. |
+| `--warm-oklab / --cool-oklab` | Shift color temperature. |
+| `--target-rel-lum`            | Force the color to a specific relative luminance (0.0 - 1.0). |
+| `--min-contrast-with`         | Ensure the result meets a contrast ratio against this hex code. |
+
+#### Filters
+
+| Flag            | Description |
+|-----------------|-------------|
+| `--grayscale`   | Convert to B&W. |
+| `--sepia`       | Apply retro sepia filter. |
+| `--invert`      | Invert color channels. |
+| `--posterize`   | Reduce color depth to N levels. |
+| `--solarize`    | Solarize effect based on OKLAB Lightness. |
+| `--threshold`   | Binarize color (Black/White) based on luminance. |
+| `--tint`        | Tint towards a specific Hex color. |
+
+#### Pipeline Control
+
+| Flag                    | Description |
+|-------------------------|-------------|
+| `-cp, --custom-pipeline`| Apply adjustments exactly in the order flags are passed in CLI (disables fixed pipeline). |
+| `-V, --verbose`         | Log every step of the adjustment pipeline. |
 
 ## Contributing
 
-Contributions are welcome, whether they are bug fixes, new color spaces, better formatting, or new subcommands.
+Contributions are welcome! Please follow these steps:
 
-Typical workflow:
+1. Fork the repository.
+2. Create a feature branch (`git checkout -b feature/amazing-feature`).
+3. Commit your changes.
+4. Push to the branch.
+5. Open a Pull Request.
 
-1. Fork the repository and create a feature branch:
+Please ensure any new color math is backed by tests in the `tests/` directory.
 
-   ```
-   git checkout -b feature/my-improvement
-   ```
+## Author & License
 
-2. Make changes with the following guidelines:
-   - Keep CLI behavior consistent and user‑friendly (clear error messages via the logging helper).
-   - Add or update unit tests if you add new conversions or behavior.
-   - Prefer using existing helpers in `color_math`, `utils`, and `constants` rather than duplicating logic.
+**hexlab** is developed and maintained by:
 
-3. If you add a new subcommand:
-   - Implement a module under the `subcommands` package exposing at least a `main()` function.
-   - Register it in the central `SUBCOMMANDS` mapping.
-   - Optionally add a `get_<name>_parser()` function so that `--help-full` can display its dedicated help.
-
-4. Run tests and basic sanity checks (e.g. run `hexlab --help`, `hexlab --help-full`, and a few sample commands) before opening a pull request.
-
-5. Open a PR with a clear description of the change and relevant usage examples.
-
----
-
-## Author
-
-Name: **Mallik Mohammad Musaddiq**  
+### Mallik Mohammad Musaddiq
 
 Email: [mallikmusaddiq1@gmail.com](mailto:mallikmusaddiq1@gmail.com)
 
-[**GitHub Profile**](github.com/mallikmusaddiq1)
+© 2025 Hexlab. Open Source Software.
 
----
-
-## License
-
-This project is intended to include a standard open‑source license.  
-Add a `LICENSE` file to the repository and update this section to match the chosen license.
