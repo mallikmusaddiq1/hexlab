@@ -1,5 +1,6 @@
 # File: conversions.py
 import math
+import functools
 from typing import Tuple
 
 from ..constants.constants import EPS, LINEAR_TO_SRGB_TH, SRGB_TO_LINEAR_TH
@@ -454,3 +455,8 @@ def hex_to_luv(hex_code: str) -> Tuple[float, float, float]:
 
 def luv_to_hex(l: float, u: float, v: float) -> str:
     return rgb_to_hex(*luv_to_rgb(l, u, v))
+
+
+for _name, _obj in list(globals().items()):
+    if callable(_obj) and _obj.__module__ == __name__:
+        globals()[_name] = functools.lru_cache(maxsize=1024)(_obj)
