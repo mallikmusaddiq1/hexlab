@@ -356,7 +356,12 @@ def _print_steps(mods, verbose: bool) -> None:
         log("info", "steps: no adjustments applied yet")
         return
     parts = _format_steps(mods)
-    log("info", "steps: " + " -> ".join(parts))
+    if len(parts) > 3:
+        log("info", "steps:")
+        for i, part in enumerate(parts, 1):
+            print(f"    {i}. {part}")
+    else:
+        log("info", "steps: " + " -> ".join(parts))
 
 
 def _sanitize_rgb(fr: float, fg: float, fb: float) -> Tuple[float, float, float]:
