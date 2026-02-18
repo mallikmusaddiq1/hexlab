@@ -149,11 +149,9 @@ def print_color_and_info(
     if getattr(args, 'rgb', False):
         print(f"\nrgb               : {format_colorspace('rgb', r, g, b)}")
         if not hide_bars:
-            # fmt: off
             print(f"                    R {_draw_bar(r, 255, 255, 60, 60)} {(r / 255) * 100:6.2f}%")
             print(f"                    G {_draw_bar(g, 255, 60, 255, 60)} {(g / 255) * 100:6.2f}%")
             print(f"                    B {_draw_bar(b, 255, 60, 80, 255)} {(b / 255) * 100:6.2f}%")
-            # fmt: on
 
     if getattr(args, 'hsl', False):
         h, s, l_hsl = rgb_to_hsl(r, g, b)
@@ -326,7 +324,7 @@ def main() -> None:
 
     parser = HexlabArgumentParser(
         prog="hexlab",
-        description="hexlab: a feature-rich hex color exploration and manipulation tool",
+        description="hexlab: a feature-rich color exploration and manipulation tool",
         formatter_class=argparse.RawTextHelpFormatter,
         add_help=False
     )
