@@ -344,7 +344,7 @@ def main() -> None:
         help="show program version and exit"
     )
     parser.add_argument(
-        "-hf", "--help-all",
+        "-hf", "--help-full",
         action="store_true",
         help="show full help message including subcommands"
     )
@@ -513,7 +513,7 @@ def main() -> None:
     if args.list_color_names:
         handle_list_color_names_action(args.list_color_names)
 
-    if args.help_all:
+    if args.help_full:
         parser.print_help()
         for name, module in SUBCOMMANDS.items():
             print("\n" * 2)

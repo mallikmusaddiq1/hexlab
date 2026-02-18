@@ -506,6 +506,8 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
         elif op == "grayscale" and args.grayscale:
             l, a, b_ok = rgb_to_oklab(fr, fg, fb)
             fr, fg, fb = oklab_to_rgb(l, 0.0, 0.0)
+            avg = (fr + fg + fb) / 3.0
+            fr = fg = fb = avg
             fr, fg, fb = _clamp255(fr), _clamp255(fg), _clamp255(fb)
             mods.append(("grayscale", None))
 
@@ -565,10 +567,12 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
 
         elif op == "saturate" and args.saturate is not None:
             h, s, l = rgb_to_hsl(fr, fg, fb)
-            amount = args.saturate / 100.0
-            s = _clamp01(s + (1.0 - s) * amount)
-            fr, fg, fb = hsl_to_rgb(h, s, l)
+            if s > 1e-5:
+                amount = args.saturate / 100.0
+                s = _clamp01(s + (1.0 - s) * amount)
+                fr, fg, fb = hsl_to_rgb(h, s, l)
             mods.append(("saturate", f"+{args.saturate:.2f}%%"))
+
 
         elif op == "desaturate" and args.desaturate is not None:
             h, s, l = rgb_to_hsl(fr, fg, fb)
