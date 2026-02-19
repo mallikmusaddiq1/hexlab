@@ -13,7 +13,14 @@ from ..color_math.conversions import (
     rgb_to_hex,
 )
 from ..color_math.luminance import get_luminance
-from ..constants.constants import CB_MATRICES, MAX_DEC, SIMULATE_KEYS
+from ..constants.constants import (
+    CB_MATRICES,
+    MAX_DEC,
+    SIMULATE_KEYS,
+    MSG_BOLD_COLORS,
+    BOLD_WHITE,
+    RESET
+)
 from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
 from ..utils.hexlab_logger import log, HexlabArgumentParser
 from ..utils.input_handler import INPUT_HANDLERS
@@ -48,50 +55,77 @@ def handle_vision_command(args: argparse.Namespace) -> None:
         title = get_title_for_hex(base_hex, f"index {idx}")
 
     print()
-    print_color_block(base_hex, title)
-    print()
+    print_color_block(base_hex, f"{BOLD_WHITE}{title}{RESET}")
+
+    # Check if any simulation is active
+    any_sim = any([
+        args.protanopia, 
+        args.deuteranopia, 
+        args.tritanopia, 
+        args.achromatopsia, 
+        args.all_simulates
+    ])
+
+    # Print gap only if simulations follow (logic from scheme.py)
+    if any_sim:
+        print()
+
     r, g, b = hex_to_rgb(base_hex)
+    
+    # Intensity percentage handling (0-100)
+    intensity = getattr(args, 'intensity', 100)
+    factor = max(0, min(100, intensity)) / 100.0
+    perc_str = f"{intensity}%"
 
-    def get_simulated_hex(r: int, g: int, b: int, matrix: List[List[float]]) -> str:
-        r_lin = _srgb_to_linear(r)
-        g_lin = _srgb_to_linear(g)
-        b_lin = _srgb_to_linear(b)
+    def get_simulated_hex(r: int, g: int, b: int, matrix: List[List[float]], f: float) -> str:
+        r_lin, g_lin, b_lin = _srgb_to_linear(r), _srgb_to_linear(g), _srgb_to_linear(b)
 
-        rr_lin = r_lin * matrix[0][0] + g_lin * matrix[0][1] + b_lin * matrix[0][2]
-        gg_lin = r_lin * matrix[1][0] + g_lin * matrix[1][1] + b_lin * matrix[1][2]
-        bb_lin = r_lin * matrix[2][0] + g_lin * matrix[2][1] + b_lin * matrix[2][2]
+        rr_sim = r_lin * matrix[0][0] + g_lin * matrix[0][1] + b_lin * matrix[0][2]
+        gg_sim = r_lin * matrix[1][0] + g_lin * matrix[1][1] + b_lin * matrix[1][2]
+        bb_sim = r_lin * matrix[2][0] + g_lin * matrix[2][1] + b_lin * matrix[2][2]
 
-        rr_srgb = _linear_to_srgb(rr_lin) * 255
-        gg_srgb = _linear_to_srgb(gg_lin) * 255
-        bb_srgb = _linear_to_srgb(bb_lin) * 255
+        # LERP blending based on intensity
+        rr_lin = (1 - f) * r_lin + f * rr_sim
+        gg_lin = (1 - f) * g_lin + f * gg_sim
+        bb_lin = (1 - f) * b_lin + f * bb_sim
 
-        return rgb_to_hex(rr_srgb, gg_srgb, bb_srgb)
+        return rgb_to_hex(
+            _linear_to_srgb(rr_lin) * 255,
+            _linear_to_srgb(gg_lin) * 255,
+            _linear_to_srgb(bb_lin) * 255
+        )
 
-    no_specific_flag = not (
-        args.protanopia
-        or args.deuteranopia
-        or args.tritanopia
-        or args.achromatopsia
-        or args.all_simulates
-    )
-
-    if args.protanopia or no_specific_flag or args.all_simulates:
-        sim_hex = get_simulated_hex(r, g, b, CB_MATRICES["Protanopia"])
-        print_color_block(sim_hex, "protanopia")
+    # Simulation results with fixed 16-character width padding for perfect alignment
+    if args.protanopia or args.all_simulates:
+        sim_hex = get_simulated_hex(r, g, b, CB_MATRICES["Protanopia"], factor)
+        label = f"{MSG_BOLD_COLORS['info']}protan{perc_str:>10}{RESET}"
+        print_color_block(sim_hex, label)
 
     if args.deuteranopia or args.all_simulates:
-        sim_hex = get_simulated_hex(r, g, b, CB_MATRICES["Deuteranopia"])
-        print_color_block(sim_hex, "deuteranopia")
+        sim_hex = get_simulated_hex(r, g, b, CB_MATRICES["Deuteranopia"], factor)
+        label = f"{MSG_BOLD_COLORS['info']}deuter{perc_str:>10}{RESET}"
+        print_color_block(sim_hex, label)
 
     if args.tritanopia or args.all_simulates:
-        sim_hex = get_simulated_hex(r, g, b, CB_MATRICES["Tritanopia"])
-        print_color_block(sim_hex, "tritanopia")
+        sim_hex = get_simulated_hex(r, g, b, CB_MATRICES["Tritanopia"], factor)
+        label = f"{MSG_BOLD_COLORS['info']}tritan{perc_str:>10}{RESET}"
+        print_color_block(sim_hex, label)
 
     if args.achromatopsia or args.all_simulates:
         l_lin = get_luminance(r, g, b)
-        gray_val = _linear_to_srgb(l_lin) * 255
-        sim_hex = rgb_to_hex(gray_val, gray_val, gray_val)
-        print_color_block(sim_hex, "achromatopsia")
+        r_lin, g_lin, b_lin = _srgb_to_linear(r), _srgb_to_linear(g), _srgb_to_linear(b)
+        
+        rr_lin = (1 - factor) * r_lin + factor * l_lin
+        gg_lin = (1 - factor) * g_lin + factor * l_lin
+        bb_lin = (1 - factor) * b_lin + factor * l_lin
+        
+        sim_hex = rgb_to_hex(
+            _linear_to_srgb(rr_lin) * 255,
+            _linear_to_srgb(gg_lin) * 255,
+            _linear_to_srgb(bb_lin) * 255
+        )
+        label = f"{MSG_BOLD_COLORS['info']}achroma{perc_str:>9}{RESET}"
+        print_color_block(sim_hex, label)
 
     print()
 
@@ -106,28 +140,34 @@ def get_vision_parser() -> argparse.ArgumentParser:
     input_group.add_argument(
         "-H", "--hex",
         type=INPUT_HANDLERS["hex"],
-        help="base hex code for simulation"
+        help="base hex code"
     )
     input_group.add_argument(
         "-r", "--random",
         action="store_true",
-        help="simulate with a random color"
+        help="use a random base"
     )
     input_group.add_argument(
         "-cn", "--color-name",
         type=INPUT_HANDLERS["color_name"],
-        help="base color name from --list-color-names"
+        help="base color name"
     )
     input_group.add_argument(
         "-di", "--decimal-index",
         type=INPUT_HANDLERS["decimal_index"],
-        help="base color decimal index for simulation"
+        help="base decimal index"
     )
     parser.add_argument(
         "-s", "--seed",
         type=INPUT_HANDLERS["seed"],
         default=None,
         help="seed for reproducibility of random"
+    )
+    parser.add_argument(
+        "-i", "--intensity",
+        type=INPUT_HANDLERS["intensity"],
+        default=100,
+        help="simulation intensity: 0 to 100 (default: 100)"
     )
     simulate_group = parser.add_argument_group("simulation types")
     simulate_group.add_argument(

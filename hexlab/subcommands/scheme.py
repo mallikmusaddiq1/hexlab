@@ -17,7 +17,13 @@ from ..color_math.conversions import (
     rgb_to_xyz,
     xyz_to_lab,
 )
-from ..constants.constants import MAX_DEC, SCHEME_KEYS
+from ..constants.constants import (
+    MAX_DEC,
+    SCHEME_KEYS,
+    MSG_BOLD_COLORS,
+    BOLD_WHITE,
+    RESET
+)
 from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
 from ..utils.hexlab_logger import log, HexlabArgumentParser
 from ..utils.input_handler import INPUT_HANDLERS
@@ -56,8 +62,26 @@ def handle_scheme_command(args: argparse.Namespace) -> None:
         title = get_title_for_hex(base_hex, f"index {idx}")
 
     print()
-    print_color_block(base_hex, title)
-    print()
+    print_color_block(base_hex, f"{BOLD_WHITE}{title}{RESET}")
+
+    def _has_custom_scheme(val):
+        return isinstance(val, (list, tuple)) and len(val) > 0
+
+    any_specific_flag = (
+        args.complementary or
+        args.split_complementary or
+        args.analogous or
+        args.triadic or
+        args.tetradic_square or
+        args.tetradic_rectangular or
+        args.monochromatic or
+        _has_custom_scheme(args.custom_scheme) or
+        args.all_schemes
+    )
+
+    if any_specific_flag:
+        print()
+
     r, g, b = hex_to_rgb(base_hex)
 
     h, s, l, c = (0.0,) * 4
@@ -65,7 +89,7 @@ def handle_scheme_command(args: argparse.Namespace) -> None:
     model = (args.harmony_model or 'hsl').lower()
 
     if model not in ("hsl", "lch", "oklch"):
-        log('error', f"unsupported harmony model '{args.harmony_model}'.")
+        log('error', f"unsupported harmony model '{args.harmony_model}'")
         log('info', "valid options are: hsl, lch, oklch")
         sys.exit(2)
 
@@ -79,7 +103,7 @@ def handle_scheme_command(args: argparse.Namespace) -> None:
         l, c, h = rgb_to_oklch(r, g, b)
 
     if not (isinstance(h, (int, float)) and h == h):
-        log('error', "computed hue is invalid (NaN). aborting to avoid producing invalid output.")
+        log('error', "computed hue is invalid, aborting to avoid producing invalid output")
         sys.exit(3)
 
     def get_scheme_hex(hue_shift: float) -> str:
@@ -110,49 +134,33 @@ def handle_scheme_command(args: argparse.Namespace) -> None:
 
         return rgb_to_hex(new_r, new_g, new_b)
 
-    def _has_custom_scheme(val):
-        return isinstance(val, (list, tuple)) and len(val) > 0
-
-    any_specific_flag = (
-        args.complementary or
-        args.split_complementary or
-        args.analogous or
-        args.triadic or
-        args.tetradic_square or
-        args.tetradic_rectangular or
-        args.monochromatic or
-        _has_custom_scheme(args.custom_scheme)
-    )
-
-    if not any_specific_flag:
-        print_color_block(get_scheme_hex(180), "comp        180°")
-    else:
+    if any_specific_flag:
         if args.complementary:
-            print_color_block(get_scheme_hex(180), "comp        180°")
+            print_color_block(get_scheme_hex(180), f"{MSG_BOLD_COLORS['info']}comp        180°{RESET}")
         if args.split_complementary:
-            print_color_block(get_scheme_hex(150), "split comp  150°")
-            print_color_block(get_scheme_hex(210), "split comp  210°")
+            print_color_block(get_scheme_hex(150), f"{MSG_BOLD_COLORS['info']}split comp  150°{RESET}")
+            print_color_block(get_scheme_hex(210), f"{MSG_BOLD_COLORS['info']}split comp  210°{RESET}")
         if args.analogous:
-            print_color_block(get_scheme_hex(-30), "analog      -30°")
-            print_color_block(get_scheme_hex(30), "analog       30°")
+            print_color_block(get_scheme_hex(-30), f"{MSG_BOLD_COLORS['info']}analog      -30°{RESET}")
+            print_color_block(get_scheme_hex(30), f"{MSG_BOLD_COLORS['info']}analog       30°{RESET}")
         if args.triadic:
-            print_color_block(get_scheme_hex(120), "tria        120°")
-            print_color_block(get_scheme_hex(240), "tria        240°")
+            print_color_block(get_scheme_hex(120), f"{MSG_BOLD_COLORS['info']}tria        120°{RESET}")
+            print_color_block(get_scheme_hex(240), f"{MSG_BOLD_COLORS['info']}tria        240°{RESET}")
         if args.tetradic_square:
-            print_color_block(get_scheme_hex(90), "tetra sq     90°")
-            print_color_block(get_scheme_hex(180), "tetra sq    180°")
-            print_color_block(get_scheme_hex(270), "tetra sq    270°")
+            print_color_block(get_scheme_hex(90), f"{MSG_BOLD_COLORS['info']}tetra sq     90°{RESET}")
+            print_color_block(get_scheme_hex(180), f"{MSG_BOLD_COLORS['info']}tetra sq    180°{RESET}")
+            print_color_block(get_scheme_hex(270), f"{MSG_BOLD_COLORS['info']}tetra sq    270°{RESET}")
         if args.tetradic_rectangular:
-            print_color_block(get_scheme_hex(60), "tetra rec    60°")
-            print_color_block(get_scheme_hex(180), "tetra rec   180°")
-            print_color_block(get_scheme_hex(240), "tetra rec   240°")
+            print_color_block(get_scheme_hex(60), f"{MSG_BOLD_COLORS['info']}tetra rec    60°{RESET}")
+            print_color_block(get_scheme_hex(180), f"{MSG_BOLD_COLORS['info']}tetra rec   180°{RESET}")
+            print_color_block(get_scheme_hex(240), f"{MSG_BOLD_COLORS['info']}tetra rec   240°{RESET}")
         if args.monochromatic:
-            print_color_block(get_mono_hex(-0.2), "mono       -20%L")
-            print_color_block(get_mono_hex(0.2), "mono       +20%L")
+            print_color_block(get_mono_hex(-0.2), f"{MSG_BOLD_COLORS['info']}mono       -20%L{RESET}")
+            print_color_block(get_mono_hex(0.2), f"{MSG_BOLD_COLORS['info']}mono       +20%L{RESET}")
 
         if _has_custom_scheme(args.custom_scheme):
             for angle in args.custom_scheme:
-                print_color_block(get_scheme_hex(angle), f"custom{f'{angle}°':>10}")
+                print_color_block(get_scheme_hex(angle), f"{MSG_BOLD_COLORS['info']}custom{f'{angle}°':>10}{RESET}")
 
     print()
 
@@ -167,28 +175,28 @@ def get_scheme_parser() -> argparse.ArgumentParser:
     input_group.add_argument(
         "-H", "--hex",
         type=INPUT_HANDLERS["hex"],
-        help="base hex code for the scheme"
+        help="base hex code"
     )
     input_group.add_argument(
         "-r", "--random",
         action="store_true",
-        help="generate a scheme from a random color"
+        help="use a random base"
     )
     input_group.add_argument(
         "-cn", "--color-name",
         type=INPUT_HANDLERS["color_name"],
-        help="base color name from --list-color-names"
+        help="base color name"
     )
     input_group.add_argument(
         "-di", "--decimal-index",
         type=INPUT_HANDLERS["decimal_index"],
-        help="base color decimal index for the scheme"
+        help="base decimal index"
     )
     parser.add_argument(
         "-s", "--seed",
         type=INPUT_HANDLERS["seed"],
         default=None,
-        help="random seed for reproducibility"
+        help="seed for reproducibility of random"
     )
     parser.add_argument(
         "-hm", "--harmony-model",
@@ -240,10 +248,10 @@ def get_scheme_parser() -> argparse.ArgumentParser:
         help="show monochromatic colors -20%%L +20%%L"
     )
     scheme_group.add_argument(
-        '-cs', '--custom-scheme',
+        '-c', '--custom-scheme',
         action="append",
         type=INPUT_HANDLERS["custom_scheme"],
-        help="custom hue shift in degrees (-360.0 to 360.0)"
+        help="custom hue shift (-360 to 360)"
     )
     return parser
 

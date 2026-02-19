@@ -137,3 +137,21 @@ PIPELINE = [
     # final compositing
     "opacity",
 ]
+
+# Standard ANSI Color Codes
+MSG_BOLD_COLORS = {
+    "error": "\033[1;31m",  # Bold Red
+    "warning": "\033[1;33m", # Bold Yellow
+    "info": "\033[1;36m",    # Bold Cyan
+    "success": "\033[1;32m", # Bold Green
+}
+
+MSG_COLORS = {
+    "error": "\033[0;31m",   # Normal Red
+    "warning": "\033[0;33m", # Normal Yellow
+    "info": "\033[0;36m",    # Normal Cyan
+    "success": "\033[0;32m", # Normal Green
+}
+
+RESET = "\033[0m"
+BOLD_WHITE = "\033[1;37m"

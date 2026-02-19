@@ -25,6 +25,9 @@ from ..constants.constants import (
     DEDUP_DELTA_E_OKLAB,
     DEDUP_DELTA_E_RGB,
     MAX_DEC,
+    MSG_BOLD_COLORS,
+    RESET,
+    BOLD_WHITE
 )
 from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
 from ..utils.hexlab_logger import log, HexlabArgumentParser
@@ -121,8 +124,7 @@ def handle_similar_command(args: argparse.Namespace) -> None:
         title = get_title_for_hex(clean_hex, f"index {idx}")
 
     print()
-    print_color_block(clean_hex, title)
-    print()
+    print_color_block(clean_hex, f"{BOLD_WHITE}{title}{RESET}")
     print()
 
     base_rgb = hex_to_rgb(clean_hex)
@@ -152,11 +154,15 @@ def handle_similar_command(args: argparse.Namespace) -> None:
     metric_label = metric_map.get(metric, 'ΔE')
 
     found_any = False
+
     for i, (hex_val, diff) in enumerate(similar_gen):
         found_any = True
-        label = f"similar {i + 1}"
+   
+        label = f"{MSG_BOLD_COLORS['info']}similar {i + 1}{RESET}"
+        
         print_color_block(hex_val, label, end="")
-        print(f"  ({metric_label}: {diff:.2f})")
+      
+        print(f"  {MSG_BOLD_COLORS['info']}({metric_label}: {diff:.2f}){RESET}")
         sys.stdout.flush()
 
     if not found_any:
@@ -168,7 +174,7 @@ def handle_similar_command(args: argparse.Namespace) -> None:
 def get_similar_parser() -> argparse.ArgumentParser:
     parser = HexlabArgumentParser(
         prog="hexlab similar",
-        description="hexlab similar: find perceptually similar colors from the full 24-bit spectrum",
+        description="hexlab similar: find perceptually similar colors",
         formatter_class=argparse.RawTextHelpFormatter
     )
     input_group = parser.add_mutually_exclusive_group(required=True)
@@ -186,7 +192,7 @@ def get_similar_parser() -> argparse.ArgumentParser:
     input_group.add_argument(
         "-cn", "--color-name",
         type=INPUT_HANDLERS["color_name"],
-        help="base color name from --list-color-names"
+        help="base color name"
     )
     input_group.add_argument(
         "-di", "--decimal-index",

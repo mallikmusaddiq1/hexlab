@@ -185,6 +185,21 @@ def handle_int_range(min_v: int, max_v: int):
         return val
     return validator
 
+def handle_positive_int(min_v: int, max_v: int):
+    def validator(v: str) -> int:
+        val = _extract_positive_only_int(v)
+
+        if val is None:
+            raw = _sanitize_for_log(v)
+            raise argparse.ArgumentTypeError(f"invalid numeric value: '{raw}'")
+
+        if val < min_v:
+            val = min_v
+        elif val > max_v:
+            val = max_v
+        return val
+    return validator
+
 
 def handle_float_range(min_v: float, max_v: float):
     def validator(v: str) -> float:
@@ -225,5 +240,6 @@ INPUT_HANDLERS = {
     "seed": handle_int_range(0, 999_999_999_999_999_999),
     "steps": handle_int_range(1, MAX_STEPS),
     "int_channel": handle_int_range(-255, 255),
-    "custom_scheme": handle_int_range(-360, 360)
+    "custom_scheme": handle_int_range(-360, 360),
+    "intensity": handle_positive_int(0, 100)
 }

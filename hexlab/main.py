@@ -29,6 +29,10 @@ from .constants.constants import (
     SRGB_TO_LINEAR_TH,
     TECH_INFO_KEYS,
     __version__,
+    MSG_BOLD_COLORS,
+    MSG_COLORS,
+    RESET,
+    BOLD_WHITE
 )
 from .subcommands.registry import SUBCOMMANDS
 from .utils.color_names_handler import (
@@ -37,6 +41,7 @@ from .utils.color_names_handler import (
     resolve_color_name_or_exit,
 )
 from .utils.formatting import format_colorspace
+
 from .utils.hexlab_logger import log, HexlabArgumentParser
 from .utils.input_handler import INPUT_HANDLERS
 from .utils.print_color_block import print_color_block
@@ -86,7 +91,7 @@ def print_color_and_info(
     neighbors=None,
 ) -> None:
     print()
-    print_color_block(hex_code, title)
+    print_color_block(hex_code, f"{BOLD_WHITE}{title}{RESET}")
 
     hide_bars = getattr(args, 'hide_bars', False)
 
@@ -133,21 +138,21 @@ def print_color_and_info(
     arg_contrast = getattr(args, 'contrast', False)
 
     if getattr(args, 'index', False):
-        print(f"\n\nindex             : {int(hex_code, 16)} / {MAX_DEC}")
+        print(f"\n\n{MSG_BOLD_COLORS['info']}index{RESET}             : {MSG_COLORS['info']}{int(hex_code, 16)} / {MAX_DEC}{RESET}")
     if getattr(args, 'name', False):
         name_or_hex = get_title_for_hex(hex_code)
         if not name_or_hex.startswith("#") and name_or_hex.lower() != "unknown":
-            print(f"\nname              : {name_or_hex}")
+            print(f"\n{MSG_BOLD_COLORS['info']}name{RESET}              : {MSG_COLORS['info']}{name_or_hex}{RESET}")
 
     if arg_lum or arg_contrast:
         l_rel = get_luminance(r, g, b)
         if arg_lum:
-            print(f"\nluminance         : {l_rel:.6f}")
+            print(f"\n{MSG_BOLD_COLORS['info']}luminance{RESET}         : {l_rel:.6f}")
             if not hide_bars:
                 print(f"                    L {_draw_bar(l_rel, 1.0, 200, 200, 200)}")
 
     if getattr(args, 'rgb', False):
-        print(f"\nrgb               : {format_colorspace('rgb', r, g, b)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}rgb{RESET}               : {format_colorspace('rgb', r, g, b)}")
         if not hide_bars:
             print(f"                    R {_draw_bar(r, 255, 255, 60, 60)} {(r / 255) * 100:6.2f}%")
             print(f"                    G {_draw_bar(g, 255, 60, 255, 60)} {(g / 255) * 100:6.2f}%")
@@ -155,7 +160,7 @@ def print_color_and_info(
 
     if getattr(args, 'hsl', False):
         h, s, l_hsl = rgb_to_hsl(r, g, b)
-        print(f"\nhsl               : {format_colorspace('hsl', h, s, l_hsl)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}hsl{RESET}               : {format_colorspace('hsl', h, s, l_hsl)}")
         if not hide_bars:
             print(f"                    H {_draw_bar(h, 360, 255, 200, 0)}")
             print(f"                    S {_draw_bar(s, 1.0, 0, 200, 255)}")
@@ -163,7 +168,7 @@ def print_color_and_info(
 
     if getattr(args, 'hsv', False):
         h, s, v = rgb_to_hsv(r, g, b)
-        print(f"\nhsv               : {format_colorspace('hsv', h, s, v)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}hsv{RESET}               : {format_colorspace('hsv', h, s, v)}")
         if not hide_bars:
             print(f"                    H {_draw_bar(h, 360, 255, 200, 0)}")
             print(f"                    S {_draw_bar(s, 1.0, 0, 200, 255)}")
@@ -171,7 +176,7 @@ def print_color_and_info(
 
     if getattr(args, 'hwb', False):
         h, w, b_hwb = rgb_to_hwb(r, g, b)
-        print(f"\nhwb               : {format_colorspace('hwb', h, w, b_hwb)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}hwb{RESET}               : {format_colorspace('hwb', h, w, b_hwb)}")
         if not hide_bars:
             print(f"                    H {_draw_bar(h, 360, 255, 200, 0)}")
             print(f"                    W {_draw_bar(w, 1.0, 200, 200, 200)}")
@@ -179,7 +184,7 @@ def print_color_and_info(
 
     if getattr(args, 'cmyk', False):
         c, m, y_cmyk, k = rgb_to_cmyk(r, g, b)
-        print(f"\ncmyk              : {format_colorspace('cmyk', c, m, y_cmyk, k)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}cmyk{RESET}              : {format_colorspace('cmyk', c, m, y_cmyk, k)}")
         if not hide_bars:
             print(f"                    C {_draw_bar(c, 1.0, 0, 255, 255)}")
             print(f"                    M {_draw_bar(m, 1.0, 255, 0, 255)}")
@@ -187,7 +192,7 @@ def print_color_and_info(
             print(f"                    K {_draw_bar(k, 1.0, 100, 100, 100)}")
 
     if arg_xyz:
-        print(f"\nxyz               : {format_colorspace('xyz', x, y, z)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}xyz{RESET}               : {format_colorspace('xyz', x, y, z)}")
         if not hide_bars:
             print(f"                    X {_draw_bar(x / 100.0, 1.0, 255, 60, 60)}")
             print(f"                    Y {_draw_bar(y / 100.0, 1.0, 60, 255, 60)}")
@@ -196,7 +201,7 @@ def print_color_and_info(
     if arg_lab:
         a_comp_lab = _zero_small(a_lab)
         b_comp_lab = _zero_small(b_lab)
-        print(f"\nlab               : {format_colorspace('lab', l_lab, a_comp_lab, b_comp_lab)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}lab{RESET}               : {format_colorspace('lab', l_lab, a_comp_lab, b_comp_lab)}")
         if not hide_bars:
             print(f"                    L {_draw_bar(l_lab / 100.0, 1.0, 200, 200, 200)}")
             print(f"                    A {_draw_bar(a_comp_lab, 128.0, 60, 255, 60)}")
@@ -204,14 +209,14 @@ def print_color_and_info(
 
     if arg_lch:
         l_lch, c_lch, h_lch = lab_to_lch(l_lab, a_lab, b_lab)
-        print(f"\nlch               : {format_colorspace('lch', l_lch, c_lch, h_lch)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}lch{RESET}               : {format_colorspace('lch', l_lch, c_lch, h_lch)}")
         if not hide_bars:
             print(f"                    L {_draw_bar(l_lch / 100.0, 1.0, 200, 200, 200)}")
             print(f"                    C {_draw_bar(c_lch / 150.0, 1.0, 255, 60, 255)}")
             print(f"                    H {_draw_bar(h_lch, 360, 255, 200, 0)}")
 
     if arg_cieluv:
-        print(f"\nluv               : {format_colorspace('luv', l_uv, u_comp_luv, v_comp_luv)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}luv{RESET}               : {format_colorspace('luv', l_uv, u_comp_luv, v_comp_luv)}")
         if not hide_bars:
             print(f"                    L {_draw_bar(l_uv / 100.0, 1.0, 200, 200, 200)}")
             print(f"                    U {_draw_bar(u_comp_luv, 100.0, 60, 255, 60)}")
@@ -220,7 +225,7 @@ def print_color_and_info(
     if arg_oklab:
         a_comp_ok = _zero_small(a_ok)
         b_comp_ok = _zero_small(b_ok)
-        print(f"\noklab             : {format_colorspace('oklab', l_ok, a_comp_ok, b_comp_ok)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}oklab{RESET}             : {format_colorspace('oklab', l_ok, a_comp_ok, b_comp_ok)}")
         if not hide_bars:
             print(f"                    L {_draw_bar(l_ok, 1.0, 200, 200, 200)}")
             print(f"                    A {_draw_bar(a_comp_ok, 0.4, 60, 255, 60)}")
@@ -228,7 +233,7 @@ def print_color_and_info(
 
     if arg_oklch:
         l_oklch, c_oklch, h_oklch = oklab_to_oklch(l_ok, a_ok, b_ok)
-        print(f"\noklch             : {format_colorspace('oklch', l_oklch, c_oklch, h_oklch)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}oklch{RESET}             : {format_colorspace('oklch', l_oklch, c_oklch, h_oklch)}")
         if not hide_bars:
             print(f"                    L {_draw_bar(l_oklch, 1.0, 200, 200, 200)}")
             print(f"                    C {_draw_bar(c_oklch / 0.4, 1.0, 255, 60, 255)}")
@@ -253,11 +258,11 @@ def print_color_and_info(
         black_ratio = wcag['black']['ratio']
         black_lvls = wcag['black']['levels']
 
-        s_white = f"{white_ratio:.2f}:1 (AA:{white_lvls['AA']}, AAA:{white_lvls['AAA']})"
-        s_black = f"{black_ratio:.2f}:1 (AA:{black_lvls['AA']}, AAA:{black_lvls['AAA']})"
+        s_white = f"{white_ratio:.2f}:1 {MSG_BOLD_COLORS['info']}(AA:{white_lvls['AA']}, AAA:{white_lvls['AAA']}){RESET}"
+        s_black = f"{black_ratio:.2f}:1 {MSG_BOLD_COLORS['info']}(AA:{black_lvls['AA']}, AAA:{black_lvls['AAA']}){RESET}"
 
         print(f"\n                      {line_1_block}  {s_white}")
-        print(f"contrast          :   {line_2_block}")
+        print(f"{MSG_BOLD_COLORS['info']}contrast{RESET}          :   {line_2_block}")
         print(f"                      {line_3_block}  {s_black}")
     print()
 

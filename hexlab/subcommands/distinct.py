@@ -17,7 +17,12 @@ from ..color_math.conversions import (
 from ..color_math.distance import (
     delta_e_ciede2000,
 )
-from ..constants.constants import MAX_DEC
+from ..constants.constants import (
+    MAX_DEC,
+    MSG_BOLD_COLORS,
+    RESET,
+    BOLD_WHITE
+)
 from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
 from ..utils.hexlab_logger import log, HexlabArgumentParser
 from ..utils.input_handler import INPUT_HANDLERS
@@ -120,7 +125,7 @@ def handle_distinct_command(args: argparse.Namespace) -> None:
     if args.random:
         current_dec = random.randint(0, MAX_DEC)
         clean_hex = f"{current_dec:06X}"
-        title = "random base"
+        title = "random"
     elif args.color_name:
         clean_hex = resolve_color_name_or_exit(args.color_name)
         title = get_title_for_hex(clean_hex)
@@ -133,7 +138,7 @@ def handle_distinct_command(args: argparse.Namespace) -> None:
         title = get_title_for_hex(clean_hex, f"index {idx}")
 
     print()
-    print_color_block(clean_hex, title)
+    print_color_block(clean_hex, f"{BOLD_WHITE}{title}{RESET}")
     print()
     
     base_rgb = hex_to_rgb(clean_hex)
@@ -150,9 +155,11 @@ def handle_distinct_command(args: argparse.Namespace) -> None:
     metric_label = metric_map.get(metric, 'min-dist')
 
     for i, (hex_val, diff) in enumerate(distinct_gen):
-        label = f"distinct {i + 1}"
+        label = f"{MSG_BOLD_COLORS['info']}distinct {i + 1}{RESET}"
+        
         print_color_block(hex_val, label, end="")
-        print(f"  ({metric_label}: {diff:.2f})")
+        
+        print(f"  {MSG_BOLD_COLORS['info']}({metric_label}: {diff:.2f}){RESET}")
         sys.stdout.flush()
 
     print()
@@ -161,7 +168,7 @@ def handle_distinct_command(args: argparse.Namespace) -> None:
 def get_distinct_parser() -> argparse.ArgumentParser:
     parser = HexlabArgumentParser(
         prog="hexlab distinct",
-        description="hexlab distinct: generate a set of visually distinct colors",
+        description="hexlab distinct: generate visually distinct colors",
         formatter_class=argparse.RawTextHelpFormatter
     )
     input_group = parser.add_mutually_exclusive_group(required=True)
@@ -169,29 +176,22 @@ def get_distinct_parser() -> argparse.ArgumentParser:
         "-H", "--hex",
         dest="hex",
         type=INPUT_HANDLERS["hex"],
-        help="start with this hex code"
+        help="base hex code"
     )
     input_group.add_argument(
         "-r", "--random",
         action="store_true",
-        help="start with a random color"
+        help="use a random base"
     )
     input_group.add_argument(
         "-cn", "--color-name",
         type=INPUT_HANDLERS["color_name"],
-        help="start with this color name"
+        help="base color name"
     )
     input_group.add_argument(
         "-di", "--decimal-index",
         type=INPUT_HANDLERS["decimal_index"],
-        help="start with this decimal index"
-    )
-    
-    parser.add_argument(
-        "-c", "--count",
-        type=INPUT_HANDLERS["count_distinct"],
-        default=10,
-        help="number of distinct colors to generate (min: 2, max: 250, default: 10)"
+        help="base decimal index"
     )
     parser.add_argument(
         "-dm", "--distance-metric",
@@ -201,10 +201,16 @@ def get_distinct_parser() -> argparse.ArgumentParser:
         choices=['lab', 'oklab', 'rgb']
     )
     parser.add_argument(
+        "-c", "--count",
+        type=INPUT_HANDLERS["count_distinct"],
+        default=10,
+        help="number of distinct colors to generate (min: 2, max: 250, default: 10)"
+    )
+    parser.add_argument(
         "-s", "--seed",
         type=INPUT_HANDLERS["seed"],
         default=None,
-        help="seed for reproducibility"
+        help="seed for reproducibility of random"
     )
     
     return parser

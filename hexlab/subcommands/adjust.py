@@ -24,7 +24,13 @@ from ..color_math.conversions import (
 )
 from ..color_math.luminance import get_luminance
 from ..color_math.wcag_contrast import _wcag_contrast_ratio_from_rgb
-from ..constants.constants import EPS, MAX_DEC, PIPELINE
+from ..constants.constants import (
+    EPS,
+    MAX_DEC,
+    PIPELINE,
+    BOLD_WHITE,
+    RESET
+)
 from ..utils.clamping import _clamp01, _clamp255
 from ..utils.color_names_handler import (
     get_title_for_hex,
@@ -475,7 +481,7 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
     elif args.hex:
         base_hex, title = args.hex, get_title_for_hex(args.hex)
     elif getattr(args, "decimal_index", None):
-        base_hex, title = args.decimal_index, f"idx {int(args.decimal_index, 16)}"
+        base_hex, title = args.decimal_index, f"index {int(args.decimal_index, 16)}"
 
     if not base_hex:
         log("error", "no input color")
@@ -706,10 +712,10 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
     )
 
     print()
-    base_label = "original" if is_hex_title else title
-    print_color_block(base_hex, base_label)
+    label = "original" if is_hex_title else title
+    print_color_block(base_hex, f"{BOLD_WHITE}{label}{RESET}")
     if mods:
-        print_color_block(res_hex, "adjusted")
+        print_color_block(res_hex, f"{BOLD_WHITE}adjusted{RESET}")
     print()
 
     mods_print = mods
@@ -745,7 +751,7 @@ def get_adjust_parser() -> argparse.ArgumentParser:
             "usage: hexlab adjust [-h] (-H HEX | -r | -cn NAME | -di INDEX) [OPTIONS...]",
             file=file
         )
-        print("")
+        print()
         original_print_help(file)
 
     p.print_help = custom_print_help
@@ -760,7 +766,7 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         "-r",
         "--random",
         action="store_true",
-        help="use a random base color",
+        help="use a random base",
     )
     input_group.add_argument(
         "-cn",
@@ -772,7 +778,7 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         "-di",
         "--decimal-index",
         type=INPUT_HANDLERS["decimal_index"],
-        help="base decimal index (0 to MAX_DEC)",
+        help=f"base decimal index",
     )
     p.add_argument(
         "-s",

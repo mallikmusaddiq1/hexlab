@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "hexlab"
 version = "0.0.6"
-description = " A feature-rich color exploration and manipulation tool."
+description = "A feature-rich color exploration and manipulation tool."
 readme = "README.md"
 requires-python = ">=3.7"
 authors = [
