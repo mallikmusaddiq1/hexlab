@@ -24,8 +24,8 @@ from ..color_math.conversions import (
 )
 from ..constants.constants import MAX_DEC, MAX_COUNT, MAX_STEPS
 from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
-from ..utils.hexlab_logger import log
-from ..utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
+from ..utils.hexlab_logger import log, HexlabArgumentParser
+from ..utils.input_handler import INPUT_HANDLERS
 from ..utils.print_color_block import print_color_block
 from ..utils.truecolor import ensure_truecolor
 

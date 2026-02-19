@@ -227,9 +227,3 @@ INPUT_HANDLERS = {
     "int_channel": handle_int_range(-255, 255),
     "custom_scheme": handle_int_range(-360, 360)
 }
-
-
-class HexlabArgumentParser(argparse.ArgumentParser):
-    def error(self, message):
-        log('error', message)
-        sys.exit(2)

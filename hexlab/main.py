@@ -37,8 +37,8 @@ from .utils.color_names_handler import (
     resolve_color_name_or_exit,
 )
 from .utils.formatting import format_colorspace
-from .utils.hexlab_logger import log
-from .utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
+from .utils.hexlab_logger import log, HexlabArgumentParser
+from .utils.input_handler import INPUT_HANDLERS
 from .utils.print_color_block import print_color_block
 from .utils.truecolor import ensure_truecolor
 

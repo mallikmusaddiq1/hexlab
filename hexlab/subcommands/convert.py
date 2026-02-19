@@ -34,8 +34,8 @@ from ..color_math.conversions import (
 from ..constants.constants import FORMAT_ALIASES, MAX_DEC
 from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
 from ..utils.formatting import format_colorspace
-from ..utils.hexlab_logger import log
-from ..utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
+from ..utils.hexlab_logger import log, HexlabArgumentParser
+from ..utils.input_handler import INPUT_HANDLERS
 from ..utils.string_parser import STRING_PARSERS
 
 

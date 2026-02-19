@@ -30,8 +30,8 @@ from ..utils.color_names_handler import (
     get_title_for_hex,
     resolve_color_name_or_exit,
 )
-from ..utils.hexlab_logger import log
-from ..utils.input_handler import INPUT_HANDLERS, HexlabArgumentParser
+from ..utils.hexlab_logger import MSG_COLORS, log, HexlabArgumentParser
+from ..utils.input_handler import INPUT_HANDLERS
 from ..utils.print_color_block import print_color_block
 from ..utils.truecolor import ensure_truecolor
 
@@ -359,7 +359,7 @@ def _print_steps(mods, verbose: bool) -> None:
     if len(parts) > 3:
         log("info", "steps:")
         for i, part in enumerate(parts, 1):
-            print(f"    {i}. {part}")
+            print(f"{MSG_COLORS['info']}    {i}. {part}")
     else:
         log("info", "steps: " + " -> ".join(parts))
 
@@ -537,15 +537,15 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
         elif op == "brightness" and args.brightness is not None:
             factor = 1.0 + (args.brightness / 100.0)
             fr, fg, fb = _apply_linear_gain_rgb(fr, fg, fb, factor)
-            mods.append(("brightness-linear", f"{args.brightness:+.2f}%%"))
+            mods.append(("brightness-linear", f"{args.brightness:+.2f}%"))
 
         elif op == "brightness_srgb" and getattr(args, "brightness_srgb", None) is not None:
             fr, fg, fb = _apply_srgb_brightness(fr, fg, fb, args.brightness_srgb)
-            mods.append(("brightness-srgb", f"{args.brightness_srgb:+.2f}%%"))
+            mods.append(("brightness-srgb", f"{args.brightness_srgb:+.2f}%"))
 
         elif op == "contrast" and args.contrast is not None:
             fr, fg, fb = _apply_linear_contrast_rgb(fr, fg, fb, args.contrast)
-            mods.append(("contrast", f"{args.contrast:+.2f}%%"))
+            mods.append(("contrast", f"{args.contrast:+.2f}%"))
 
         elif op == "gamma" and getattr(args, "gamma", None) is not None:
             fr, fg, fb = _apply_gamma(fr, fg, fb, args.gamma)
@@ -561,14 +561,14 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
             amount = args.lighten / 100.0
             l = _clamp01(l + (1.0 - l) * amount)
             fr, fg, fb = hsl_to_rgb(h, s, l)
-            mods.append(("lighten", f"+{args.lighten:.2f}%%"))
+            mods.append(("lighten", f"+{args.lighten:.2f}%"))
 
         elif op == "darken" and args.darken is not None:
             h, s, l = rgb_to_hsl(fr, fg, fb)
             amount = args.darken / 100.0
             l = _clamp01(l * (1.0 - amount))
             fr, fg, fb = hsl_to_rgb(h, s, l)
-            mods.append(("darken", f"-{args.darken:.2f}%%"))
+            mods.append(("darken", f"-{args.darken:.2f}%"))
 
         elif op == "saturate" and args.saturate is not None:
             h, s, l = rgb_to_hsl(fr, fg, fb)
@@ -576,7 +576,7 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
                 amount = args.saturate / 100.0
                 s = _clamp01(s + (1.0 - s) * amount)
                 fr, fg, fb = hsl_to_rgb(h, s, l)
-            mods.append(("saturate", f"+{args.saturate:.2f}%%"))
+            mods.append(("saturate", f"+{args.saturate:.2f}%"))
 
 
         elif op == "desaturate" and args.desaturate is not None:
@@ -584,19 +584,19 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
             amount = args.desaturate / 100.0
             s = _clamp01(s * (1.0 - amount))
             fr, fg, fb = hsl_to_rgb(h, s, l)
-            mods.append(("desaturate", f"-{args.desaturate:.2f}%%"))
+            mods.append(("desaturate", f"-{args.desaturate:.2f}%"))
 
         elif op == "whiten_hwb" and getattr(args, "whiten_hwb", None) is not None:
             h, w, b_val = rgb_to_hwb(fr, fg, fb)
             w = _clamp01(w + args.whiten_hwb / 100.0)
             fr, fg, fb = hwb_to_rgb(h, w, b_val)
-            mods.append(("whiten-hwb", f"+{args.whiten_hwb:.2f}%%"))
+            mods.append(("whiten-hwb", f"+{args.whiten_hwb:.2f}%"))
 
         elif op == "blacken_hwb" and getattr(args, "blacken_hwb", None) is not None:
             h, w, b_val = rgb_to_hwb(fr, fg, fb)
             b_val = _clamp01(b_val + args.blacken_hwb / 100.0)
             fr, fg, fb = hwb_to_rgb(h, w, b_val)
-            mods.append(("blacken-hwb", f"+{args.blacken_hwb:.2f}%%"))
+            mods.append(("blacken-hwb", f"+{args.blacken_hwb:.2f}%"))
 
         elif op == "chroma_oklch" and getattr(args, "chroma_oklch", None) is not None:
             l_ok, c_ok, h_ok = rgb_to_oklch(fr, fg, fb)
@@ -605,11 +605,11 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
             fr, fg, fb = oklch_to_rgb(l_ok, c_ok, h_ok)
             l_f, a_f, b_f = rgb_to_oklab(fr, fg, fb)
             fr, fg, fb = _gamut_map_oklab_to_srgb(l_f, a_f, b_f)
-            mods.append(("chroma-oklch", f"{args.chroma_oklch:+.2f}%%"))
+            mods.append(("chroma-oklch", f"{args.chroma_oklch:+.2f}%"))
 
         elif op == "vibrance_oklch" and getattr(args, "vibrance_oklch", None) is not None:
             fr, fg, fb = _apply_vibrance_oklch(fr, fg, fb, args.vibrance_oklch)
-            mods.append(("vibrance-oklch", f"{args.vibrance_oklch:+.2f}%%"))
+            mods.append(("vibrance-oklch", f"{args.vibrance_oklch:+.2f}%"))
 
         elif op == "warm_oklab" and getattr(args, "warm_oklab", None) is not None:
             l_ok, a_ok, b_ok = rgb_to_oklab(fr, fg, fb)
@@ -618,7 +618,7 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
                 a_ok + args.warm_oklab / 2000.0,
                 b_ok + args.warm_oklab / 1000.0,
             )
-            mods.append(("warm-oklab", f"+{args.warm_oklab:.2f}%%"))
+            mods.append(("warm-oklab", f"+{args.warm_oklab:.2f}%"))
 
         elif op == "cool_oklab" and getattr(args, "cool_oklab", None) is not None:
             l_ok, a_ok, b_ok = rgb_to_oklab(fr, fg, fb)
@@ -627,7 +627,7 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
                 a_ok - args.cool_oklab / 2000.0,
                 b_ok - args.cool_oklab / 1000.0,
             )
-            mods.append(("cool-oklab", f"+{args.cool_oklab:.2f}%%"))
+            mods.append(("cool-oklab", f"+{args.cool_oklab:.2f}%"))
 
         elif op == "posterize" and getattr(args, "posterize", None) is not None:
             fr, fg, fb = _posterize_rgb(fr, fg, fb, args.posterize)
@@ -641,18 +641,18 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
             use_hex = low_hex if y < t else high_hex
             tr, tg, tb = hex_to_rgb(use_hex)
             fr, fg, fb = float(tr), float(tg), float(tb)
-            mods.append(("threshold-luminance", f"{args.threshold:.2f}%%"))
+            mods.append(("threshold-luminance", f"{args.threshold:.2f}%"))
 
         elif op == "solarize" and getattr(args, "solarize", None) is not None:
             fr, fg, fb = _solarize_smart(fr, fg, fb, args.solarize)
-            mods.append(("solarize", f"{args.solarize:.2f}%%"))
+            mods.append(("solarize", f"{args.solarize:.2f}%"))
 
         elif op == "tint" and getattr(args, "tint", None) is not None:
             strength = getattr(args, "tint_strength", None)
             if strength is None:
                 strength = 20.0
             fr, fg, fb = _tint_oklab(fr, fg, fb, args.tint, strength)
-            mods.append(("tint-oklab", f"{strength:.2f}%% to #{args.tint.upper()}"))
+            mods.append(("tint-oklab", f"{strength:.2f}% to #{args.tint.upper()}"))
 
         elif op == "red_channel" and args.red_channel is not None:
             fr = _clamp255(fr + args.red_channel)
@@ -668,7 +668,7 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
 
         elif op == "opacity" and args.opacity is not None:
             fr, fg, fb = _apply_opacity_on_black(fr, fg, fb, args.opacity)
-            mods.append(("opacity-on-black", f"{args.opacity:.2f}%%"))
+            mods.append(("opacity-on-black", f"{args.opacity:.2f}%"))
 
         elif op == "lock_luminance" and getattr(args, "lock_luminance", False):
             l_ok, a_ok, b_ok = rgb_to_oklab(fr, fg, fb)
