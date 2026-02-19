@@ -725,7 +725,7 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         prog="hexlab adjust",
         description=(
             "hexlab adjust: advanced color manipulation\n\n"
-            "all operations are deterministic and applied in a fixed pipeline"
+            "by default, all operations are deterministic and applied in a fixed pipeline"
         ),
         formatter_class=argparse.RawTextHelpFormatter,
         usage=argparse.SUPPRESS,
