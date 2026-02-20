@@ -31,7 +31,13 @@ from ..color_math.conversions import (
     rgb_to_xyz,
     xyz_to_rgb,
 )
-from ..constants.constants import FORMAT_ALIASES, MAX_DEC
+from ..constants.constants import (
+    FORMAT_ALIASES,
+    MAX_DEC,
+    MSG_BOLD_COLORS,
+    BOLD_WHITE,
+    RESET
+)
 from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
 from ..utils.formatting import format_colorspace
 from ..utils.hexlab_logger import log, HexlabArgumentParser
@@ -40,7 +46,7 @@ from ..utils.string_parser import STRING_PARSERS
 
 
 def fmt_hex_for_output(hex_str: str) -> str:
-    return f"#{hex_str.upper()}"
+    return f"{BOLD_WHITE}#{hex_str.upper()}{RESET}"
 
 
 def _parse_value_to_rgb(clean_val: str, from_fmt: str) -> Tuple[int, int, int]:
@@ -92,32 +98,35 @@ def _format_value_from_rgb(r: int, g: int, b: int, to_fmt: str) -> str:
         return fmt_hex_for_output(rgb_to_hex(r, g, b))
     elif to_fmt == 'index':
         hex_val = rgb_to_hex(r, g, b)
-        return str(int(hex_val, 16))
+        return f"{BOLD_WHITE}{int(hex_val, 16)}{RESET}"
     elif to_fmt == 'name':
-        return get_title_for_hex(rgb_to_hex(r, g, b))
+        name = get_title_for_hex(rgb_to_hex(r, g, b), fallback="unknown")
+        if name == "unknown":
+            return f"{MSG_BOLD_COLORS['error']}unknown{RESET}"
+        return f"{BOLD_WHITE}{name}{RESET}"
 
     elif to_fmt == 'rgb':
-        return format_colorspace('rgb', int(round(r)), int(round(g)), int(round(b)))
+        return f"{BOLD_WHITE}{format_colorspace('rgb', int(round(r)), int(round(g)), int(round(b)))}{RESET}"
     elif to_fmt == 'hsl':
-        return format_colorspace('hsl', *rgb_to_hsl(r, g, b))
+        return f"{BOLD_WHITE}{format_colorspace('hsl', *rgb_to_hsl(r, g, b))}{RESET}"
     elif to_fmt == 'hsv':
-        return format_colorspace('hsv', *rgb_to_hsv(r, g, b))
+        return f"{BOLD_WHITE}{format_colorspace('hsv', *rgb_to_hsv(r, g, b))}{RESET}"
     elif to_fmt == 'hwb':
-        return format_colorspace('hwb', *rgb_to_hwb(r, g, b))
+        return f"{BOLD_WHITE}{format_colorspace('hwb', *rgb_to_hwb(r, g, b))}{RESET}"
     elif to_fmt == 'cmyk':
-        return format_colorspace('cmyk', *rgb_to_cmyk(r, g, b))
+        return f"{BOLD_WHITE}{format_colorspace('cmyk', *rgb_to_cmyk(r, g, b))}{RESET}"
     elif to_fmt == 'xyz':
-        return format_colorspace('xyz', *rgb_to_xyz(r, g, b))
+        return f"{BOLD_WHITE}{format_colorspace('xyz', *rgb_to_xyz(r, g, b))}{RESET}"
     elif to_fmt == 'lab':
-        return format_colorspace('lab', *rgb_to_lab(r, g, b))
+        return f"{BOLD_WHITE}{format_colorspace('lab', *rgb_to_lab(r, g, b))}{RESET}"
     elif to_fmt == 'lch':
-        return format_colorspace('lch', *rgb_to_lch(r, g, b))
+        return f"{BOLD_WHITE}{format_colorspace('lch', *rgb_to_lch(r, g, b))}{RESET}"
     elif to_fmt == 'oklab':
-        return format_colorspace('oklab', *rgb_to_oklab(r, g, b))
+        return f"{BOLD_WHITE}{format_colorspace('oklab', *rgb_to_oklab(r, g, b))}{RESET}"
     elif to_fmt == 'oklch':
-        return format_colorspace('oklch', *rgb_to_oklch(r, g, b))
+        return f"{BOLD_WHITE}{format_colorspace('oklch', *rgb_to_oklch(r, g, b))}{RESET}"
     elif to_fmt == 'luv':
-        return format_colorspace('luv', *rgb_to_luv(r, g, b))
+        return f"{BOLD_WHITE}{format_colorspace('luv', *rgb_to_luv(r, g, b))}{RESET}"
 
     return ""
 
@@ -145,7 +154,7 @@ def handle_convert_command(args: argparse.Namespace) -> None:
 
     if args.verbose:
         input_value_str = _format_value_from_rgb(r, g, b, from_fmt)
-        print(f"{input_value_str} -> {output_value_str}")
+        print(f"{input_value_str} {MSG_BOLD_COLORS['info']}->{RESET} {output_value_str}")
     else:
         print(output_value_str)
 
@@ -169,16 +178,14 @@ def get_convert_parser() -> argparse.ArgumentParser:
         required=True,
         type=INPUT_HANDLERS["from_format"],
         help="the format to convert from\n"
-             f"all formats: {formats_list}\n"
-             f"use quotes for better UX"
+             f"all formats: {formats_list}"
     )
     parser.add_argument(
         "-t", "--to-format",
         required=True,
         type=INPUT_HANDLERS["to_format"],
         help="the format to convert to\n"
-             f"all formats: {formats_list}\n"
-             f"use quotes for better UX"
+             f"all formats: {formats_list}"
     )
 
     ex_rgb = format_colorspace('rgb', 0, 0, 0)
@@ -199,7 +206,7 @@ def get_convert_parser() -> argparse.ArgumentParser:
         "--value",
         type=str,
         help=(
-            "write value to convert in quotes\n"
+            "color value to convert must be in quotes\n"
             "examples:\n"
             '  -v "000000"\n'
             '  -v "0"\n'

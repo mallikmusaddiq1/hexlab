@@ -176,7 +176,7 @@ def get_mix_parser() -> argparse.ArgumentParser:
         "-a", "--amount",
         type=INPUT_HANDLERS["float_0_100"],
         default=50.0,
-        help="mix ratio for 2 colors (0 to 100, default: 50)"
+        help="mix ratio for 2 colors (0 to 100%%, default: 50%%)"
     )
     parser.add_argument(
         "-cs", "--colorspace",

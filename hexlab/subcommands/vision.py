@@ -162,7 +162,7 @@ def get_vision_parser() -> argparse.ArgumentParser:
         "-i", "--intensity",
         type=INPUT_HANDLERS["intensity"],
         default=100,
-        help="simulation intensity: 0 to 100 (default: 100)"
+        help="simulation intensity (0 to 100%%, default: 100%%)"
     )
     simulate_group = parser.add_argument_group("simulation types")
     simulate_group.add_argument(

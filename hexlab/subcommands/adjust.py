@@ -29,6 +29,7 @@ from ..constants.constants import (
     MAX_DEC,
     PIPELINE,
     BOLD_WHITE,
+    MSG_BOLD_COLORS,
     RESET
 )
 from ..utils.clamping import _clamp01, _clamp255
@@ -558,12 +559,12 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
 
         elif op == "gamma" and getattr(args, "gamma", None) is not None:
             fr, fg, fb = _apply_gamma(fr, fg, fb, args.gamma)
-            mods.append(("gamma-linear", f"{args.gamma:.3f} {src_info}"))
+            mods.append(("gamma-linear", f"{args.gamma:.2f} {src_info}"))
 
         elif op == "exposure" and getattr(args, "exposure", None) is not None:
-            factor = 2.0 ** float(args.exposure)
+            factor = 2.0 ** (float(args.exposure) / 10.0)
             fr, fg, fb = _apply_linear_gain_rgb(fr, fg, fb, factor)
-            mods.append(("exposure-stops", f"{args.exposure:+.3f} {src_info}"))
+            mods.append(("exposure-stops", f"{args.exposure:+.2f} {src_info}"))
 
         elif op == "lighten" and args.lighten is not None:
             h, s, l_hsl = rgb_to_hsl(fr, fg, fb)
@@ -716,8 +717,9 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
     print()
     label = "original" if is_hex_title else title
     print_color_block(base_hex, f"{BOLD_WHITE}{label}{RESET}")
+    print()
     if mods:
-        print_color_block(res_hex, f"{BOLD_WHITE}adjusted{RESET}")
+        print_color_block(res_hex, f"{MSG_BOLD_COLORS['info']}adjusted{RESET}")
     
     if getattr(args, "verbose", False):
         print()
@@ -821,35 +823,35 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         "--lighten",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="increase lightness (0-100%%)",
+        help="increase lightness (0 to 100%%)",
     )
     ga.add_argument(
         "-d",
         "--darken",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="decrease lightness (0-100%%)",
+        help="decrease lightness (0 to 100%%)",
     )
     ga.add_argument(
         "-sat",
         "--saturate",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="increase saturation (0-100%%)",
+        help="increase saturation (0 to 100%%)",
     )
     ga.add_argument(
         "-des",
         "--desaturate",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="decrease saturation (0-100%%)",
+        help="decrease saturation (0 to 100%%)",
     )
     ga.add_argument(
         "-rot",
         "--rotate",
         type=INPUT_HANDLERS["float_signed_360"],
         metavar="N",
-        help="rotate hue in HSL (-360 to 360 degrees)",
+        help="rotate hue in HSL (-360 to 360°)",
     )
     ga.add_argument(
         "-rotl",
@@ -857,7 +859,7 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         dest="rotate_oklch",
         type=INPUT_HANDLERS["float_signed_360"],
         metavar="N",
-        help="rotate hue in OKLCH (-360 to 360 degrees)",
+        help="rotate hue in OKLCH (-360 to 360°)",
     )
     adv_group = p.add_argument_group("tone and vividness")
     bgroup = adv_group.add_mutually_exclusive_group()
@@ -897,7 +899,7 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         dest="whiten_hwb",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="adjust white in HWB (0-100%%)",
+        help="adjust white in HWB (0 to 100%%)",
     )
     adv_group.add_argument(
         "-blacken",
@@ -905,7 +907,7 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         dest="blacken_hwb",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="adjust black in HWB (0-100%%)",
+        help="adjust black in HWB (0 to 100%%)",
     )
     adv_group.add_argument(
         "-warm",
@@ -913,7 +915,7 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         dest="warm_oklab",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="adjust warmth (0-100%%)",
+        help="adjust warmth (0 to 100%%)",
     )
     adv_group.add_argument(
         "-cool",
@@ -921,7 +923,7 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         dest="cool_oklab",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="adjust coolness (0-100%%)",
+        help="adjust coolness (0 to 100%%)",
     )
     adv_group.add_argument(
         "-ll",
@@ -941,7 +943,7 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         dest="target_rel_lum",
         type=INPUT_HANDLERS["float"],
         metavar="Y",
-        help="set absolute target relative luminance (0.0 - 1.0)",
+        help="set absolute target relative luminance (0.0 to 1.0)",
     )
     adv_group.add_argument(
         "--min-contrast-with",
@@ -963,14 +965,14 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         dest="gamma",
         type=INPUT_HANDLERS["float"],
         metavar="N",
-        help="gamma correction in linear space (>0, typical 0.5 - 3.0)",
+        help="gamma correction in linear space (>0, typical 0.5 to 3.0)",
     )
     adv_group.add_argument(
         "--exposure",
         dest="exposure",
-        type=INPUT_HANDLERS["float"],
+        type=INPUT_HANDLERS["float_signed_100"],
         metavar="N",
-        help="exposure adjustment in stops (negative or positive)",
+        help="exposure adjustment in stops (-100 to 100%%, 10%% = 1 stop)",
     )
     adv_group.add_argument(
         "-vb",
@@ -1025,21 +1027,21 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         "--opacity",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="opacity over black (0-100%%)",
+        help="opacity over black (0 to 100%%)",
     )
     filter_group.add_argument(
         "--posterize",
         dest="posterize",
         type=INPUT_HANDLERS["int_channel"],
         metavar="N",
-        help="posterize RGB channels to N levels (2-256)",
+        help="posterize RGB channels to N levels (2 to 256)",
     )
     filter_group.add_argument(
         "--threshold",
         dest="threshold",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="binarize by relative luminance threshold (0-100%%)",
+        help="binarize by relative luminance threshold (0 to 100%%)",
     )
     filter_group.add_argument(
         "--threshold-low",
@@ -1060,7 +1062,7 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         dest="solarize",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="solarize based on perceptual lightness OKLAB-L threshold (0-100%%)",
+        help="solarize based on perceptual lightness OKLAB-L threshold (0 to 100%%)",
     )
     filter_group.add_argument(
         "--tint",
@@ -1074,7 +1076,7 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         dest="tint_strength",
         type=INPUT_HANDLERS["float_0_100"],
         metavar="N",
-        help="tint strength (0-100%%, default: 20%%)",
+        help="tint strength (0 to 100%%, default: 20%%)",
     )
     return p
 

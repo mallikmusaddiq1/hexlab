@@ -25,8 +25,8 @@ from .constants.constants import (
     TECH_INFO_KEYS,
     __version__,
     MSG_BOLD_COLORS,
-    RESET,
-    BOLD_WHITE
+    BOLD_WHITE,
+    RESET
 )
 from .subcommands.registry import SUBCOMMANDS
 from .utils.color_names_handler import (
@@ -120,105 +120,105 @@ def print_color_and_info(
     arg_contrast = getattr(args, 'contrast', False)
 
     if getattr(args, 'index', False):
-        print(f"\n{MSG_BOLD_COLORS['info']}index{RESET}             : {int(hex_code, 16)} / {MAX_DEC}")
+        print(f"\n{MSG_BOLD_COLORS['info']}index{RESET}             {BOLD_WHITE}: {int(hex_code, 16)} / {MAX_DEC}{RESET}")
     
     if getattr(args, 'name', False):
         name_or_hex = get_title_for_hex(hex_code)
         if not name_or_hex.startswith("#") and name_or_hex.lower() != "unknown":
-            print(f"\n{MSG_BOLD_COLORS['info']}name{RESET}              : {name_or_hex}")
+            print(f"\n{MSG_BOLD_COLORS['info']}name{RESET}              {BOLD_WHITE}: {name_or_hex}{RESET}")
 
     if arg_lum or arg_contrast:
         l_rel = get_luminance(r, g, b)
         if arg_lum:
-            print(f"\n{MSG_BOLD_COLORS['info']}luminance{RESET}         : {l_rel:.6f}")
+            print(f"\n{MSG_BOLD_COLORS['info']}luminance{RESET}         {BOLD_WHITE}: {l_rel:.6f}{RESET}")
             if not hide_bars:
-                print(f"                    L {_draw_bar(l_rel, 1.0, 200, 200, 200)}")
+                print(f"                    {BOLD_WHITE}L{RESET} {_draw_bar(l_rel, 1.0, 200, 200, 200)}")
 
     if getattr(args, 'rgb', False):
-        print(f"\n{MSG_BOLD_COLORS['info']}rgb{RESET}               : {format_colorspace('rgb', r, g, b)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}rgb{RESET}               {BOLD_WHITE}: {format_colorspace('rgb', r, g, b)}{RESET}")
         if not hide_bars:
-            print(f"                    R {_draw_bar(r, 255, 255, 60, 60)} {(r / 255) * 100:6.2f}%")
-            print(f"                    G {_draw_bar(g, 255, 60, 255, 60)} {(g / 255) * 100:6.2f}%")
-            print(f"                    B {_draw_bar(b, 255, 60, 80, 255)} {(b / 255) * 100:6.2f}%")
+            print(f"                    {BOLD_WHITE}R{RESET} {_draw_bar(r, 255, 255, 60, 60)} {BOLD_WHITE}{(r / 255) * 100:6.2f}%{RESET}")
+            print(f"                    {BOLD_WHITE}G{RESET} {_draw_bar(g, 255, 60, 255, 60)} {BOLD_WHITE}{(g / 255) * 100:6.2f}%{RESET}")
+            print(f"                    {BOLD_WHITE}B{RESET} {_draw_bar(b, 255, 60, 80, 255)} {BOLD_WHITE}{(b / 255) * 100:6.2f}%{RESET}")
 
     if getattr(args, 'hsl', False):
         h, s, l_hsl = rgb_to_hsl(r, g, b)
-        print(f"\n{MSG_BOLD_COLORS['info']}hsl{RESET}               : {format_colorspace('hsl', h, s, l_hsl)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}hsl{RESET}               {BOLD_WHITE}: {format_colorspace('hsl', h, s, l_hsl)}{RESET}")
         if not hide_bars:
-            print(f"                    H {_draw_bar(h, 360, 255, 200, 0)}")
-            print(f"                    S {_draw_bar(s, 1.0, 0, 200, 255)}")
-            print(f"                    L {_draw_bar(l_hsl, 1.0, 200, 200, 200)}")
+            print(f"                    {BOLD_WHITE}H{RESET} {_draw_bar(h, 360, 255, 200, 0)}")
+            print(f"                    {BOLD_WHITE}S{RESET} {_draw_bar(s, 1.0, 0, 200, 255)}")
+            print(f"                    {BOLD_WHITE}L{RESET} {_draw_bar(l_hsl, 1.0, 200, 200, 200)}")
 
     if getattr(args, 'hsv', False):
         h, s, v = rgb_to_hsv(r, g, b)
-        print(f"\n{MSG_BOLD_COLORS['info']}hsv{RESET}               : {format_colorspace('hsv', h, s, v)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}hsv{RESET}               {BOLD_WHITE}: {format_colorspace('hsv', h, s, v)}{RESET}")
         if not hide_bars:
-            print(f"                    H {_draw_bar(h, 360, 255, 200, 0)}")
-            print(f"                    S {_draw_bar(s, 1.0, 0, 200, 255)}")
-            print(f"                    V {_draw_bar(v, 1.0, 200, 200, 200)}")
+            print(f"                    {BOLD_WHITE}H{RESET} {_draw_bar(h, 360, 255, 200, 0)}")
+            print(f"                    {BOLD_WHITE}S{RESET} {_draw_bar(s, 1.0, 0, 200, 255)}")
+            print(f"                    {BOLD_WHITE}V{RESET} {_draw_bar(v, 1.0, 200, 200, 200)}")
 
     if getattr(args, 'hwb', False):
         h, w, b_hwb = rgb_to_hwb(r, g, b)
-        print(f"\n{MSG_BOLD_COLORS['info']}hwb{RESET}               : {format_colorspace('hwb', h, w, b_hwb)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}hwb{RESET}               {BOLD_WHITE}: {format_colorspace('hwb', h, w, b_hwb)}{RESET}")
         if not hide_bars:
-            print(f"                    H {_draw_bar(h, 360, 255, 200, 0)}")
-            print(f"                    W {_draw_bar(w, 1.0, 200, 200, 200)}")
-            print(f"                    B {_draw_bar(b_hwb, 1.0, 100, 100, 100)}")
+            print(f"                    {BOLD_WHITE}H{RESET} {_draw_bar(h, 360, 255, 200, 0)}")
+            print(f"                    {BOLD_WHITE}W{RESET} {_draw_bar(w, 1.0, 200, 200, 200)}")
+            print(f"                    {BOLD_WHITE}B{RESET} {_draw_bar(b_hwb, 1.0, 100, 100, 100)}")
 
     if getattr(args, 'cmyk', False):
         c, m, y_cmyk, k = rgb_to_cmyk(r, g, b)
-        print(f"\n{MSG_BOLD_COLORS['info']}cmyk{RESET}              : {format_colorspace('cmyk', c, m, y_cmyk, k)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}cmyk{RESET}              {BOLD_WHITE}: {format_colorspace('cmyk', c, m, y_cmyk, k)}{RESET}")
         if not hide_bars:
-            print(f"                    C {_draw_bar(c, 1.0, 0, 255, 255)}")
-            print(f"                    M {_draw_bar(m, 1.0, 255, 0, 255)}")
-            print(f"                    Y {_draw_bar(y_cmyk, 1.0, 255, 255, 0)}")
-            print(f"                    K {_draw_bar(k, 1.0, 100, 100, 100)}")
+            print(f"                    {BOLD_WHITE}C{RESET} {_draw_bar(c, 1.0, 0, 255, 255)}")
+            print(f"                    {BOLD_WHITE}M{RESET} {_draw_bar(m, 1.0, 255, 0, 255)}")
+            print(f"                    {BOLD_WHITE}Y{RESET} {_draw_bar(y_cmyk, 1.0, 255, 255, 0)}")
+            print(f"                    {BOLD_WHITE}K{RESET} {_draw_bar(k, 1.0, 100, 100, 100)}")
 
     if arg_xyz:
-        print(f"\n{MSG_BOLD_COLORS['info']}xyz{RESET}               : {format_colorspace('xyz', x, y, z)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}xyz{RESET}               {BOLD_WHITE}: {format_colorspace('xyz', x, y, z)}{RESET}")
         if not hide_bars:
-            print(f"                    X {_draw_bar(x / 100.0, 1.0, 255, 60, 60)}")
-            print(f"                    Y {_draw_bar(y / 100.0, 1.0, 60, 255, 60)}")
-            print(f"                    Z {_draw_bar(z / 100.0, 1.0, 60, 80, 255)}")
+            print(f"                    {BOLD_WHITE}X{RESET} {_draw_bar(x / 100.0, 1.0, 255, 60, 60)}")
+            print(f"                    {BOLD_WHITE}Y{RESET} {_draw_bar(y / 100.0, 1.0, 60, 255, 60)}")
+            print(f"                    {BOLD_WHITE}Z{RESET} {_draw_bar(z / 100.0, 1.0, 60, 80, 255)}")
 
     if arg_lab:
         a_comp_lab, b_comp_lab = _zero_small(a_lab), _zero_small(b_lab)
-        print(f"\n{MSG_BOLD_COLORS['info']}lab{RESET}               : {format_colorspace('lab', l_lab, a_comp_lab, b_comp_lab)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}lab{RESET}               {BOLD_WHITE}: {format_colorspace('lab', l_lab, a_comp_lab, b_comp_lab)}{RESET}")
         if not hide_bars:
-            print(f"                    L {_draw_bar(l_lab / 100.0, 1.0, 200, 200, 200)}")
-            print(f"                    A {_draw_bar(a_comp_lab, 128.0, 60, 255, 60)}")
-            print(f"                    B {_draw_bar(b_comp_lab, 128.0, 60, 60, 255)}")
+            print(f"                    {BOLD_WHITE}L{RESET} {_draw_bar(l_lab / 100.0, 1.0, 200, 200, 200)}")
+            print(f"                    {BOLD_WHITE}A{RESET} {_draw_bar(a_comp_lab, 128.0, 60, 255, 60)}")
+            print(f"                    {BOLD_WHITE}B{RESET} {_draw_bar(b_comp_lab, 128.0, 60, 60, 255)}")
 
     if arg_lch:
         l_lch, c_lch, h_lch = lab_to_lch(l_lab, a_lab, b_lab)
-        print(f"\n{MSG_BOLD_COLORS['info']}lch{RESET}               : {format_colorspace('lch', l_lch, c_lch, h_lch)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}lch{RESET}               {BOLD_WHITE}: {format_colorspace('lch', l_lch, c_lch, h_lch)}{RESET}")
         if not hide_bars:
-            print(f"                    L {_draw_bar(l_lch / 100.0, 1.0, 200, 200, 200)}")
-            print(f"                    C {_draw_bar(c_lch / 150.0, 1.0, 255, 60, 255)}")
-            print(f"                    H {_draw_bar(h_lch, 360, 255, 200, 0)}")
+            print(f"                    {BOLD_WHITE}L{RESET} {_draw_bar(l_lch / 100.0, 1.0, 200, 200, 200)}")
+            print(f"                    {BOLD_WHITE}C{RESET} {_draw_bar(c_lch / 150.0, 1.0, 255, 60, 255)}")
+            print(f"                    {BOLD_WHITE}H{RESET} {_draw_bar(h_lch, 360, 255, 200, 0)}")
 
     if arg_cieluv:
-        print(f"\n{MSG_BOLD_COLORS['info']}luv{RESET}               : {format_colorspace('luv', l_uv, u_comp_luv, v_comp_luv)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}luv{RESET}               {BOLD_WHITE}: {format_colorspace('luv', l_uv, u_comp_luv, v_comp_luv)}{RESET}")
         if not hide_bars:
-            print(f"                    L {_draw_bar(l_uv / 100.0, 1.0, 200, 200, 200)}")
-            print(f"                    U {_draw_bar(u_comp_luv, 100.0, 60, 255, 60)}")
-            print(f"                    V {_draw_bar(v_comp_luv, 100.0, 60, 60, 255)}")
+            print(f"                    {BOLD_WHITE}L{RESET} {_draw_bar(l_uv / 100.0, 1.0, 200, 200, 200)}")
+            print(f"                    {BOLD_WHITE}U{RESET} {_draw_bar(u_comp_luv, 100.0, 60, 255, 60)}")
+            print(f"                    {BOLD_WHITE}V{RESET} {_draw_bar(v_comp_luv, 100.0, 60, 60, 255)}")
 
     if arg_oklab:
         a_comp_ok, b_comp_ok = _zero_small(a_ok), _zero_small(b_ok)
-        print(f"\n{MSG_BOLD_COLORS['info']}oklab{RESET}             : {format_colorspace('oklab', l_ok, a_comp_ok, b_comp_ok)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}oklab{RESET}             {BOLD_WHITE}: {format_colorspace('oklab', l_ok, a_comp_ok, b_comp_ok)}{RESET}")
         if not hide_bars:
-            print(f"                    L {_draw_bar(l_ok, 1.0, 200, 200, 200)}")
-            print(f"                    A {_draw_bar(a_comp_ok, 0.4, 60, 255, 60)}")
-            print(f"                    B {_draw_bar(b_comp_ok, 0.4, 60, 60, 255)}")
+            print(f"                    {BOLD_WHITE}L{RESET} {_draw_bar(l_ok, 1.0, 200, 200, 200)}")
+            print(f"                    {BOLD_WHITE}A{RESET} {_draw_bar(a_comp_ok, 0.4, 60, 255, 60)}")
+            print(f"                    {BOLD_WHITE}B{RESET} {_draw_bar(b_comp_ok, 0.4, 60, 60, 255)}")
 
     if arg_oklch:
         l_oklch, c_oklch, h_oklch = oklab_to_oklch(l_ok, a_ok, b_ok)
-        print(f"\n{MSG_BOLD_COLORS['info']}oklch{RESET}             : {format_colorspace('oklch', l_oklch, c_oklch, h_oklch)}")
+        print(f"\n{MSG_BOLD_COLORS['info']}oklch{RESET}             {BOLD_WHITE}: {format_colorspace('oklch', l_oklch, c_oklch, h_oklch)}{RESET}")
         if not hide_bars:
-            print(f"                    L {_draw_bar(l_oklch, 1.0, 200, 200, 200)}")
-            print(f"                    C {_draw_bar(c_oklch / 0.4, 1.0, 255, 60, 255)}")
-            print(f"                    H {_draw_bar(h_oklch, 360, 255, 200, 0)}")
+            print(f"                    {BOLD_WHITE}L{RESET} {_draw_bar(l_oklch, 1.0, 200, 200, 200)}")
+            print(f"                    {BOLD_WHITE}C{RESET} {_draw_bar(c_oklch / 0.4, 1.0, 255, 60, 255)}")
+            print(f"                    {BOLD_WHITE}H{RESET} {_draw_bar(h_oklch, 360, 255, 200, 0)}")
 
     if arg_contrast:
         wcag = get_wcag_contrast(l_rel)
@@ -228,9 +228,9 @@ def print_color_and_info(
         succ_c = MSG_BOLD_COLORS['success']
         err_c = MSG_BOLD_COLORS['error']
 
-        line_1_block = f"{bg_ansi}\033[38;2;255;255;255m{'white':^16}{reset}"
+        line_1_block = f"{bg_ansi}\033[1;38;2;255;255;255m{f'white':^16}{reset}"
         line_2_block = f"{bg_ansi}{'ㅤ' * 8}{reset}"
-        line_3_block = f"{bg_ansi}\033[38;2;0;0;0m{'black':^16}{reset}"
+        line_3_block = f"{bg_ansi}\033[1;38;2;0;0;0m{f'black':^16}{reset}"
 
         def fmt_status(status: str) -> str:
             if status == "Pass":
@@ -242,12 +242,12 @@ def print_color_and_info(
         b_aa = fmt_status(wcag['black']['levels']['AA'])
         b_aaa = fmt_status(wcag['black']['levels']['AAA'])
 
-        s_white = f"{wcag['white']['ratio']:.2f}:1 {info_c}(AA:{w_aa}, AAA:{w_aaa}){RESET}"
-        s_black = f"{wcag['black']['ratio']:.2f}:1 {info_c}(AA:{b_aa}, AAA:{b_aaa}){RESET}"
+        s_white = f"{wcag['white']['ratio']:5.2f}:1 {info_c}(AA:{w_aa}, AAA:{w_aaa}){RESET}"
+        s_black = f"{wcag['black']['ratio']:5.2f}:1 {info_c}(AA:{b_aa}, AAA:{b_aaa}){RESET}"
 
-        print(f"\n                      {line_1_block}  {s_white}")
-        print(f"{MSG_BOLD_COLORS['info']}contrast{RESET}          :   {line_2_block}")
-        print(f"                      {line_3_block}  {s_black}")
+        print(f"\n                      {line_1_block}  {BOLD_WHITE}{s_white}{RESET}")
+        print(f"{MSG_BOLD_COLORS['info']}contrast{RESET}          {BOLD_WHITE}:{RESET}   {line_2_block}")
+        print(f"                      {line_3_block}  {BOLD_WHITE}{s_black}{RESET}")
 
     print()
 

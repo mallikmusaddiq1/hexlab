@@ -144,6 +144,7 @@ MSG_BOLD_COLORS = {
     "warning": "\033[1;33m", # Bold Yellow
     "info": "\033[1;36m",    # Bold Cyan
     "success": "\033[1;32m", # Bold Green
+    "dim": "\033[1;2;37m",      # Dim Bold White
 }
 
 MSG_COLORS = {

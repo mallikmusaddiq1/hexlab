@@ -151,7 +151,7 @@ def handle_distinct_command(args: argparse.Namespace) -> None:
         candidates_per_step=CANDIDATES_PER_STEP
     )
 
-    metric_map = {'lab': 'ΔE2000', 'oklab': 'ΔE(OKLAB)', 'rgb': 'ΔE(RGB)'}
+    metric_map = {'lab': 'ΔE(2000)', 'oklab': 'ΔE(OKLAB)', 'rgb': 'ΔE(RGB)'}
     metric_label = metric_map.get(metric, 'min-dist')
 
     for i, (hex_val, diff) in enumerate(distinct_gen):
@@ -159,7 +159,7 @@ def handle_distinct_command(args: argparse.Namespace) -> None:
         
         print_color_block(hex_val, label, end="")
         
-        print(f"  {MSG_BOLD_COLORS['info']}({metric_label}: {diff:.2f}){RESET}")
+        print(f"  {MSG_BOLD_COLORS['info']}({metric_label}: {diff:5.2f}){RESET}")
         sys.stdout.flush()
 
     print()
