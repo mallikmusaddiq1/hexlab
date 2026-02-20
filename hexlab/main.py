@@ -25,7 +25,6 @@ from .constants.constants import (
     TECH_INFO_KEYS,
     __version__,
     MSG_BOLD_COLORS,
-    MSG_COLORS,
     RESET,
     BOLD_WHITE
 )
@@ -121,12 +120,12 @@ def print_color_and_info(
     arg_contrast = getattr(args, 'contrast', False)
 
     if getattr(args, 'index', False):
-        print(f"\n{MSG_BOLD_COLORS['info']}index{RESET}             : {MSG_COLORS['info']}{int(hex_code, 16)} / {MAX_DEC}{RESET}")
+        print(f"\n{MSG_BOLD_COLORS['info']}index{RESET}             : {int(hex_code, 16)} / {MAX_DEC}")
     
     if getattr(args, 'name', False):
         name_or_hex = get_title_for_hex(hex_code)
         if not name_or_hex.startswith("#") and name_or_hex.lower() != "unknown":
-            print(f"\n{MSG_BOLD_COLORS['info']}name{RESET}              : {MSG_COLORS['info']}{name_or_hex}{RESET}")
+            print(f"\n{MSG_BOLD_COLORS['info']}name{RESET}              : {name_or_hex}")
 
     if arg_lum or arg_contrast:
         l_rel = get_luminance(r, g, b)
