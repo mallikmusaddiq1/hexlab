@@ -22,7 +22,13 @@ from ..color_math.conversions import (
     rgb_to_oklab,
     rgb_to_oklch,
 )
-from ..constants.constants import MAX_DEC, MAX_COUNT, MAX_STEPS
+from ..constants.constants import (
+    MAX_DEC,
+    MAX_COUNT,
+    MAX_STEPS,
+    MSG_BOLD_COLORS,
+    RESET
+)
 from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
 from ..utils.hexlab_logger import log, HexlabArgumentParser
 from ..utils.input_handler import INPUT_HANDLERS
@@ -152,7 +158,7 @@ def handle_gradient_command(args: argparse.Namespace) -> None:
         if len(input_list) < 2:
             log(
                 'error',
-                "at least 2 hex codes, color names, or decimal indexes are required for a gradient"
+                "at least two hex codes, color names, decimal indexes are required for a gradient"
                )
             log('info', "use -H HEX, -cn NAME, -di INDEX multiple times or -r")
             sys.exit(2)
@@ -163,7 +169,7 @@ def handle_gradient_command(args: argparse.Namespace) -> None:
 
     print()
     if num_steps == 1:
-        print_color_block(colors_hex[0], "step 1")
+        print_color_block(colors_hex[0], f"{MSG_BOLD_COLORS['info']}step{f'1':>11}{RESET}")
         return
 
     colors_rgb = [hex_to_rgb(h) for h in colors_hex]
@@ -189,8 +195,9 @@ def handle_gradient_command(args: argparse.Namespace) -> None:
         gradient_colors.append(rgb_to_hex(r_f, g_f, b_f))
 
     for i, hex_code in enumerate(gradient_colors):
-        print_color_block(hex_code, f"step {i + 1}")
+        print_color_block(hex_code, f"{MSG_BOLD_COLORS['info']}step{f'{i + 1}':>11}{RESET}")
 
+    print()
 
 def get_gradient_parser() -> argparse.ArgumentParser:
     parser = HexlabArgumentParser(
@@ -213,7 +220,7 @@ def get_gradient_parser() -> argparse.ArgumentParser:
         "-cn", "--color-name",
         action="append",
         type=INPUT_HANDLERS["color_name"],
-        help="use -cn NAME multiple times for inputs by name from --list-color-names"
+        help="use -cn NAME multiple times for inputs by name"
     )
     parser.add_argument(
         "-di", "--decimal-index",

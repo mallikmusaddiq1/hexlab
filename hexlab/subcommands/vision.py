@@ -57,7 +57,6 @@ def handle_vision_command(args: argparse.Namespace) -> None:
     print()
     print_color_block(base_hex, f"{BOLD_WHITE}{title}{RESET}")
 
-    # Check if any simulation is active
     any_sim = any([
         args.protanopia, 
         args.deuteranopia, 
@@ -66,13 +65,11 @@ def handle_vision_command(args: argparse.Namespace) -> None:
         args.all_simulates
     ])
 
-    # Print gap only if simulations follow (logic from scheme.py)
     if any_sim:
         print()
 
     r, g, b = hex_to_rgb(base_hex)
     
-    # Intensity percentage handling (0-100)
     intensity = getattr(args, 'intensity', 100)
     factor = max(0, min(100, intensity)) / 100.0
     perc_str = f"{intensity}%"
@@ -84,7 +81,6 @@ def handle_vision_command(args: argparse.Namespace) -> None:
         gg_sim = r_lin * matrix[1][0] + g_lin * matrix[1][1] + b_lin * matrix[1][2]
         bb_sim = r_lin * matrix[2][0] + g_lin * matrix[2][1] + b_lin * matrix[2][2]
 
-        # LERP blending based on intensity
         rr_lin = (1 - f) * r_lin + f * rr_sim
         gg_lin = (1 - f) * g_lin + f * gg_sim
         bb_lin = (1 - f) * b_lin + f * bb_sim
@@ -95,7 +91,6 @@ def handle_vision_command(args: argparse.Namespace) -> None:
             _linear_to_srgb(bb_lin) * 255
         )
 
-    # Simulation results with fixed 16-character width padding for perfect alignment
     if args.protanopia or args.all_simulates:
         sim_hex = get_simulated_hex(r, g, b, CB_MATRICES["Protanopia"], factor)
         label = f"{MSG_BOLD_COLORS['info']}protan{perc_str:>10}{RESET}"

@@ -18,7 +18,12 @@ from ..color_math.conversions import (
     rgb_to_luv,
     rgb_to_oklab,
 )
-from ..constants.constants import MAX_DEC, MAX_COUNT
+from ..constants.constants import (
+    MAX_DEC,
+    MAX_COUNT,
+    MSG_BOLD_COLORS,
+    RESET
+)
 from ..utils.color_names_handler import resolve_color_name_or_exit
 from ..utils.hexlab_logger import log, HexlabArgumentParser
 from ..utils.input_handler import INPUT_HANDLERS
@@ -70,7 +75,7 @@ def handle_mix_command(args: argparse.Namespace) -> None:
         if len(input_list) < 2:
             log(
                 'error',
-                "at least 2 hex codes, color names, or decimal indexes are required for a gradient"
+                "at least two hex codes, color names, decimal indexes are required for a mix"
             )
             log('info', "use -H HEX, -cn NAME, -di INDEX multiple times or -r")
             sys.exit(2)
@@ -125,16 +130,16 @@ def handle_mix_command(args: argparse.Namespace) -> None:
 
     print()
     for i, hex_code in enumerate(colors_hex):
-        print_color_block(hex_code, f"input {i + 1}")
+        print_color_block(hex_code, f"{MSG_BOLD_COLORS['info']}input{f'{i + 1}':>11}{RESET}")
 
     print()
 
     label_suffix = ""
 
-    if len(colors_hex) == 2 and amount != 50.0:
+    if len(colors_hex) == 2:
         label_suffix = f" {amount:g}%"
 
-    print_color_block(mixed_hex, f"result{label_suffix}")
+    print_color_block(mixed_hex, f"{MSG_BOLD_COLORS['info']}result{f'{label_suffix}':>10}{RESET}")
     print()
 
 
@@ -159,7 +164,7 @@ def get_mix_parser() -> argparse.ArgumentParser:
         "-cn", "--color-name",
         action="append",
         type=INPUT_HANDLERS["color_name"],
-        help="use -cn NAME multiple times for inputs by name from --list-color-names"
+        help="use -cn NAME multiple times for inputs by name"
     )
     parser.add_argument(
         "-di", "--decimal-index",

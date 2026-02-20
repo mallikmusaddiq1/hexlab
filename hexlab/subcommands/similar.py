@@ -158,7 +158,7 @@ def handle_similar_command(args: argparse.Namespace) -> None:
     for i, (hex_val, diff) in enumerate(similar_gen):
         found_any = True
    
-        label = f"{MSG_BOLD_COLORS['info']}similar{f'{i + 1}':>8}{RESET}"
+        label = f"{MSG_BOLD_COLORS['info']}similar{f'{i + 1}':>9}{RESET}"
         
         print_color_block(hex_val, label, end="")
       
