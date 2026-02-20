@@ -225,17 +225,31 @@ def print_color_and_info(
         wcag = get_wcag_contrast(l_rel)
         bg_ansi = f"\033[48;2;{r};{g};{b}m"
         reset = "\033[0m"
+        info_c = MSG_BOLD_COLORS['info']
+        succ_c = MSG_BOLD_COLORS['success']
+        err_c = MSG_BOLD_COLORS['error']
 
         line_1_block = f"{bg_ansi}\033[38;2;255;255;255m{'white':^16}{reset}"
         line_2_block = f"{bg_ansi}{'ㅤ' * 8}{reset}"
         line_3_block = f"{bg_ansi}\033[38;2;0;0;0m{'black':^16}{reset}"
 
-        s_white = f"{wcag['white']['ratio']:.2f}:1 {MSG_BOLD_COLORS['info']}(AA:{wcag['white']['levels']['AA']}, AAA:{wcag['white']['levels']['AAA']}){RESET}"
-        s_black = f"{wcag['black']['ratio']:.2f}:1 {MSG_BOLD_COLORS['info']}(AA:{wcag['black']['levels']['AA']}, AAA:{wcag['black']['levels']['AAA']}){RESET}"
+        def fmt_status(status: str) -> str:
+            if status == "Pass":
+                return f"{succ_c}Pass{info_c}"
+            return f"{err_c}Fail{info_c}"
+
+        w_aa = fmt_status(wcag['white']['levels']['AA'])
+        w_aaa = fmt_status(wcag['white']['levels']['AAA'])
+        b_aa = fmt_status(wcag['black']['levels']['AA'])
+        b_aaa = fmt_status(wcag['black']['levels']['AAA'])
+
+        s_white = f"{wcag['white']['ratio']:.2f}:1 {info_c}(AA:{w_aa}, AAA:{w_aaa}){RESET}"
+        s_black = f"{wcag['black']['ratio']:.2f}:1 {info_c}(AA:{b_aa}, AAA:{b_aaa}){RESET}"
 
         print(f"\n                      {line_1_block}  {s_white}")
         print(f"{MSG_BOLD_COLORS['info']}contrast{RESET}          :   {line_2_block}")
         print(f"                      {line_3_block}  {s_black}")
+
     print()
 
 def handle_color_command(args: argparse.Namespace) -> None:
