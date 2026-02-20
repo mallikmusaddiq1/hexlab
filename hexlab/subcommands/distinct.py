@@ -155,7 +155,7 @@ def handle_distinct_command(args: argparse.Namespace) -> None:
     metric_label = metric_map.get(metric, 'min-dist')
 
     for i, (hex_val, diff) in enumerate(distinct_gen):
-        label = f"{MSG_BOLD_COLORS['info']}distinct {i + 1}{RESET}"
+        label = f"{MSG_BOLD_COLORS['info']}distinct{f'{i + 1}':>8}{RESET}"
         
         print_color_block(hex_val, label, end="")
         

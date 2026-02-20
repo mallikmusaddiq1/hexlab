@@ -2,10 +2,8 @@
 #!/usr/bin/env python3
 
 import argparse
-import math
 import random
 import sys
-from typing import Tuple
 
 from .color_math.conversions import (
     hex_to_rgb,
@@ -23,10 +21,7 @@ from .color_math.conversions import (
 from .color_math.luminance import get_luminance
 from .color_math.wcag_contrast import get_wcag_contrast
 from .constants.constants import (
-    EPS,
-    LINEAR_TO_SRGB_TH,
     MAX_DEC,
-    SRGB_TO_LINEAR_TH,
     TECH_INFO_KEYS,
     __version__,
     MSG_BOLD_COLORS,
@@ -54,12 +49,9 @@ def _zero_small(v: float, threshold: float = 1e-4) -> float:
 
 def _draw_bar(val: float, max_val: float, r_c: int, g_c: int, b_c: int) -> str:
     total_len = 16
-    abs_val = abs(val)
-    if abs_val > max_val:
-        abs_val = max_val
+    abs_val = min(abs(val), max_val)
     percent = abs_val / max_val
-    filled = int(total_len * percent)
-    filled = max(0, min(total_len, filled))
+    filled = max(0, min(total_len, int(total_len * percent)))
     empty = total_len - filled
 
     color_ansi = f"\033[38;2;{r_c};{g_c};{b_c}m"
@@ -70,15 +62,9 @@ def _draw_bar(val: float, max_val: float, r_c: int, g_c: int, b_c: int) -> str:
     empty_char = "░"
 
     if val < 0:
-        bar_str = (
-            f"{empty_ansi}{empty_char * empty}{reset_ansi}"
-            f"{color_ansi}{block_char * filled}{reset_ansi}"
-        )
+        bar_str = f"{empty_ansi}{empty_char * empty}{reset_ansi}{color_ansi}{block_char * filled}{reset_ansi}"
     else:
-        bar_str = (
-            f"{color_ansi}{block_char * filled}{reset_ansi}"
-            f"{empty_ansi}{empty_char * empty}{reset_ansi}"
-        )
+        bar_str = f"{color_ansi}{block_char * filled}{reset_ansi}{empty_ansi}{empty_char * empty}{reset_ansi}"
 
     return bar_str
 
@@ -96,15 +82,12 @@ def print_color_and_info(
     hide_bars = getattr(args, 'hide_bars', False)
 
     if neighbors:
-        nxt = neighbors.get("next")
-        prv = neighbors.get("previous")
-        neg = neighbors.get("negative")
-        if nxt is not None:
-            print_color_block(nxt, "next")
-        if prv is not None:
-            print_color_block(prv, "previous")
-        if neg is not None:
-            print_color_block(neg, "negative")
+        print()
+        for key in ["next", "previous", "negative"]:
+            val = neighbors.get(key)
+            if val is not None:
+                colored_title = f"{MSG_BOLD_COLORS['info']}{key}{RESET}"
+                print_color_block(val, colored_title)
 
     r, g, b = hex_to_rgb(hex_code)
 
@@ -138,7 +121,8 @@ def print_color_and_info(
     arg_contrast = getattr(args, 'contrast', False)
 
     if getattr(args, 'index', False):
-        print(f"\n\n{MSG_BOLD_COLORS['info']}index{RESET}             : {MSG_COLORS['info']}{int(hex_code, 16)} / {MAX_DEC}{RESET}")
+        print(f"\n{MSG_BOLD_COLORS['info']}index{RESET}             : {MSG_COLORS['info']}{int(hex_code, 16)} / {MAX_DEC}{RESET}")
+    
     if getattr(args, 'name', False):
         name_or_hex = get_title_for_hex(hex_code)
         if not name_or_hex.startswith("#") and name_or_hex.lower() != "unknown":
@@ -199,8 +183,7 @@ def print_color_and_info(
             print(f"                    Z {_draw_bar(z / 100.0, 1.0, 60, 80, 255)}")
 
     if arg_lab:
-        a_comp_lab = _zero_small(a_lab)
-        b_comp_lab = _zero_small(b_lab)
+        a_comp_lab, b_comp_lab = _zero_small(a_lab), _zero_small(b_lab)
         print(f"\n{MSG_BOLD_COLORS['info']}lab{RESET}               : {format_colorspace('lab', l_lab, a_comp_lab, b_comp_lab)}")
         if not hide_bars:
             print(f"                    L {_draw_bar(l_lab / 100.0, 1.0, 200, 200, 200)}")
@@ -223,8 +206,7 @@ def print_color_and_info(
             print(f"                    V {_draw_bar(v_comp_luv, 100.0, 60, 60, 255)}")
 
     if arg_oklab:
-        a_comp_ok = _zero_small(a_ok)
-        b_comp_ok = _zero_small(b_ok)
+        a_comp_ok, b_comp_ok = _zero_small(a_ok), _zero_small(b_ok)
         print(f"\n{MSG_BOLD_COLORS['info']}oklab{RESET}             : {format_colorspace('oklab', l_ok, a_comp_ok, b_comp_ok)}")
         if not hide_bars:
             print(f"                    L {_draw_bar(l_ok, 1.0, 200, 200, 200)}")
@@ -240,37 +222,31 @@ def print_color_and_info(
             print(f"                    H {_draw_bar(h_oklch, 360, 255, 200, 0)}")
 
     if arg_contrast:
-        if not arg_lum:
-            l_rel = get_luminance(r, g, b)
         wcag = get_wcag_contrast(l_rel)
-
         bg_ansi = f"\033[48;2;{r};{g};{b}m"
-        fg_white = "\033[38;2;255;255;255m"
-        fg_black = "\033[38;2;0;0;0m"
         reset = "\033[0m"
 
-        line_1_block = f"{bg_ansi}{fg_white}{'white':^16}{reset}"
+        line_1_block = f"{bg_ansi}\033[38;2;255;255;255m{'white':^16}{reset}"
         line_2_block = f"{bg_ansi}{'ㅤ' * 8}{reset}"
-        line_3_block = f"{bg_ansi}{fg_black}{'black':^16}{reset}"
+        line_3_block = f"{bg_ansi}\033[38;2;0;0;0m{'black':^16}{reset}"
 
-        white_ratio = wcag['white']['ratio']
-        white_lvls = wcag['white']['levels']
-        black_ratio = wcag['black']['ratio']
-        black_lvls = wcag['black']['levels']
-
-        s_white = f"{white_ratio:.2f}:1 {MSG_BOLD_COLORS['info']}(AA:{white_lvls['AA']}, AAA:{white_lvls['AAA']}){RESET}"
-        s_black = f"{black_ratio:.2f}:1 {MSG_BOLD_COLORS['info']}(AA:{black_lvls['AA']}, AAA:{black_lvls['AAA']}){RESET}"
+        s_white = f"{wcag['white']['ratio']:.2f}:1 {MSG_BOLD_COLORS['info']}(AA:{wcag['white']['levels']['AA']}, AAA:{wcag['white']['levels']['AAA']}){RESET}"
+        s_black = f"{wcag['black']['ratio']:.2f}:1 {MSG_BOLD_COLORS['info']}(AA:{wcag['black']['levels']['AA']}, AAA:{wcag['black']['levels']['AAA']}){RESET}"
 
         print(f"\n                      {line_1_block}  {s_white}")
         print(f"{MSG_BOLD_COLORS['info']}contrast{RESET}          :   {line_2_block}")
         print(f"                      {line_3_block}  {s_black}")
     print()
 
-
 def handle_color_command(args: argparse.Namespace) -> None:
     if args.all_tech_infos:
         for key in TECH_INFO_KEYS:
             setattr(args, key, True)
+
+    if getattr(args, 'mods', False):
+        args.next = True
+        args.previous = True
+        args.negative = True
 
     clean_hex = None
     title = "current"
@@ -385,7 +361,6 @@ def main() -> None:
         type=INPUT_HANDLERS["decimal_index"],
         help=f"decimal index of the color (0 to {MAX_DEC})"
     )
-
     parser.add_argument(
         "-s", "--seed",
         type=INPUT_HANDLERS["seed"],
@@ -394,6 +369,12 @@ def main() -> None:
     )
 
     mod_group = parser.add_argument_group("color modifications")
+
+    mod_group.add_argument(
+        "-m", "--mods",
+        action="store_true",
+        help="show all color modifications"
+    )
     mod_group.add_argument(
         "-n", "--next",
         action="store_true",
