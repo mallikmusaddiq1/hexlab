@@ -94,7 +94,7 @@ def generate_similar_colors_streaming(
             cand_metric = _to_metric_space(cand_rgb, 'oklab')
             diff = delta_e_euclidean_oklab(base_metric_val, cand_metric)
         elif metric == 'rgb':
-            diff = delta_e_euclidean_rgb(base_rgb[0], base_rgb[1], base_rgb[2], nr_i, ng_i, nb_i)
+            diff = delta_e_euclidean_rgb(base_rgb, cand_rgb)
 
         if diff >= dedup_val:
             seen_hex.add(cand_hex)
@@ -219,7 +219,7 @@ def get_similar_parser() -> argparse.ArgumentParser:
         "-c", "--count",
         type=INPUT_HANDLERS["count_similar"],
         default=10,
-        help="number of similar colors to find (min: 2, max: 500, default: 10)"
+        help="number of similar colors to find (min: 2, max: 250, default: 10)"
     )
     parser.add_argument(
         "-s", "--seed",

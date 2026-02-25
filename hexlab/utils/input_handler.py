@@ -235,7 +235,7 @@ INPUT_HANDLERS = {
     "float_signed_360": handle_float_range(-360.0, 360.0),
 
     "count": handle_int_range(2, MAX_COUNT),
-    "count_similar": handle_int_range(2, 500),
+    "count_similar": handle_int_range(2, 250),
     "count_distinct": handle_int_range(2, 250),
     "seed": handle_int_range(0, 999_999_999_999_999_999),
     "steps": handle_int_range(1, MAX_STEPS),

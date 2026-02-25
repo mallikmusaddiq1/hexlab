@@ -251,6 +251,7 @@ def print_color_and_info(
 
     print()
 
+
 def handle_color_command(args: argparse.Namespace) -> None:
     if args.all_tech_infos:
         for key in TECH_INFO_KEYS:

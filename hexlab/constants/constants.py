@@ -5,6 +5,8 @@ MAX_DEC = 16777215
 MAX_STEPS = 1000
 MAX_COUNT = 100
 
+POW7_25 = 6103515625.0
+
 DEDUP_DELTA_E_LAB = 7.7
 DEDUP_DELTA_E_OKLAB = 0.077
 DEDUP_DELTA_E_RGB = 27
@@ -13,7 +15,7 @@ SRGB_TO_LINEAR_TH = 0.04045
 LINEAR_TO_SRGB_TH = 0.0031308
 EPS = 1e-12
 
-__version__ = "0.0.6"
+__version__ = "v0.0.6"
 
 # HEX_REGEX = re.compile(r"^(?:[0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})$")
 
