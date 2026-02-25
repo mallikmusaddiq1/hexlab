@@ -1,4 +1,3 @@
-# File: main.py
 #!/usr/bin/env python3
 
 import argparse
@@ -21,12 +20,15 @@ from .color_math.conversions import (
 from .color_math.luminance import get_luminance
 from .color_math.wcag_contrast import get_wcag_contrast
 from .constants.constants import (
-    MAX_DEC,
-    TECH_INFO_KEYS,
     __version__,
+    MAX_DEC,
+
+    # Standard ANSI Escape Codes for UI
     MSG_BOLD_COLORS,
     BOLD_WHITE,
-    RESET
+    RESET,
+
+    TECH_INFO_KEYS,
 )
 from .subcommands.registry import SUBCOMMANDS
 from .utils.color_names_handler import (
@@ -35,7 +37,6 @@ from .utils.color_names_handler import (
     resolve_color_name_or_exit,
 )
 from .utils.formatting import format_colorspace
-
 from .utils.hexlab_logger import log, HexlabArgumentParser
 from .utils.input_handler import INPUT_HANDLERS
 from .utils.print_color_block import print_color_block
@@ -43,10 +44,33 @@ from .utils.truecolor import ensure_truecolor
 
 
 def _zero_small(v: float, threshold: float = 1e-4) -> float:
+    """Zero out small floating-point values below a threshold.
+
+    This helps in cleaning up near-zero values for display purposes.
+
+    Args:
+        v (float): The value to check.
+        threshold (float, optional): The threshold below which to zero. Defaults to 1e-4.
+
+    Returns:
+        float: Zero if absolute value is <= threshold, else the original value.
+    """
     return 0.0 if abs(v) <= threshold else v
 
 
 def _draw_bar(val: float, max_val: float, r_c: int, g_c: int, b_c: int) -> str:
+    """Draw a ANSI-colored bar representation of a value.
+
+    Args:
+        val (float): The value to represent.
+        max_val (float): The maximum value for scaling.
+        r_c (int): Red component for bar color.
+        g_c (int): Green component for bar color.
+        b_c (int): Blue component for bar color.
+
+    Returns:
+        str: ANSI string representing the bar.
+    """
     total_len = 16
     abs_val = min(abs(val), max_val)
     percent = abs_val / max_val
@@ -61,9 +85,15 @@ def _draw_bar(val: float, max_val: float, r_c: int, g_c: int, b_c: int) -> str:
     empty_char = "░"
 
     if val < 0:
-        bar_str = f"{empty_ansi}{empty_char * empty}{reset_ansi}{color_ansi}{block_char * filled}{reset_ansi}"
+        bar_str = (
+            f"{empty_ansi}{empty_char * empty}{reset_ansi}"
+            f"{color_ansi}{block_char * filled}{reset_ansi}"
+        )
     else:
-        bar_str = f"{color_ansi}{block_char * filled}{reset_ansi}{empty_ansi}{empty_char * empty}{reset_ansi}"
+        bar_str = (
+            f"{color_ansi}{block_char * filled}{reset_ansi}"
+            f"{empty_ansi}{empty_char * empty}{reset_ansi}"
+        )
 
     return bar_str
 
@@ -75,10 +105,21 @@ def print_color_and_info(
     *,
     neighbors=None,
 ) -> None:
+    """Print color block and technical information based on arguments.
+
+    This function displays the color block and selected color space information,
+    optionally with visual bars unless hidden.
+
+    Args:
+        hex_code (str): The hex color code.
+        title (str): Title for the color block.
+        args (argparse.Namespace): Parsed command-line arguments.
+        neighbors (dict, optional): Dictionary of neighbor colors (next, previous, negative).
+    """
     print()
     print_color_block(hex_code, f"{BOLD_WHITE}{title}{RESET}")
 
-    hide_bars = getattr(args, 'hide_bars', False)
+    hide_bars = getattr(args, "hide_bars", False)
 
     if neighbors:
         print()
@@ -93,12 +134,12 @@ def print_color_and_info(
     x, y, z, l_lab, a_lab, b_lab = (0.0,) * 6
     l_ok, a_ok, b_ok = (0.0,) * 3
 
-    arg_xyz = getattr(args, 'xyz', False)
-    arg_lab = getattr(args, 'lab', False)
-    arg_lch = getattr(args, 'lch', False)
-    arg_cieluv = getattr(args, 'cieluv', False)
-    arg_oklab = getattr(args, 'oklab', False)
-    arg_oklch = getattr(args, 'oklch', False)
+    arg_xyz = getattr(args, "xyz", False)
+    arg_lab = getattr(args, "lab", False)
+    arg_lch = getattr(args, "lch", False)
+    arg_cieluv = getattr(args, "cieluv", False)
+    arg_oklab = getattr(args, "oklab", False)
+    arg_oklch = getattr(args, "oklch", False)
 
     needs_xyz = arg_xyz or arg_lab or arg_lch or arg_cieluv
     needs_lab = arg_lab or arg_lch
@@ -116,13 +157,15 @@ def print_color_and_info(
         u_comp_luv = _zero_small(u_uv)
         v_comp_luv = _zero_small(v_uv)
 
-    arg_lum = getattr(args, 'luminance', False)
-    arg_contrast = getattr(args, 'contrast', False)
+    arg_lum = getattr(args, "luminance", False)
+    arg_contrast = getattr(args, "contrast", False)
 
-    if getattr(args, 'index', False):
-        print(f"\n{MSG_BOLD_COLORS['info']}index{RESET}             {BOLD_WHITE}: {int(hex_code, 16)} / {MAX_DEC}{RESET}")
-    
-    if getattr(args, 'name', False):
+    if getattr(args, "index", False):
+        print(
+            f"\n{MSG_BOLD_COLORS['info']}index{RESET}             {BOLD_WHITE}: {int(hex_code, 16)} / {MAX_DEC}{RESET}"
+        )
+
+    if getattr(args, "name", False):
         name_or_hex = get_title_for_hex(hex_code)
         if not name_or_hex.startswith("#") and name_or_hex.lower() != "unknown":
             print(f"\n{MSG_BOLD_COLORS['info']}name{RESET}              {BOLD_WHITE}: {name_or_hex}{RESET}")
@@ -134,14 +177,14 @@ def print_color_and_info(
             if not hide_bars:
                 print(f"                    {BOLD_WHITE}L{RESET} {_draw_bar(l_rel, 1.0, 200, 200, 200)}")
 
-    if getattr(args, 'rgb', False):
+    if getattr(args, "rgb", False):
         print(f"\n{MSG_BOLD_COLORS['info']}rgb{RESET}               {BOLD_WHITE}: {format_colorspace('rgb', r, g, b)}{RESET}")
         if not hide_bars:
             print(f"                    {BOLD_WHITE}R{RESET} {_draw_bar(r, 255, 255, 60, 60)} {BOLD_WHITE}{(r / 255) * 100:6.2f}%{RESET}")
             print(f"                    {BOLD_WHITE}G{RESET} {_draw_bar(g, 255, 60, 255, 60)} {BOLD_WHITE}{(g / 255) * 100:6.2f}%{RESET}")
             print(f"                    {BOLD_WHITE}B{RESET} {_draw_bar(b, 255, 60, 80, 255)} {BOLD_WHITE}{(b / 255) * 100:6.2f}%{RESET}")
 
-    if getattr(args, 'hsl', False):
+    if getattr(args, "hsl", False):
         h, s, l_hsl = rgb_to_hsl(r, g, b)
         print(f"\n{MSG_BOLD_COLORS['info']}hsl{RESET}               {BOLD_WHITE}: {format_colorspace('hsl', h, s, l_hsl)}{RESET}")
         if not hide_bars:
@@ -149,7 +192,7 @@ def print_color_and_info(
             print(f"                    {BOLD_WHITE}S{RESET} {_draw_bar(s, 1.0, 0, 200, 255)}")
             print(f"                    {BOLD_WHITE}L{RESET} {_draw_bar(l_hsl, 1.0, 200, 200, 200)}")
 
-    if getattr(args, 'hsv', False):
+    if getattr(args, "hsv", False):
         h, s, v = rgb_to_hsv(r, g, b)
         print(f"\n{MSG_BOLD_COLORS['info']}hsv{RESET}               {BOLD_WHITE}: {format_colorspace('hsv', h, s, v)}{RESET}")
         if not hide_bars:
@@ -157,7 +200,7 @@ def print_color_and_info(
             print(f"                    {BOLD_WHITE}S{RESET} {_draw_bar(s, 1.0, 0, 200, 255)}")
             print(f"                    {BOLD_WHITE}V{RESET} {_draw_bar(v, 1.0, 200, 200, 200)}")
 
-    if getattr(args, 'hwb', False):
+    if getattr(args, "hwb", False):
         h, w, b_hwb = rgb_to_hwb(r, g, b)
         print(f"\n{MSG_BOLD_COLORS['info']}hwb{RESET}               {BOLD_WHITE}: {format_colorspace('hwb', h, w, b_hwb)}{RESET}")
         if not hide_bars:
@@ -165,7 +208,7 @@ def print_color_and_info(
             print(f"                    {BOLD_WHITE}W{RESET} {_draw_bar(w, 1.0, 200, 200, 200)}")
             print(f"                    {BOLD_WHITE}B{RESET} {_draw_bar(b_hwb, 1.0, 100, 100, 100)}")
 
-    if getattr(args, 'cmyk', False):
+    if getattr(args, "cmyk", False):
         c, m, y_cmyk, k = rgb_to_cmyk(r, g, b)
         print(f"\n{MSG_BOLD_COLORS['info']}cmyk{RESET}              {BOLD_WHITE}: {format_colorspace('cmyk', c, m, y_cmyk, k)}{RESET}")
         if not hide_bars:
@@ -224,9 +267,9 @@ def print_color_and_info(
         wcag = get_wcag_contrast(l_rel)
         bg_ansi = f"\033[48;2;{r};{g};{b}m"
         reset = "\033[0m"
-        info_c = MSG_BOLD_COLORS['info']
-        succ_c = MSG_BOLD_COLORS['success']
-        err_c = MSG_BOLD_COLORS['error']
+        info_c = MSG_BOLD_COLORS["info"]
+        succ_c = MSG_BOLD_COLORS["success"]
+        err_c = MSG_BOLD_COLORS["error"]
 
         line_1_block = f"{bg_ansi}\033[1;38;2;255;255;255m{f'white':^16}{reset}"
         line_2_block = f"{bg_ansi}{'ㅤ' * 8}{reset}"
@@ -237,10 +280,10 @@ def print_color_and_info(
                 return f"{succ_c}Pass{info_c}"
             return f"{err_c}Fail{info_c}"
 
-        w_aa = fmt_status(wcag['white']['levels']['AA'])
-        w_aaa = fmt_status(wcag['white']['levels']['AAA'])
-        b_aa = fmt_status(wcag['black']['levels']['AA'])
-        b_aaa = fmt_status(wcag['black']['levels']['AAA'])
+        w_aa = fmt_status(wcag["white"]["levels"]["AA"])
+        w_aaa = fmt_status(wcag["white"]["levels"]["AAA"])
+        b_aa = fmt_status(wcag["black"]["levels"]["AA"])
+        b_aaa = fmt_status(wcag["black"]["levels"]["AAA"])
 
         s_white = f"{wcag['white']['ratio']:5.2f}:1 {info_c}(AA:{w_aa}, AAA:{w_aaa}){RESET}"
         s_black = f"{wcag['black']['ratio']:5.2f}:1 {info_c}(AA:{b_aa}, AAA:{b_aaa}){RESET}"
@@ -253,11 +296,19 @@ def print_color_and_info(
 
 
 def handle_color_command(args: argparse.Namespace) -> None:
+    """Handle the core color command logic.
+
+    Processes input color source, sets display options, computes neighbors if requested,
+    and calls the print function.
+
+    Args:
+        args (argparse.Namespace): Parsed arguments.
+    """
     if args.all_tech_infos:
         for key in TECH_INFO_KEYS:
             setattr(args, key, True)
 
-    if getattr(args, 'mods', False):
+    if getattr(args, "mods", False):
         args.next = True
         args.previous = True
         args.negative = True
@@ -283,10 +334,10 @@ def handle_color_command(args: argparse.Namespace) -> None:
         title = get_title_for_hex(clean_hex, f"index {idx}")
     else:
         log(
-            'error',
-            "one of the arguments -H/--hex -r/--random -cn/--color-name -di/--decimal-index is required"
+            "error",
+            "one of the arguments -H/--hex -r/--random -cn/--color-name -di/--decimal-index is required",
         )
-        log('info', "use 'hexlab --help' for more information")
+        log("info", "use 'hexlab --help' for more information")
         sys.exit(2)
 
     current_dec = int(clean_hex, 16)
@@ -309,6 +360,10 @@ def handle_color_command(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
+    """Main entry point for hexlab CLI.
+
+    Handles subcommand routing, argument parsing, and core command execution.
+    """
     if len(sys.argv) > 1:
         cmd = sys.argv[1].lower()
         if cmd in SUBCOMMANDS:
@@ -321,190 +376,216 @@ def main() -> None:
         prog="hexlab",
         description="hexlab: a feature-rich color exploration and manipulation tool",
         formatter_class=argparse.RawTextHelpFormatter,
-        add_help=False
+        add_help=False,
     )
 
     parser.add_argument(
-        '-h', '--help',
-        action='help',
+        "-h",
+        "--help",
+        action="help",
         default=argparse.SUPPRESS,
-        help='show this help message and exit'
+        help="show this help message and exit",
     )
     parser.add_argument(
-        "-v", "--version",
+        "-v",
+        "--version",
         action="version",
         version=f"hexlab {__version__}",
-        help="show program version and exit"
+        help="show program version and exit",
     )
     parser.add_argument(
-        "-hf", "--help-full",
+        "-hf",
+        "--help-full",
         action="store_true",
-        help="show full help message including subcommands"
+        help="show full help message including subcommands",
     )
 
     parser.add_argument(
         "--list-color-names",
-        nargs='?',
-        const='text',
+        nargs="?",
+        const="text",
         default=None,
-        choices=['text', 'json', 'prettyjson'],
+        choices=["text", "json", "prettyjson"],
         type=INPUT_HANDLERS["color_name"],
-        help="list available color names and exit"
+        help="list available color names and exit",
     )
 
     color_input_group = parser.add_mutually_exclusive_group()
     color_input_group.add_argument(
-        "-H", "--hex",
+        "-H",
+        "--hex",
         dest="hex",
         type=INPUT_HANDLERS["hex"],
-        help="6-digit hex color code without # sign"
+        help="6-digit hex color code without # sign",
     )
     color_input_group.add_argument(
-        "-r", "--random",
+        "-r",
+        "--random",
         action="store_true",
-        help="generate a random hex color"
+        help="generate a random hex color",
     )
     color_input_group.add_argument(
-        "-cn", "--color-name",
+        "-cn",
+        "--color-name",
         type=INPUT_HANDLERS["color_name"],
-        help="color names from 'hexlab --list-color-names'"
+        help="color names from 'hexlab --list-color-names'",
     )
     color_input_group.add_argument(
-        "-di", "--decimal-index",
+        "-di",
+        "--decimal-index",
         dest="decimal_index",
         type=INPUT_HANDLERS["decimal_index"],
-        help=f"decimal index of the color (0 to {MAX_DEC})"
+        help=f"decimal index of the color (0 to {MAX_DEC})",
     )
     parser.add_argument(
-        "-s", "--seed",
+        "-s",
+        "--seed",
         type=INPUT_HANDLERS["seed"],
         default=None,
-        help="seed for reproducibility of random"
+        help="seed for reproducibility of random",
     )
 
     mod_group = parser.add_argument_group("color modifications")
 
     mod_group.add_argument(
-        "-m", "--mods",
+        "-m",
+        "--mods",
         action="store_true",
-        help="show all color modifications"
+        help="show all color modifications",
     )
     mod_group.add_argument(
-        "-n", "--next",
+        "-n",
+        "--next",
         action="store_true",
-        help="show the next color"
+        help="show the next color",
     )
     mod_group.add_argument(
-        "-p", "--previous",
+        "-p",
+        "--previous",
         action="store_true",
-        help="show the previous color"
+        help="show the previous color",
     )
     mod_group.add_argument(
-        "-N", "--negative",
+        "-N",
+        "--negative",
         action="store_true",
-        help="show the inverse color"
+        help="show the inverse color",
     )
 
     info_group = parser.add_argument_group("technical information flags")
     info_group.add_argument(
-        '-all', '--all-tech-infos',
+        "-all",
+        "--all-tech-infos",
         action="store_true",
-        help="show all technical information"
+        help="show all technical information",
     )
     info_group.add_argument(
-        "-hb", "--hide-bars",
+        "-hb",
+        "--hide-bars",
         action="store_true",
-        help="hide visual color bars"
+        help="hide visual color bars",
     )
 
     info_group.add_argument(
-        "-i", "--index",
+        "-i",
+        "--index",
         action="store_true",
-        help="show decimal index"
+        help="show decimal index",
     )
     info_group.add_argument(
-        "-rgb", "--red-green-blue",
+        "-rgb",
+        "--red-green-blue",
         action="store_true",
         dest="rgb",
-        help="show RGB values"
+        help="show RGB values",
     )
     info_group.add_argument(
-        "-l", "--luminance",
+        "-l",
+        "--luminance",
         action="store_true",
-        help="show relative luminance"
+        help="show relative luminance",
     )
     info_group.add_argument(
-        "-hsl", "--hue-saturation-lightness",
+        "-hsl",
+        "--hue-saturation-lightness",
         action="store_true",
         dest="hsl",
-        help="show HSL values"
+        help="show HSL values",
     )
     info_group.add_argument(
-        "-hsv", "--hue-saturation-value",
+        "-hsv",
+        "--hue-saturation-value",
         action="store_true",
         dest="hsv",
-        help="show HSV values"
+        help="show HSV values",
     )
     info_group.add_argument(
-        "-hwb", "--hue-whiteness-blackness",
+        "-hwb",
+        "--hue-whiteness-blackness",
         action="store_true",
         dest="hwb",
-        help="show HWB values"
+        help="show HWB values",
     )
     info_group.add_argument(
-        "-cmyk", "--cyan-magenta-yellow-key",
+        "-cmyk",
+        "--cyan-magenta-yellow-key",
         action="store_true",
         dest="cmyk",
-        help="show CMYK values"
+        help="show CMYK values",
     )
     info_group.add_argument(
-        "-xyz", "--ciexyz",
+        "-xyz",
+        "--ciexyz",
         dest="xyz",
         action="store_true",
-        help="show CIE 1931 XYZ values"
+        help="show CIE 1931 XYZ values",
     )
     info_group.add_argument(
-        "-lab", "--cielab",
+        "-lab",
+        "--cielab",
         dest="lab",
         action="store_true",
-        help="show CIE 1976 LAB values"
+        help="show CIE 1976 LAB values",
     )
     info_group.add_argument(
-        "-lch", "--lightness-chroma-hue",
+        "-lch",
+        "--lightness-chroma-hue",
         action="store_true",
         dest="lch",
-        help="show CIE 1976 LCH values"
+        help="show CIE 1976 LCH values",
     )
     info_group.add_argument(
-        "--cieluv", "-luv",
+        "--cieluv",
+        "-luv",
         action="store_true",
         dest="cieluv",
-        help="show CIE 1976 LUV values"
+        help="show CIE 1976 LUV values",
     )
     info_group.add_argument(
         "--oklab",
         action="store_true",
         dest="oklab",
-        help="show OKLAB values"
+        help="show OKLAB values",
     )
     info_group.add_argument(
         "--oklch",
         action="store_true",
         dest="oklch",
-        help="show OKLCH values"
+        help="show OKLCH values",
     )
     info_group.add_argument(
-        "-wcag", "--contrast",
+        "-wcag",
+        "--contrast",
         action="store_true",
-        help="show WCAG contrast ratio"
+        help="show WCAG contrast ratio",
     )
     info_group.add_argument(
         "--name",
         action="store_true",
-        help="show color name if available in --list-color-names"
+        help="show color name if available in --list-color-names",
     )
 
-    parser.add_argument("command", nargs='?', help=argparse.SUPPRESS)
+    parser.add_argument("command", nargs="?", help=argparse.SUPPRESS)
 
     args = parser.parse_args()
 
@@ -519,14 +600,14 @@ def main() -> None:
                 getter = getattr(module, f"get_{name}_parser")
                 getter().print_help()
             except AttributeError:
-                log('info', f"help for '{name}' not available")
+                log("info", f"help for '{name}' not available")
         sys.exit(0)
 
     if args.command:
         if args.command.lower() in SUBCOMMANDS:
-            log('error', f"the '{args.command}' command must be the first argument")
+            log("error", f"the '{args.command}' command must be the first argument")
         else:
-            log('error', f"unrecognized command or argument: '{args.command}'")
+            log("error", f"unrecognized command or argument: '{args.command}'")
         sys.exit(2)
 
     ensure_truecolor()

@@ -91,6 +91,49 @@ LUV_Z_U_MULT = 3.0
 LUV_Z_V_MULT = 20.0
 LUV_L_THR = 8.0
 
+# Constants for OKLab color space conversions
+# Source: https://bottosson.github.io/posts/oklab/
+# D65 mid gray in sRGB (18% gray)
+OKLAB_D65_MID_GRAY = 0.18
+
+# XYZ to LMS matrix coefficients
+OKLAB_XYZ_TO_LMS_RR = 0.4122214708
+OKLAB_XYZ_TO_LMS_RG = 0.5363325363
+OKLAB_XYZ_TO_LMS_RB = 0.0514459929
+OKLAB_XYZ_TO_LMS_GR = 0.2119034982
+OKLAB_XYZ_TO_LMS_GG = 0.6806995451
+OKLAB_XYZ_TO_LMS_GB = 0.1073969566
+OKLAB_XYZ_TO_LMS_BR = 0.0883024619
+OKLAB_XYZ_TO_LMS_BG = 0.2817188376
+OKLAB_XYZ_TO_LMS_BB = 0.6299787005
+
+# LMS to Lab matrix coefficients
+OKLAB_LMS_TO_LAB_LL = 0.2104542553
+OKLAB_LMS_TO_LAB_LM = 0.7936177850
+OKLAB_LMS_TO_LAB_LS = -0.0040720468
+
+# OKLab to LMS' matrix coefficients
+OKLAB_TO_LMS_PRIME_LA = 0.3963377774
+OKLAB_TO_LMS_PRIME_LB = 0.2158037573
+OKLAB_TO_LMS_PRIME_MA = -0.1055613458
+OKLAB_TO_LMS_PRIME_MB = -0.0638541728
+OKLAB_TO_LMS_PRIME_SA = -0.0894841775
+OKLAB_TO_LMS_PRIME_SB = -1.2914855480
+
+# LMS' to XYZ matrix coefficients (inverse of XYZ to LMS)
+OKLAB_LMS_PRIME_TO_XYZ_RL = 4.0767416621
+OKLAB_LMS_PRIME_TO_XYZ_RM = -3.3077115913
+OKLAB_LMS_PRIME_TO_XYZ_RS = 0.2309699292
+OKLAB_LMS_PRIME_TO_XYZ_GL = -1.2684380046
+OKLAB_LMS_PRIME_TO_XYZ_GM = 2.6097574011
+OKLAB_LMS_PRIME_TO_XYZ_GS = -0.3413193965
+OKLAB_LMS_PRIME_TO_XYZ_BL = -0.0041960863
+OKLAB_LMS_PRIME_TO_XYZ_BM = -0.7034186147
+OKLAB_LMS_PRIME_TO_XYZ_BS = 1.7076147010
+
+# Cube root exponent
+OKLAB_CUBE_ROOT_EXP = 1.0 / 3.0
+
 # ==========================================
 # Application Logic & Constraints
 # ==========================================
@@ -107,6 +150,87 @@ POW7_25 = 6103515625.0
 DEDUP_DELTA_E_LAB = 7.7
 DEDUP_DELTA_E_OKLAB = 0.077
 DEDUP_DELTA_E_RGB = 27
+
+# ==========================================
+# Adjustment Constants
+# ==========================================
+
+# RGB clamping tolerance for gamut check
+RGB_CLAMP_TOLERANCE_LOWER = -0.5
+RGB_CLAMP_TOLERANCE_UPPER = 255.5
+
+# Binary search iterations for gamut mapping
+GAMUT_MAP_BINARY_SEARCH_ITERATIONS = 20
+
+# Vibrance normalization max chroma
+VIBRANCE_NORMALIZATION_MAX_CHROMA = 0.4  # Empirical value for chroma scaling in OKLCH
+
+# Sepia filter matrix coefficients
+# Source: Standard sepia tone transformation matrix
+SEPIA_RR = 0.393
+SEPIA_RG = 0.769
+SEPIA_RB = 0.189
+SEPIA_GR = 0.349
+SEPIA_GG = 0.686
+SEPIA_GB = 0.168
+SEPIA_BR = 0.272
+SEPIA_BG = 0.534
+SEPIA_BB = 0.131
+
+# Warm/cool adjustment scales
+WARM_OKLAB_A_SCALE = 2000.0  # Empirical denominator for warmth a-component
+WARM_OKLAB_B_SCALE = 1000.0  # Empirical denominator for warmth b-component
+
+# Posterize min/max levels
+POSTERIZE_MIN_LEVELS = 2
+POSTERIZE_MAX_LEVELS = 256
+
+# Threshold default colors
+THRESHOLD_DEFAULT_LOW = "000000"
+THRESHOLD_DEFAULT_HIGH = "FFFFFF"
+
+# Tint default strength
+TINT_DEFAULT_STRENGTH = 20.0
+
+# Exposure stops scale
+EXPOSURE_STOPS_SCALE = 10.0  # 10% = 1 stop
+
+# WCAG contrast constants
+# Source: https://www.w3.org/TR/WCAG21/#dfn-contrast-ratio
+WCAG_LUMINANCE_OFFSET = 0.05
+WCAG_MIN_RATIO = 1.0
+WCAG_MAX_RATIO = 21.0
+
+# Binary search iterations for contrast adjustment
+CONTRAST_BINARY_SEARCH_ITERATIONS = 30
+
+# Channel adjustment min/max
+CHANNEL_MIN = -255
+CHANNEL_MAX = 255
+
+# Small epsilon for contrast check
+CONTRAST_EPS = 1e-9
+
+# Average components divisor
+AVG_DIVISOR = 3.0
+
+# Contrast min abs for skip
+CONTRAST_MIN_ABS = 1e-8
+
+# Gamma min value
+GAMMA_MIN = 0.0
+
+# Luminance lock epsilon
+LUM_LOCK_EPS = 1e-9
+
+# Saturation epsilon
+SAT_EPS = 1e-5
+
+# Percent to factor divisor
+PERCENT_TO_FACTOR = 100.0
+
+# RGB to sRGB scale
+RGB_TO_SRGB_SCALE = 255.0
 
 # ==========================================
 # CLI UI & Data Structures

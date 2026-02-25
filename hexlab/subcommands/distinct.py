@@ -1,4 +1,3 @@
-# File: distinct.py
 #!/usr/bin/env python3
 
 import argparse
@@ -21,7 +20,7 @@ from ..constants.constants import (
     MAX_DEC,
     MSG_BOLD_COLORS,
     RESET,
-    BOLD_WHITE
+    BOLD_WHITE,
 )
 from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
 from ..utils.hexlab_logger import log, HexlabArgumentParser
@@ -33,6 +32,11 @@ CANDIDATES_PER_STEP = 200
 
 
 def _generate_random_rgb() -> Tuple[int, int, int]:
+    """Generate a random RGB color.
+
+    Returns:
+        Tuple[int, int, int]: Random RGB values.
+    """
     val = random.randint(0, MAX_DEC)
     r = (val >> 16) & 0xFF
     g = (val >> 8) & 0xFF
@@ -41,9 +45,18 @@ def _generate_random_rgb() -> Tuple[int, int, int]:
 
 
 def _to_metric_space(rgb: Tuple[int, int, int], metric: str):
-    if metric == 'rgb':
+    """Convert RGB to the specified metric space.
+
+    Args:
+        rgb (Tuple[int, int, int]): RGB values.
+        metric (str): Metric space ('rgb', 'oklab', or 'lab').
+
+    Returns:
+        Tuple: Values in the metric space.
+    """
+    if metric == "rgb":
         return rgb
-    elif metric == 'oklab':
+    elif metric == "oklab":
         return rgb_to_oklab(*rgb)
     else:
         x, y, z = rgb_to_xyz(*rgb)
@@ -53,27 +66,40 @@ def _to_metric_space(rgb: Tuple[int, int, int], metric: str):
 def generate_distinct_colors_greedy(
     base_rgb: Tuple[int, int, int],
     n: int = 5,
-    metric: str = 'oklab',
-    candidates_per_step: int = CANDIDATES_PER_STEP
+    metric: str = "oklab",
+    candidates_per_step: int = CANDIDATES_PER_STEP,
 ) -> Generator[Tuple[str, float], None, None]:
-    
+    """Generate distinct colors using a greedy algorithm.
+
+    Starts with base color and iteratively adds the most distant candidate.
+
+    Args:
+        base_rgb (Tuple[int, int, int]): Base RGB color.
+        n (int, optional): Number of distinct colors to generate. Defaults to 5.
+        metric (str, optional): Distance metric ('oklab', 'lab', 'rgb'). Defaults to 'oklab'.
+        candidates_per_step (int, optional): Candidates to evaluate per step. Defaults to 200.
+
+    Yields:
+        Generator[Tuple[str, float], None, None]: Hex code and min distance for each new color.
+    """
     base_metric_val = _to_metric_space(base_rgb, metric)
-    
-    selected_data = [(base_metric_val, base_rgb)]
-    
-    is_euclidean = (metric in ['rgb', 'oklab'])
+
+    selected_data: List[Tuple[Tuple, Tuple[int, int, int]]] = [
+        (base_metric_val, base_rgb)
+    ]
+
+    is_euclidean = metric in ["rgb", "oklab"]
 
     for _ in range(n):
         best_candidate_rgb = None
-        
-        max_min_dist_val = -1.0 
+        max_min_dist_val = -1.0
 
         for _ in range(candidates_per_step):
             cand_rgb = _generate_random_rgb()
             cand_metric = _to_metric_space(cand_rgb, metric)
-            
-            min_dist_for_this_cand = float('inf')
-            
+
+            min_dist_for_this_cand = float("inf")
+
             stop_early = False
 
             if is_euclidean:
@@ -81,11 +107,11 @@ def generate_distinct_colors_greedy(
                     d0 = cand_metric[0] - existing_metric[0]
                     d1 = cand_metric[1] - existing_metric[1]
                     d2 = cand_metric[2] - existing_metric[2]
-                    d_sq = d0*d0 + d1*d1 + d2*d2
-                    
+                    d_sq = d0 * d0 + d1 * d1 + d2 * d2
+
                     if d_sq < min_dist_for_this_cand:
                         min_dist_for_this_cand = d_sq
-                    
+
                     if min_dist_for_this_cand < max_min_dist_val:
                         stop_early = True
                         break
@@ -108,15 +134,22 @@ def generate_distinct_colors_greedy(
 
         if best_candidate_rgb:
             selected_data.append((best_candidate_metric, best_candidate_rgb))
-            
+
             final_dist = max_min_dist_val
             if is_euclidean:
                 final_dist = math.sqrt(max_min_dist_val)
-                
+
             yield (rgb_to_hex(*best_candidate_rgb), final_dist)
 
 
 def handle_distinct_command(args: argparse.Namespace) -> None:
+    """Handle the distinct command logic.
+
+    Processes input, generates distinct colors, and prints them.
+
+    Args:
+        args (argparse.Namespace): Parsed arguments.
+    """
     clean_hex = None
     title = "base color"
     if args.seed is not None:
@@ -140,25 +173,25 @@ def handle_distinct_command(args: argparse.Namespace) -> None:
     print()
     print_color_block(clean_hex, f"{BOLD_WHITE}{title}{RESET}")
     print()
-    
+
     base_rgb = hex_to_rgb(clean_hex)
     metric = args.distance_metric
-    
+
     distinct_gen = generate_distinct_colors_greedy(
         base_rgb,
         n=args.count,
         metric=metric,
-        candidates_per_step=CANDIDATES_PER_STEP
+        candidates_per_step=CANDIDATES_PER_STEP,
     )
 
-    metric_map = {'lab': 'ΔE(2000)', 'oklab': 'ΔE(OKLAB)', 'rgb': 'ΔE(RGB)'}
-    metric_label = metric_map.get(metric, 'min-dist')
+    metric_map = {"lab": "ΔE(2000)", "oklab": "ΔE(OKLAB)", "rgb": "ΔE(RGB)"}
+    metric_label = metric_map.get(metric, "min-dist")
 
     for i, (hex_val, diff) in enumerate(distinct_gen):
         label = f"{MSG_BOLD_COLORS['info']}distinct{f'{i + 1}':>8}{RESET}"
-        
+
         print_color_block(hex_val, label, end="")
-        
+
         print(f"  {MSG_BOLD_COLORS['info']}({metric_label}: {diff:5.2f}){RESET}")
         sys.stdout.flush()
 
@@ -166,57 +199,70 @@ def handle_distinct_command(args: argparse.Namespace) -> None:
 
 
 def get_distinct_parser() -> argparse.ArgumentParser:
+    """Create argument parser for distinct command.
+
+    Returns:
+        argparse.ArgumentParser: Configured parser.
+    """
     parser = HexlabArgumentParser(
         prog="hexlab distinct",
         description="hexlab distinct: generate visually distinct colors",
-        formatter_class=argparse.RawTextHelpFormatter
+        formatter_class=argparse.RawTextHelpFormatter,
     )
     input_group = parser.add_mutually_exclusive_group(required=True)
     input_group.add_argument(
-        "-H", "--hex",
+        "-H",
+        "--hex",
         dest="hex",
         type=INPUT_HANDLERS["hex"],
-        help="base hex code"
+        help="base hex code",
     )
     input_group.add_argument(
-        "-r", "--random",
+        "-r",
+        "--random",
         action="store_true",
-        help="use a random base"
+        help="use a random base",
     )
     input_group.add_argument(
-        "-cn", "--color-name",
+        "-cn",
+        "--color-name",
         type=INPUT_HANDLERS["color_name"],
-        help="base color name"
+        help="base color name",
     )
     input_group.add_argument(
-        "-di", "--decimal-index",
+        "-di",
+        "--decimal-index",
         type=INPUT_HANDLERS["decimal_index"],
-        help="base decimal index"
+        help="base decimal index",
     )
     parser.add_argument(
-        "-dm", "--distance-metric",
+        "-dm",
+        "--distance-metric",
         type=INPUT_HANDLERS["distance_metric"],
-        default='oklab',
+        default="oklab",
         help="distance metric: oklab lab rgb (default: oklab)",
-        choices=['lab', 'oklab', 'rgb']
+        choices=["lab", "oklab", "rgb"],
     )
     parser.add_argument(
-        "-c", "--count",
+        "-c",
+        "--count",
         type=INPUT_HANDLERS["count_distinct"],
         default=10,
-        help="number of distinct colors to generate (min: 2, max: 250, default: 10)"
+        help="number of distinct colors to generate (min: 2, max: 250, default: 10)",
     )
     parser.add_argument(
-        "-s", "--seed",
+        "-s",
+        "--seed",
         type=INPUT_HANDLERS["seed"],
         default=None,
-        help="seed for reproducibility of random"
+        help="seed for reproducibility of random",
     )
-    
+
     return parser
 
 
 def main() -> None:
+    """Main entry point for distinct command."""
     parser = get_distinct_parser()
     args = parser.parse_args(sys.argv[1:])
     ensure_truecolor()

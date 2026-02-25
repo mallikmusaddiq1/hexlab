@@ -25,12 +25,138 @@ from ..color_math.conversions import (
 from ..color_math.luminance import get_luminance
 from ..color_math.wcag_contrast import _wcag_contrast_ratio_from_rgb
 from ..constants.constants import (
-    EPS,
+
     MAX_DEC,
+
+    # Floating-point precision and division-by-zero safety
+    EPS,
+
+    # Image processing and color adjustment sequence
     PIPELINE,
+
+    # Standard ANSI Escape Codes for UI
     BOLD_WHITE,
     MSG_BOLD_COLORS,
-    RESET
+    RESET,
+
+    # Constants for OKLab color space conversions
+    # Source: https://bottosson.github.io/posts/oklab/
+    # D65 mid gray in sRGB (18% gray)
+    OKLAB_D65_MID_GRAY,
+
+    # XYZ to LMS matrix coefficients
+    OKLAB_XYZ_TO_LMS_RR,
+    OKLAB_XYZ_TO_LMS_RG,
+    OKLAB_XYZ_TO_LMS_RB,
+    OKLAB_XYZ_TO_LMS_GR,
+    OKLAB_XYZ_TO_LMS_GG,
+    OKLAB_XYZ_TO_LMS_GB,
+    OKLAB_XYZ_TO_LMS_BR,
+    OKLAB_XYZ_TO_LMS_BG,
+    OKLAB_XYZ_TO_LMS_BB,
+
+    # LMS to Lab matrix coefficients
+    OKLAB_LMS_TO_LAB_LL,
+    OKLAB_LMS_TO_LAB_LM,
+    OKLAB_LMS_TO_LAB_LS,
+
+    # OKLab to LMS' matrix coefficients
+    OKLAB_TO_LMS_PRIME_LA,
+    OKLAB_TO_LMS_PRIME_LB,
+    OKLAB_TO_LMS_PRIME_MA,
+    OKLAB_TO_LMS_PRIME_MB,
+    OKLAB_TO_LMS_PRIME_SA,
+    OKLAB_TO_LMS_PRIME_SB,
+
+    # LMS' to XYZ matrix coefficients (inverse of XYZ to LMS)
+    OKLAB_LMS_PRIME_TO_XYZ_RL,
+    OKLAB_LMS_PRIME_TO_XYZ_RM,
+    OKLAB_LMS_PRIME_TO_XYZ_RS,
+    OKLAB_LMS_PRIME_TO_XYZ_GL,
+    OKLAB_LMS_PRIME_TO_XYZ_GM,
+    OKLAB_LMS_PRIME_TO_XYZ_GS,
+    OKLAB_LMS_PRIME_TO_XYZ_BL,
+    OKLAB_LMS_PRIME_TO_XYZ_BM,
+    OKLAB_LMS_PRIME_TO_XYZ_BS,
+
+    # Cube root exponent
+    OKLAB_CUBE_ROOT_EXP,
+
+    # RGB clamping tolerance for gamut check
+    RGB_CLAMP_TOLERANCE_LOWER,
+    RGB_CLAMP_TOLERANCE_UPPER,
+
+    # Binary search iterations for gamut mapping
+    GAMUT_MAP_BINARY_SEARCH_ITERATIONS,
+
+    # Vibrance normalization max chroma
+    VIBRANCE_NORMALIZATION_MAX_CHROMA,  # Empirical value for chroma scaling in OKLCH
+
+    # Sepia filter matrix coefficients
+    # Source: Standard sepia tone transformation matrix
+    SEPIA_RR,
+    SEPIA_RG,
+    SEPIA_RB,
+    SEPIA_GR,
+    SEPIA_GG,
+    SEPIA_GB,
+    SEPIA_BR,
+    SEPIA_BG,
+    SEPIA_BB,
+
+    # Warm/cool adjustment scales
+    WARM_OKLAB_A_SCALE,  # Empirical denominator for warmth a-component
+    WARM_OKLAB_B_SCALE,  # Empirical denominator for warmth b-component
+
+    # Posterize min/max levels
+    POSTERIZE_MIN_LEVELS,
+    POSTERIZE_MAX_LEVELS,
+
+    # Threshold default colors
+    THRESHOLD_DEFAULT_LOW,
+    THRESHOLD_DEFAULT_HIGH,
+
+    # Tint default strength
+    TINT_DEFAULT_STRENGTH,
+
+    # Exposure stops scale
+    EXPOSURE_STOPS_SCALE,  # 10% = 1 stop
+
+    # WCAG contrast constants
+    WCAG_LUMINANCE_OFFSET,
+    WCAG_MIN_RATIO,
+    WCAG_MAX_RATIO,
+
+    # Binary search iterations for contrast adjustment
+    CONTRAST_BINARY_SEARCH_ITERATIONS,
+
+    # Channel adjustment min/max
+    CHANNEL_MIN,
+    CHANNEL_MAX,
+
+    # Small epsilon for contrast check
+    CONTRAST_EPS,
+
+    # Average components divisor
+    AVG_DIVISOR,
+
+    # Contrast min abs for skip
+    CONTRAST_MIN_ABS,
+
+    # Gamma min value
+    GAMMA_MIN,
+
+    # Luminance lock epsilon
+    LUM_LOCK_EPS,
+
+    # Saturation epsilon
+    SAT_EPS,
+
+    # Percent to factor divisor
+    PERCENT_TO_FACTOR,
+
+    # RGB to sRGB scale
+    RGB_TO_SRGB_SCALE,
 )
 from ..utils.clamping import _clamp01, _clamp255
 from ..utils.color_names_handler import (
@@ -44,63 +170,143 @@ from ..utils.truecolor import ensure_truecolor
 
 
 def _get_oklab_mid_gray() -> float:
-    g = 0.18
-    l_lin = 0.4122214708 * g + 0.5363325363 * g + 0.0514459929 * g
-    m_lin = 0.2119034982 * g + 0.6806995451 * g + 0.1073969566 * g
-    s_lin = 0.0883024619 * g + 0.2817188376 * g + 0.6299787005 * g
+    """Calculate the OKLab lightness value for mid-gray (18% gray in sRGB).
 
-    l_root = l_lin ** (1.0 / 3.0)
-    m_root = m_lin ** (1.0 / 3.0)
-    s_root = s_lin ** (1.0 / 3.0)
+    This function computes the perceptual lightness L in OKLab for a mid-gray point
+    under D65 illuminant.
 
-    return 0.2104542553 * l_root + 0.7936177850 * m_root - 0.0040720468 * s_root
+    Returns:
+        float: OKLab L value for mid-gray.
+    """
+    # Apply XYZ to LMS transformation
+    l_lin = (
+        OKLAB_XYZ_TO_LMS_RR * OKLAB_D65_MID_GRAY
+        + OKLAB_XYZ_TO_LMS_RG * OKLAB_D65_MID_GRAY
+        + OKLAB_XYZ_TO_LMS_RB * OKLAB_D65_MID_GRAY
+    )
+    m_lin = (
+        OKLAB_XYZ_TO_LMS_GR * OKLAB_D65_MID_GRAY
+        + OKLAB_XYZ_TO_LMS_GG * OKLAB_D65_MID_GRAY
+        + OKLAB_XYZ_TO_LMS_GB * OKLAB_D65_MID_GRAY
+    )
+    s_lin = (
+        OKLAB_XYZ_TO_LMS_BR * OKLAB_D65_MID_GRAY
+        + OKLAB_XYZ_TO_LMS_BG * OKLAB_D65_MID_GRAY
+        + OKLAB_XYZ_TO_LMS_BB * OKLAB_D65_MID_GRAY
+    )
+
+    # Take cube roots
+    l_root = l_lin**OKLAB_CUBE_ROOT_EXP
+    m_root = m_lin**OKLAB_CUBE_ROOT_EXP
+    s_root = s_lin**OKLAB_CUBE_ROOT_EXP
+
+    # Compute L using LMS to Lab coefficients
+    return (
+        OKLAB_LMS_TO_LAB_LL * l_root
+        + OKLAB_LMS_TO_LAB_LM * m_root
+        + OKLAB_LMS_TO_LAB_LS * s_root
+    )
 
 
 OKLAB_MID_GRAY_L = _get_oklab_mid_gray()
 
 
 def _oklab_to_rgb_unclamped(l: float, a: float, b: float) -> Tuple[float, float, float]:
-    l_ = l + 0.3963377774 * a + 0.2158037573 * b
-    m_ = l - 0.1055613458 * a - 0.0638541728 * b
-    s_ = l - 0.0894841775 * a - 1.2914855480 * b
+    """Convert OKLab (L, a, b) to unclamped RGB values.
 
-    l3 = l_ ** 3
-    m3 = m_ ** 3
-    s3 = s_ ** 3
+    This function applies the inverse transformation from OKLab to sRGB without clamping.
 
-    rl = 4.0767416621 * l3 - 3.3077115913 * m3 + 0.2309699292 * s3
-    gl = -1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3
-    bl = -0.0041960863 * l3 - 0.7034186147 * m3 + 1.7076147010 * s3
+    Args:
+        l (float): Lightness component.
+        a (float): a component (green-red).
+        b (float): b component (blue-yellow).
 
+    Returns:
+        Tuple[float, float, float]: Unclamped RGB values (0-255 scale).
+    """
+    # Transform to LMS'
+    l_ = l + OKLAB_TO_LMS_PRIME_LA * a + OKLAB_TO_LMS_PRIME_LB * b
+    m_ = l + OKLAB_TO_LMS_PRIME_MA * a + OKLAB_TO_LMS_PRIME_MB * b
+    s_ = l + OKLAB_TO_LMS_PRIME_SA * a + OKLAB_TO_LMS_PRIME_SB * b
+
+    # Cube the values
+    l3 = l_**3
+    m3 = m_**3
+    s3 = s_**3
+
+    # Transform to linear RGB
+    rl = (
+        OKLAB_LMS_PRIME_TO_XYZ_RL * l3
+        + OKLAB_LMS_PRIME_TO_XYZ_RM * m3
+        + OKLAB_LMS_PRIME_TO_XYZ_RS * s3
+    )
+    gl = (
+        OKLAB_LMS_PRIME_TO_XYZ_GL * l3
+        + OKLAB_LMS_PRIME_TO_XYZ_GM * m3
+        + OKLAB_LMS_PRIME_TO_XYZ_GS * s3
+    )
+    bl = (
+        OKLAB_LMS_PRIME_TO_XYZ_BL * l3
+        + OKLAB_LMS_PRIME_TO_XYZ_BM * m3
+        + OKLAB_LMS_PRIME_TO_XYZ_BS * s3
+    )
+
+    # Convert to sRGB and scale to 0-255
     return (
-        _linear_to_srgb(rl) * 255.0,
-        _linear_to_srgb(gl) * 255.0,
-        _linear_to_srgb(bl) * 255.0,
+        _linear_to_srgb(rl) * RGB_TO_SRGB_SCALE,
+        _linear_to_srgb(gl) * RGB_TO_SRGB_SCALE,
+        _linear_to_srgb(bl) * RGB_TO_SRGB_SCALE,
     )
 
 
 def _gamut_map_oklab_to_srgb(l: float, a: float, b: float) -> Tuple[float, float, float]:
+    """Map OKLab color to sRGB gamut using chroma clipping.
+
+    This function performs binary search to find the maximum chroma that fits within
+    the sRGB gamut for the given lightness and hue.
+
+    Args:
+        l (float): Lightness.
+        a (float): a component.
+        b (float): b component.
+
+    Returns:
+        Tuple[float, float, float]: Clamped RGB values in sRGB gamut.
+    """
+    # Convert to unclamped RGB
     fr, fg, fb = _oklab_to_rgb_unclamped(l, a, b)
 
-    if -0.5 <= fr <= 255.5 and -0.5 <= fg <= 255.5 and -0.5 <= fb <= 255.5:
+    # Check if already in gamut (with tolerance)
+    if (
+        RGB_CLAMP_TOLERANCE_LOWER <= fr <= RGB_CLAMP_TOLERANCE_UPPER
+        and RGB_CLAMP_TOLERANCE_LOWER <= fg <= RGB_CLAMP_TOLERANCE_UPPER
+        and RGB_CLAMP_TOLERANCE_LOWER <= fb <= RGB_CLAMP_TOLERANCE_UPPER
+    ):
         return _clamp255(fr), _clamp255(fg), _clamp255(fb)
 
+    # Compute chroma
     C = math.hypot(a, b)
     if C < EPS:
         return _clamp255(fr), _clamp255(fg), _clamp255(fb)
 
+    # Compute hue angle
     h_rad = math.atan2(b, a)
+
+    # Binary search for maximum in-gamut chroma
     low = 0.0
     high = C
     best_rgb = (fr, fg, fb)
-
-    for _ in range(20):
+    for _ in range(GAMUT_MAP_BINARY_SEARCH_ITERATIONS):
         mid_C = (low + high) / 2.0
         new_a = mid_C * math.cos(h_rad)
         new_b = mid_C * math.sin(h_rad)
         tr, tg, tb = _oklab_to_rgb_unclamped(l, new_a, new_b)
 
-        if -0.5 <= tr <= 255.5 and -0.5 <= tg <= 255.5 and -0.5 <= tb <= 255.5:
+        if (
+            RGB_CLAMP_TOLERANCE_LOWER <= tr <= RGB_CLAMP_TOLERANCE_UPPER
+            and RGB_CLAMP_TOLERANCE_LOWER <= tg <= RGB_CLAMP_TOLERANCE_UPPER
+            and RGB_CLAMP_TOLERANCE_LOWER <= tb <= RGB_CLAMP_TOLERANCE_UPPER
+        ):
             best_rgb = (tr, tg, tb)
             low = mid_C
         else:
@@ -110,9 +316,21 @@ def _gamut_map_oklab_to_srgb(l: float, a: float, b: float) -> Tuple[float, float
 
 
 def _finalize_rgb(fr: float, fg: float, fb: float) -> Tuple[int, int, int]:
-    l, a, bk = rgb_to_oklab(fr, fg, fb)
-    fr_mapped, fg_mapped, fb_mapped = _gamut_map_oklab_to_srgb(l, a, bk)
+    """Finalize RGB values by mapping to sRGB gamut and rounding to integers.
 
+    Args:
+        fr (float): Red component.
+        fg (float): Green component.
+        fb (float): Blue component.
+
+    Returns:
+        Tuple[int, int, int]: Final integer RGB values (0-255).
+    """
+    # Convert to OKLab
+    l, a, bk = rgb_to_oklab(fr, fg, fb)
+    # Map to gamut
+    fr_mapped, fg_mapped, fb_mapped = _gamut_map_oklab_to_srgb(l, a, bk)
+    # Round and clamp
     return (
         max(0, min(255, int(round(fr_mapped)))),
         max(0, min(255, int(round(fg_mapped)))),
@@ -123,21 +341,47 @@ def _finalize_rgb(fr: float, fg: float, fb: float) -> Tuple[int, int, int]:
 def _apply_linear_gain_rgb(
     fr: float, fg: float, fb: float, factor: float
 ) -> Tuple[float, float, float]:
+    """Apply linear gain to RGB in linear space.
+
+    Args:
+        fr (float): Red.
+        fg (float): Green.
+        fb (float): Blue.
+        factor (float): Gain factor.
+
+    Returns:
+        Tuple[float, float, float]: Adjusted RGB.
+    """
+    # Convert to linear
     rl, gl, bl = _srgb_to_linear(fr), _srgb_to_linear(fg), _srgb_to_linear(fb)
+    # Apply factor and clamp
     rl = _clamp01(rl * factor)
     gl = _clamp01(gl * factor)
     bl = _clamp01(bl * factor)
+    # Back to sRGB
     return (
-        _linear_to_srgb(rl) * 255.0,
-        _linear_to_srgb(gl) * 255.0,
-        _linear_to_srgb(bl) * 255.0,
+        _linear_to_srgb(rl) * RGB_TO_SRGB_SCALE,
+        _linear_to_srgb(gl) * RGB_TO_SRGB_SCALE,
+        _linear_to_srgb(bl) * RGB_TO_SRGB_SCALE,
     )
 
 
 def _apply_srgb_brightness(
     fr: float, fg: float, fb: float, amount: float
 ) -> Tuple[float, float, float]:
-    factor = 1.0 + (amount / 100.0)
+    """Apply brightness adjustment in sRGB space.
+
+    Args:
+        fr (float): Red.
+        fg (float): Green.
+        fb (float): Blue.
+        amount (float): Adjustment percentage.
+
+    Returns:
+        Tuple[float, float, float]: Adjusted RGB.
+    """
+    factor = 1.0 + (amount / PERCENT_TO_FACTOR)
+    # Scale and clamp
     fr = _clamp255(fr * factor)
     fg = _clamp255(fg * factor)
     fb = _clamp255(fb * factor)
@@ -147,86 +391,164 @@ def _apply_srgb_brightness(
 def _apply_linear_contrast_rgb(
     fr: float, fg: float, fb: float, contrast_amount: float
 ) -> Tuple[float, float, float]:
-    c = max(-100.0, min(100.0, float(contrast_amount)))
-    if abs(c) < 1e-8:
+    """Apply contrast adjustment in linear space using OKLab.
+
+    Args:
+        fr (float): Red.
+        fg (float): Green.
+        fb (float): Blue.
+        contrast_amount (float): Contrast percentage (-100 to 100).
+
+    Returns:
+        Tuple[float, float, float]: Adjusted RGB.
+    """
+    # Clamp contrast
+    c = max(-PERCENT_TO_FACTOR, min(PERCENT_TO_FACTOR, float(contrast_amount)))
+    if abs(c) < CONTRAST_MIN_ABS:
         return fr, fg, fb
+    # Convert to OKLab
     l_ok, a_ok, b_ok = rgb_to_oklab(fr, fg, fb)
-    k = 1.0 + (c / 100.0)
+    # Compute scale
+    k = 1.0 + (c / PERCENT_TO_FACTOR)
     l_mid = OKLAB_MID_GRAY_L
+    # Adjust lightness around mid-gray
     l_new = l_mid + (l_ok - l_mid) * k
     l_new = _clamp01(l_new)
+    # Map back to RGB
     return _gamut_map_oklab_to_srgb(l_new, a_ok, b_ok)
 
 
 def _apply_opacity_on_black(
     fr: float, fg: float, fb: float, opacity_percent: float
 ) -> Tuple[float, float, float]:
-    alpha = _clamp01(opacity_percent / 100.0)
+    """Apply opacity by blending with black in linear space.
+
+    Args:
+        fr (float): Red.
+        fg (float): Green.
+        fb (float): Blue.
+        opacity_percent (float): Opacity (0-100).
+
+    Returns:
+        Tuple[float, float, float]: Adjusted RGB.
+    """
+    alpha = _clamp01(opacity_percent / PERCENT_TO_FACTOR)
+    # To linear
     rl, gl, bl = _srgb_to_linear(fr), _srgb_to_linear(fg), _srgb_to_linear(fb)
+    # Blend with black (multiply by alpha)
     rl *= alpha
     gl *= alpha
     bl *= alpha
+    # Back to sRGB
     return (
-        _linear_to_srgb(rl) * 255.0,
-        _linear_to_srgb(gl) * 255.0,
-        _linear_to_srgb(bl) * 255.0,
+        _linear_to_srgb(rl) * RGB_TO_SRGB_SCALE,
+        _linear_to_srgb(gl) * RGB_TO_SRGB_SCALE,
+        _linear_to_srgb(bl) * RGB_TO_SRGB_SCALE,
     )
 
 
 def _lock_relative_luminance(
     fr: float, fg: float, fb: float, base_Y: float
 ) -> Tuple[float, float, float]:
+    """Lock relative luminance by scaling in linear space.
+
+    Args:
+        fr (float): Red.
+        fg (float): Green.
+        fb (float): Blue.
+        base_Y (float): Target relative luminance.
+
+    Returns:
+        Tuple[float, float, float]: Adjusted RGB.
+    """
+    # Compute current luminance
     curr_Y = get_luminance(int(round(fr)), int(round(fg)), int(round(fb)))
-    if curr_Y <= 0.0 or base_Y <= 0.0 or abs(curr_Y - base_Y) < 1e-9:
+    if curr_Y <= 0.0 or base_Y <= 0.0 or abs(curr_Y - base_Y) < LUM_LOCK_EPS:
         return fr, fg, fb
+    # Scale factor
     scale = base_Y / curr_Y
+    # To linear, scale, clamp
     rl = _srgb_to_linear(fr) * scale
     gl = _srgb_to_linear(fg) * scale
     bl = _srgb_to_linear(fb) * scale
     rl = _clamp01(rl)
     gl = _clamp01(gl)
     bl = _clamp01(bl)
+    # Back to sRGB
     return (
-        _linear_to_srgb(rl) * 255.0,
-        _linear_to_srgb(gl) * 255.0,
-        _linear_to_srgb(bl) * 255.0,
+        _linear_to_srgb(rl) * RGB_TO_SRGB_SCALE,
+        _linear_to_srgb(gl) * RGB_TO_SRGB_SCALE,
+        _linear_to_srgb(bl) * RGB_TO_SRGB_SCALE,
     )
 
 
 def _apply_gamma(
     fr: float, fg: float, fb: float, gamma: float
 ) -> Tuple[float, float, float]:
-    if gamma <= 0.0:
+    """Apply gamma correction in linear space.
+
+    Args:
+        fr (float): Red.
+        fg (float): Green.
+        fb (float): Blue.
+        gamma (float): Gamma value (>0).
+
+    Returns:
+        Tuple[float, float, float]: Adjusted RGB.
+    """
+    if gamma <= GAMMA_MIN:
         return fr, fg, fb
+    # To linear
     rl = _srgb_to_linear(fr)
     gl = _srgb_to_linear(fg)
     bl = _srgb_to_linear(fb)
+    # Apply inverse gamma
     inv_gamma = 1.0 / gamma
-    rl = _clamp01(rl ** inv_gamma)
-    gl = _clamp01(gl ** inv_gamma)
-    bl = _clamp01(bl ** inv_gamma)
+    rl = _clamp01(rl**inv_gamma)
+    gl = _clamp01(gl**inv_gamma)
+    bl = _clamp01(bl**inv_gamma)
+    # Back to sRGB
     return (
-        _linear_to_srgb(rl) * 255.0,
-        _linear_to_srgb(gl) * 255.0,
-        _linear_to_srgb(bl) * 255.0,
+        _linear_to_srgb(rl) * RGB_TO_SRGB_SCALE,
+        _linear_to_srgb(gl) * RGB_TO_SRGB_SCALE,
+        _linear_to_srgb(bl) * RGB_TO_SRGB_SCALE,
     )
 
 
 def _apply_vibrance_oklch(
     fr: float, fg: float, fb: float, amount: float
 ) -> Tuple[float, float, float]:
+    """Apply vibrance adjustment in OKLCH space.
+
+    Vibrance boosts low-chroma colors more than high-chroma ones.
+
+    Args:
+        fr (float): Red.
+        fg (float): Green.
+        fb (float): Blue.
+        amount (float): Vibrance percentage (-100 to 100).
+
+    Returns:
+        Tuple[float, float, float]: Adjusted RGB.
+    """
+    # To OKLCH
     l_ok, c_ok, h_ok = rgb_to_oklch(fr, fg, fb)
     if c_ok <= 0.0:
         return fr, fg, fb
-    v = amount / 100.0
-    c_norm = min(c_ok / 0.4, 1.0)
+    v = amount / PERCENT_TO_FACTOR
+    # Normalize chroma
+    c_norm = min(c_ok / VIBRANCE_NORMALIZATION_MAX_CHROMA, 1.0)
+    # Compute scale based on sign of v
     if v > 0.0:
         scale = 1.0 + v * (1.0 - c_norm)
     else:
         scale = 1.0 + v * c_norm
+    # Ensure non-negative
     if scale < 0.0:
         scale = 0.0
+    # New chroma
     c_new = c_ok * scale
+    # Back to RGB, then OKLab for gamut map
     fr2, fg2, fb2 = oklch_to_rgb(l_ok, c_new, h_ok)
     l_final, a_final, b_final = rgb_to_oklab(fr2, fg2, fb2)
     return _gamut_map_oklab_to_srgb(l_final, a_final, b_final)
@@ -235,8 +557,22 @@ def _apply_vibrance_oklch(
 def _posterize_rgb(
     fr: float, fg: float, fb: float, levels: int
 ) -> Tuple[float, float, float]:
-    levels = max(2, min(256, int(abs(levels))))
-    step = 255.0 / float(levels - 1)
+    """Posterize RGB to specified levels.
+
+    Args:
+        fr (float): Red.
+        fg (float): Green.
+        fb (float): Blue.
+        levels (int): Number of levels (2-256).
+
+    Returns:
+        Tuple[float, float, float]: Posterized RGB.
+    """
+    # Clamp levels
+    levels = max(POSTERIZE_MIN_LEVELS, min(POSTERIZE_MAX_LEVELS, int(abs(levels))))
+    # Step size
+    step = RGB_TO_SRGB_SCALE / float(levels - 1)
+    # Round to nearest step
     fr2 = round(fr / step) * step
     fg2 = round(fg / step) * step
     fb2 = round(fb / step) * step
@@ -246,56 +582,112 @@ def _posterize_rgb(
 def _solarize_smart(
     fr: float, fg: float, fb: float, threshold_percent: float
 ) -> Tuple[float, float, float]:
-    t_perceptual = _clamp01(threshold_percent / 100.0)
+    """Apply solarization based on perceptual lightness threshold.
+
+    Inverts colors above the threshold in linear space.
+
+    Args:
+        fr (float): Red.
+        fg (float): Green.
+        fb (float): Blue.
+        threshold_percent (float): Threshold (0-100).
+
+    Returns:
+        Tuple[float, float, float]: Solarized RGB.
+    """
+    t_perceptual = _clamp01(threshold_percent / PERCENT_TO_FACTOR)
+    # Get OKLab L
     l_ok, _, _ = rgb_to_oklab(fr, fg, fb)
+    # To linear
     rl, gl, bl = _srgb_to_linear(fr), _srgb_to_linear(fg), _srgb_to_linear(fb)
+    # Invert if above threshold
     if l_ok > t_perceptual:
         rl = 1.0 - rl
         gl = 1.0 - gl
         bl = 1.0 - bl
-    fr2 = _linear_to_srgb(rl) * 255.0
-    fg2 = _linear_to_srgb(gl) * 255.0
-    fb2 = _linear_to_srgb(bl) * 255.0
+    # Back to sRGB
+    fr2 = _linear_to_srgb(rl) * RGB_TO_SRGB_SCALE
+    fg2 = _linear_to_srgb(gl) * RGB_TO_SRGB_SCALE
+    fb2 = _linear_to_srgb(bl) * RGB_TO_SRGB_SCALE
     return _clamp255(fr2), _clamp255(fg2), _clamp255(fb2)
 
 
 def _tint_oklab(
     fr: float, fg: float, fb: float, tint_hex: str, strength_percent: float
 ) -> Tuple[float, float, float]:
+    """Apply tint towards a target color in OKLab space.
+
+    Linearly interpolates between current and tint color.
+
+    Args:
+        fr (float): Red.
+        fg (float): Green.
+        fb (float): Blue.
+        tint_hex (str): Tint color hex.
+        strength_percent (float): Strength (0-100).
+
+    Returns:
+        Tuple[float, float, float]: Tinted RGB.
+    """
     tr, tg, tb = hex_to_rgb(tint_hex)
+    # Current OKLab
     l1, a1, b1 = rgb_to_oklab(fr, fg, fb)
+    # Tint OKLab
     l2, a2, b2 = rgb_to_oklab(float(tr), float(tg), float(tb))
-    alpha = _clamp01(strength_percent / 100.0)
+    alpha = _clamp01(strength_percent / PERCENT_TO_FACTOR)
+    # Lerp components
     l = l1 * (1.0 - alpha) + l2 * alpha
     a = a1 * (1.0 - alpha) + a2 * alpha
     b = b1 * (1.0 - alpha) + b2 * alpha
+    # Map to gamut
     return _gamut_map_oklab_to_srgb(l, a, b)
 
 
 def _ensure_min_contrast_with(
     fr: float, fg: float, fb: float, bg_hex: str, min_ratio: float
 ) -> Tuple[float, float, float, bool]:
-    min_ratio = max(1.0, min(21.0, float(min_ratio)))
+    """Ensure minimum WCAG contrast ratio by adjusting lightness.
+
+    Adjusts the color's OKLab L to meet the contrast ratio against background.
+
+    Args:
+        fr (float): Red.
+        fg (float): Green.
+        fb (float): Blue.
+        bg_hex (str): Background hex.
+        min_ratio (float): Minimum ratio (1-21).
+
+    Returns:
+        Tuple[float, float, float, bool]: Adjusted RGB and change flag.
+    """
+    # Clamp ratio
+    min_ratio = max(WCAG_MIN_RATIO, min(WCAG_MAX_RATIO, float(min_ratio)))
     br_i, bg_i, bb_i = hex_to_rgb(bg_hex)
     br, bg, bb = float(br_i), float(bg_i), float(bb_i)
 
+    # Current contrast
     current_ratio = _wcag_contrast_ratio_from_rgb(fr, fg, fb, br, bg, bb)
     if current_ratio >= min_ratio:
         return fr, fg, fb, False
 
+    # Current OKLab
     l0, a0, b0 = rgb_to_oklab(fr, fg, fb)
+    # Background luminance
     bg_Y = get_luminance(br_i, bg_i, bb_i)
 
-    Y_light = min_ratio * (bg_Y + 0.05) - 0.05
-    Y_dark = (bg_Y + 0.05) / min_ratio - 0.05
+    # Target luminances for light and dark
+    Y_light = min_ratio * (bg_Y + WCAG_LUMINANCE_OFFSET) - WCAG_LUMINANCE_OFFSET
+    Y_dark = (bg_Y + WCAG_LUMINANCE_OFFSET) / min_ratio - WCAG_LUMINANCE_OFFSET
 
     def _find_color_for_target_Y(target_Y: float):
+        """Binary search for OKLab L that matches target Y."""
         target_Y = _clamp01(target_Y)
         low, high = 0.0, 1.0
-        for _ in range(30):
+        for _ in range(CONTRAST_BINARY_SEARCH_ITERATIONS):
             mid = (low + high) / 2.0
             fr_mid, fg_mid, fb_mid = _oklab_to_rgb_unclamped(mid, a0, b0)
 
+            # Round for luminance calc
             r_check = max(0, min(255, int(round(fr_mid))))
             g_check = max(0, min(255, int(round(fg_mid))))
             b_check = max(0, min(255, int(round(fb_mid))))
@@ -312,13 +704,17 @@ def _ensure_min_contrast_with(
 
     candidates = []
 
+    # Light candidate
     if 0.0 <= Y_light <= 1.0:
-        l_light, fr_light, fg_light, fb_light, ratio_light = _find_color_for_target_Y(Y_light)
+        l_light, fr_light, fg_light, fb_light, ratio_light = _find_color_for_target_Y(
+            Y_light
+        )
         if ratio_light >= min_ratio:
             candidates.append(
                 (abs(l_light - l0), l_light, fr_light, fg_light, fb_light, ratio_light)
             )
 
+    # Dark candidate
     if 0.0 <= Y_dark <= 1.0:
         l_dark, fr_dark, fg_dark, fb_dark, ratio_dark = _find_color_for_target_Y(Y_dark)
         if ratio_dark >= min_ratio:
@@ -327,26 +723,43 @@ def _ensure_min_contrast_with(
             )
 
     if not candidates:
+        # Fallback to black or white
         black_ratio = _wcag_contrast_ratio_from_rgb(0.0, 0.0, 0.0, br, bg, bb)
-        white_ratio = _wcag_contrast_ratio_from_rgb(255.0, 255.0, 255.0, br, bg, bb)
+        white_ratio = _wcag_contrast_ratio_from_rgb(
+            RGB_TO_SRGB_SCALE,
+            RGB_TO_SRGB_SCALE,
+            RGB_TO_SRGB_SCALE,
+            br,
+            bg,
+            bb,
+        )
         best_rgb = (fr, fg, fb)
         best_ratio = current_ratio
         if black_ratio >= min_ratio and black_ratio >= best_ratio:
             best_rgb = (0.0, 0.0, 0.0)
             best_ratio = black_ratio
         if white_ratio >= min_ratio and white_ratio >= best_ratio:
-            best_rgb = (255.0, 255.0, 255.0)
+            best_rgb = (RGB_TO_SRGB_SCALE, RGB_TO_SRGB_SCALE, RGB_TO_SRGB_SCALE)
             best_ratio = white_ratio
         if best_ratio > current_ratio:
             return best_rgb[0], best_rgb[1], best_rgb[2], True
         return fr, fg, fb, False
 
+    # Select closest to original L
     candidates.sort(key=lambda x: x[0])
     _, _, fr_best, fg_best, fb_best, _ = candidates[0]
     return fr_best, fg_best, fb_best, True
 
 
 def _format_steps(mods):
+    """Format modification steps for logging.
+
+    Args:
+        mods: List of (label, value) tuples.
+
+    Returns:
+        List of formatted strings.
+    """
     parts = []
     for label, val in mods:
         if val:
@@ -357,26 +770,50 @@ def _format_steps(mods):
 
 
 def _print_steps(mods, verbose: bool) -> None:
+    """Print adjustment steps if verbose.
+
+    Args:
+        mods: List of modifications.
+        verbose (bool): Whether to print.
+    """
     if not verbose:
         return
     if not mods:
         log("info", "steps: no adjustments applied yet")
         return
-    
+
     parts = _format_steps(mods)
-    
+
     log("info", "steps:")
     for i, part in enumerate(parts, 1):
         print(f"{MSG_COLORS['info']}    {i}. {part}")
 
 
 def _sanitize_rgb(fr: float, fg: float, fb: float) -> Tuple[float, float, float]:
+    """Sanitize RGB values, handling NaN/inf.
+
+    Args:
+        fr (float): Red.
+        fg (float): Green.
+        fb (float): Blue.
+
+    Returns:
+        Tuple[float, float, float]: Sanitized RGB.
+    """
     if not (math.isfinite(fr) and math.isfinite(fg) and math.isfinite(fb)):
         fr, fg, fb = 0.0, 0.0, 0.0
     return _clamp255(fr), _clamp255(fg), _clamp255(fb)
 
 
 def _get_custom_pipeline_order(parser) -> list:
+    """Get custom pipeline order from CLI arguments.
+
+    Args:
+        parser: Argument parser.
+
+    Returns:
+        list: Ordered operations.
+    """
     flag_map = {}
     for action in parser._actions:
         for opt in action.option_strings:
@@ -414,19 +851,16 @@ def _get_custom_pipeline_order(parser) -> list:
         "lock_luminance": "lock_luminance",
         "lock_rel_luminance": "lock_rel_luminance",
         "target_rel_lum": "target_rel_lum",
-        # note: map min-contrast flags to "min_contrast" op (handled below)
         "min_contrast_with": "min_contrast",
         "min_contrast": "min_contrast",
-        # include alias dests if any
     }
 
     order = []
     seen = set()
-    # iterate through CLI args (skip program name)
     for arg in sys.argv[1:]:
-        if not arg.startswith('-'):
+        if not arg.startswith("-"):
             continue
-        key = arg.split('=')[0]
+        key = arg.split("=")[0]
         dest = flag_map.get(key)
         if not dest:
             continue
@@ -441,6 +875,13 @@ def _get_custom_pipeline_order(parser) -> list:
 
 
 def handle_adjust_command(args: argparse.Namespace) -> None:
+    """Handle the adjust command logic.
+
+    Processes input color, applies adjustments in pipeline order, and outputs result.
+
+    Args:
+        args: Parsed arguments.
+    """
     if args.seed is not None:
         random.seed(args.seed)
 
@@ -456,7 +897,7 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
         log(
             "error",
             "conflicting luminance locks: use only one of --lock-luminance,"
-            "--lock-rel-luminance or --target-rel-lum"
+            "--lock-rel-luminance or --target-rel-lum",
         )
         sys.exit(2)
 
@@ -476,7 +917,7 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
     elif args.color_name:
         base_hex = resolve_color_name_or_exit(args.color_name)
         title = get_title_for_hex(base_hex)
-        if title.lower() == 'unknown':
+        if title.lower() == "unknown":
             title = args.color_name
     elif args.hex:
         base_hex, title = args.hex, get_title_for_hex(args.hex)
@@ -510,26 +951,26 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
     fr, fg, fb = _sanitize_rgb(fr, fg, fb)
 
     for op in pipeline:
-        # Har step ke shuru mein current hex capture karein
+        # Capture current hex at start of each step
         curr_hex = rgb_to_hex(fr, fg, fb)
         src_info = f"from #{curr_hex}"
 
         if op == "invert" and args.invert:
-            fr, fg, fb = 255.0 - fr, 255.0 - fg, 255.0 - fb
+            fr, fg, fb = RGB_TO_SRGB_SCALE - fr, RGB_TO_SRGB_SCALE - fg, RGB_TO_SRGB_SCALE - fb
             mods.append(("invert", src_info))
 
         elif op == "grayscale" and args.grayscale:
             l_ok, a_ok, b_ok = rgb_to_oklab(fr, fg, fb)
             fr, fg, fb = oklab_to_rgb(l_ok, 0.0, 0.0)
-            avg = (fr + fg + fb) / 3.0
+            avg = (fr + fg + fb) / AVG_DIVISOR
             fr = fg = fb = avg
             fr, fg, fb = _clamp255(fr), _clamp255(fg), _clamp255(fb)
             mods.append(("grayscale", src_info))
 
         elif op == "sepia" and args.sepia:
-            tr = fr * 0.393 + fg * 0.769 + fb * 0.189
-            tg = fr * 0.349 + fg * 0.686 + fb * 0.168
-            tb = fr * 0.272 + fg * 0.534 + fb * 0.131
+            tr = fr * SEPIA_RR + fg * SEPIA_RG + fb * SEPIA_RB
+            tg = fr * SEPIA_GR + fg * SEPIA_GG + fb * SEPIA_GB
+            tb = fr * SEPIA_BR + fg * SEPIA_BG + fb * SEPIA_BB
             fr, fg, fb = _clamp255(tr), _clamp255(tg), _clamp255(tb)
             mods.append(("sepia", src_info))
 
@@ -545,7 +986,7 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
             mods.append(("hue-rotate-oklch", f"{args.rotate_oklch:+.2f}deg {src_info}"))
 
         elif op == "brightness" and args.brightness is not None:
-            factor = 1.0 + (args.brightness / 100.0)
+            factor = 1.0 + (args.brightness / PERCENT_TO_FACTOR)
             fr, fg, fb = _apply_linear_gain_rgb(fr, fg, fb, factor)
             mods.append(("brightness-linear", f"{args.brightness:+.2f}% {src_info}"))
 
@@ -562,54 +1003,54 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
             mods.append(("gamma-linear", f"{args.gamma:.2f} {src_info}"))
 
         elif op == "exposure" and getattr(args, "exposure", None) is not None:
-            factor = 2.0 ** (float(args.exposure) / 10.0)
+            factor = 2.0 ** (float(args.exposure) / EXPOSURE_STOPS_SCALE)
             fr, fg, fb = _apply_linear_gain_rgb(fr, fg, fb, factor)
             mods.append(("exposure-stops", f"{args.exposure:+.2f} {src_info}"))
 
         elif op == "lighten" and args.lighten is not None:
             h, s, l_hsl = rgb_to_hsl(fr, fg, fb)
-            amount = args.lighten / 100.0
+            amount = args.lighten / PERCENT_TO_FACTOR
             l_new = _clamp01(l_hsl + (1.0 - l_hsl) * amount)
             fr, fg, fb = hsl_to_rgb(h, s, l_new)
             mods.append(("lighten", f"+{args.lighten:.2f}% {src_info}"))
 
         elif op == "darken" and args.darken is not None:
             h, s, l_hsl = rgb_to_hsl(fr, fg, fb)
-            amount = args.darken / 100.0
+            amount = args.darken / PERCENT_TO_FACTOR
             l_new = _clamp01(l_hsl * (1.0 - amount))
             fr, fg, fb = hsl_to_rgb(h, s, l_new)
             mods.append(("darken", f"-{args.darken:.2f}% {src_info}"))
 
         elif op == "saturate" and args.saturate is not None:
             h, s, l_hsl = rgb_to_hsl(fr, fg, fb)
-            if s > 1e-5:
-                amount = args.saturate / 100.0
+            if s > SAT_EPS:
+                amount = args.saturate / PERCENT_TO_FACTOR
                 s_new = _clamp01(s + (1.0 - s) * amount)
                 fr, fg, fb = hsl_to_rgb(h, s_new, l_hsl)
             mods.append(("saturate", f"+{args.saturate:.2f}% {src_info}"))
 
         elif op == "desaturate" and args.desaturate is not None:
             h, s, l_hsl = rgb_to_hsl(fr, fg, fb)
-            amount = args.desaturate / 100.0
+            amount = args.desaturate / PERCENT_TO_FACTOR
             s_new = _clamp01(s * (1.0 - amount))
             fr, fg, fb = hsl_to_rgb(h, s_new, l_hsl)
             mods.append(("desaturate", f"-{args.desaturate:.2f}% {src_info}"))
 
         elif op == "whiten_hwb" and getattr(args, "whiten_hwb", None) is not None:
             h, w, b_hwb = rgb_to_hwb(fr, fg, fb)
-            w_new = _clamp01(w + args.whiten_hwb / 100.0)
+            w_new = _clamp01(w + args.whiten_hwb / PERCENT_TO_FACTOR)
             fr, fg, fb = hwb_to_rgb(h, w_new, b_hwb)
             mods.append(("whiten-hwb", f"+{args.whiten_hwb:.2f}% {src_info}"))
 
         elif op == "blacken_hwb" and getattr(args, "blacken_hwb", None) is not None:
             h, w, b_hwb = rgb_to_hwb(fr, fg, fb)
-            b_new = _clamp01(b_hwb + args.blacken_hwb / 100.0)
+            b_new = _clamp01(b_hwb + args.blacken_hwb / PERCENT_TO_FACTOR)
             fr, fg, fb = hwb_to_rgb(h, w, b_new)
             mods.append(("blacken-hwb", f"+{args.blacken_hwb:.2f}% {src_info}"))
 
         elif op == "chroma_oklch" and getattr(args, "chroma_oklch", None) is not None:
             l_ok, c_ok, h_ok = rgb_to_oklch(fr, fg, fb)
-            factor = 1.0 + (args.chroma_oklch / 100.0)
+            factor = 1.0 + (args.chroma_oklch / PERCENT_TO_FACTOR)
             c_new = max(0.0, c_ok * factor)
             fr, fg, fb = oklch_to_rgb(l_ok, c_new, h_ok)
             l_f, a_f, b_f = rgb_to_oklab(fr, fg, fb)
@@ -624,8 +1065,8 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
             l_ok, a_ok, b_ok = rgb_to_oklab(fr, fg, fb)
             fr, fg, fb = _gamut_map_oklab_to_srgb(
                 l_ok,
-                a_ok + args.warm_oklab / 2000.0,
-                b_ok + args.warm_oklab / 1000.0,
+                a_ok + args.warm_oklab / WARM_OKLAB_A_SCALE,
+                b_ok + args.warm_oklab / WARM_OKLAB_B_SCALE,
             )
             mods.append(("warm-oklab", f"+{args.warm_oklab:.2f}% {src_info}"))
 
@@ -633,24 +1074,34 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
             l_ok, a_ok, b_ok = rgb_to_oklab(fr, fg, fb)
             fr, fg, fb = _gamut_map_oklab_to_srgb(
                 l_ok,
-                a_ok - args.cool_oklab / 2000.0,
-                b_ok - args.cool_oklab / 1000.0,
+                a_ok - args.cool_oklab / WARM_OKLAB_A_SCALE,
+                b_ok - args.cool_oklab / WARM_OKLAB_B_SCALE,
             )
             mods.append(("cool-oklab", f"+{args.cool_oklab:.2f}% {src_info}"))
 
         elif op == "posterize" and getattr(args, "posterize", None) is not None:
             fr, fg, fb = _posterize_rgb(fr, fg, fb, args.posterize)
-            mods.append(("posterize-rgb", f"{max(2, min(256, int(abs(args.posterize))))} {src_info}"))
+            mods.append(
+                (
+                    "posterize-rgb",
+                    f"{max(POSTERIZE_MIN_LEVELS, min(POSTERIZE_MAX_LEVELS, int(abs(args.posterize))))} {src_info}",
+                )
+            )
 
         elif op == "threshold" and getattr(args, "threshold", None) is not None:
-            t = _clamp01(args.threshold / 100.0)
+            t = _clamp01(args.threshold / PERCENT_TO_FACTOR)
             y = get_luminance(int(round(fr)), int(round(fg)), int(round(fb)))
-            low_hex = getattr(args, "threshold_low", None) or "000000"
-            high_hex = getattr(args, "threshold_high", None) or "FFFFFF"
+            low_hex = getattr(args, "threshold_low", None) or THRESHOLD_DEFAULT_LOW
+            high_hex = getattr(args, "threshold_high", None) or THRESHOLD_DEFAULT_HIGH
             use_hex = low_hex if y < t else high_hex
             tr, tg, tb = hex_to_rgb(use_hex)
             fr, fg, fb = float(tr), float(tg), float(tb)
-            mods.append(("threshold-luminance", f"{args.threshold:.2f}% (result: #{use_hex.upper()}) {src_info}"))
+            mods.append(
+                (
+                    "threshold-luminance",
+                    f"{args.threshold:.2f}% (result: #{use_hex.upper()}) {src_info}",
+                )
+            )
 
         elif op == "solarize" and getattr(args, "solarize", None) is not None:
             fr, fg, fb = _solarize_smart(fr, fg, fb, args.solarize)
@@ -659,9 +1110,11 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
         elif op == "tint" and getattr(args, "tint", None) is not None:
             strength = getattr(args, "tint_strength", None)
             if strength is None:
-                strength = 20.0
+                strength = TINT_DEFAULT_STRENGTH
             fr, fg, fb = _tint_oklab(fr, fg, fb, args.tint, strength)
-            mods.append(("tint-oklab", f"{strength:.2f}% from #{curr_hex} to #{args.tint.upper()}"))
+            mods.append(
+                ("tint-oklab", f"{strength:.2f}% from #{curr_hex} to #{args.tint.upper()}")
+            )
 
         elif op == "red_channel" and args.red_channel is not None:
             fr = _clamp255(fr + args.red_channel)
@@ -693,34 +1146,38 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
             fr, fg, fb = _lock_relative_luminance(fr, fg, fb, target_Y)
             mods.append(("target-rel-luminance", f"{target_Y:.4f} {src_info}"))
 
-        elif op == "min_contrast" and getattr(args, "min_contrast_with", None) and getattr(
-            args, "min_contrast", None
-        ) is not None:
+        elif (
+            op == "min_contrast"
+            and getattr(args, "min_contrast_with", None)
+            and getattr(args, "min_contrast", None) is not None
+        ):
             fr, fg, fb, changed = _ensure_min_contrast_with(
                 fr, fg, fb, args.min_contrast_with, args.min_contrast
             )
             if changed:
-                mods.append((
-                    "min-contrast",
-                    f">={float(args.min_contrast):.2f} vs #{args.min_contrast_with.upper()} {src_info}"
-                ))
+                mods.append(
+                    (
+                        "min-contrast",
+                        f">={float(args.min_contrast):.2f} vs #{args.min_contrast_with.upper()} {src_info}",
+                    )
+                )
 
     ri, gi, bi = _finalize_rgb(fr, fg, fb)
     res_hex = rgb_to_hex(ri, gi, bi)
     base_hex_upper = base_hex.upper()
     is_hex_title = (
-        isinstance(title, str) and
-        title.startswith("#") and
-        title[1:].upper() == base_hex_upper
+        isinstance(title, str)
+        and title.startswith("#")
+        and title[1:].upper() == base_hex_upper
     )
 
     print()
     label = "original" if is_hex_title else title
     print_color_block(base_hex, f"{BOLD_WHITE}{label}{RESET}")
-    print()
     if mods:
+        print()
         print_color_block(res_hex, f"{MSG_BOLD_COLORS['info']}adjusted{RESET}")
-    
+
     if getattr(args, "verbose", False):
         print()
 
@@ -733,6 +1190,11 @@ def handle_adjust_command(args: argparse.Namespace) -> None:
 
 
 def get_adjust_parser() -> argparse.ArgumentParser:
+    """Create argument parser for adjust command.
+
+    Returns:
+        argparse.ArgumentParser: Configured parser.
+    """
     p = HexlabArgumentParser(
         prog="hexlab adjust",
         description=(
@@ -755,7 +1217,7 @@ def get_adjust_parser() -> argparse.ArgumentParser:
             file = sys.stdout
         print(
             "usage: hexlab adjust [-h] (-H HEX | -r | -cn NAME | -di INDEX) [OPTIONS...]",
-            file=file
+            file=file,
         )
         print()
         original_print_help(file)
@@ -957,8 +1419,10 @@ def get_adjust_parser() -> argparse.ArgumentParser:
         dest="min_contrast",
         type=INPUT_HANDLERS["float"],
         metavar="RATIO",
-        help=("minimum WCAG contrast ratio with --min-contrast-with, "
-              "best effort within srgb gamut"),
+        help=(
+            "minimum WCAG contrast ratio with --min-contrast-with, "
+            "best effort within srgb gamut"
+        ),
     )
     adv_group.add_argument(
         "--gamma",
@@ -1082,6 +1546,7 @@ def get_adjust_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
+    """Main entry point."""
     parser = get_adjust_parser()
     args = parser.parse_args(sys.argv[1:])
     ensure_truecolor()

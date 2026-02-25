@@ -35,6 +35,8 @@ from ..utils.input_handler import INPUT_HANDLERS
 from ..utils.print_color_block import print_color_block
 from ..utils.truecolor import ensure_truecolor
 
+CANDIDATES_PER_STEP = 500
+
 
 def _to_metric_space(rgb: Tuple[int, int, int], metric: str):
     if metric == 'rgb':
@@ -63,7 +65,7 @@ def generate_similar_colors_streaming(
     seen_hex.add(rgb_to_hex(r, g, b))
 
     attempts = 0
-    max_attempts = n * 500
+    max_attempts = n * CANDIDATES_PER_STEP
 
     while count_found < n and attempts < max_attempts:
         attempts += 1
