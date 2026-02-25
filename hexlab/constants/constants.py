@@ -13,6 +13,11 @@ EPS = 1e-12
 # Color Science Constants & Coefficients
 # ==========================================
 
+# Source: ITU-R BT.709 (Rec. 709) and Web Content Accessibility Guidelines (WCAG) 2.1
+LUMA_R = 0.2126
+LUMA_G = 0.7152
+LUMA_B = 0.0722
+
 # Standard Scaling Constants
 RGB_MAX = 255.0
 HUE_MAX = 360.0

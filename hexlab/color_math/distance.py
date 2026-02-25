@@ -7,32 +7,48 @@ from ..constants.constants import EPS, POW7_25
 def delta_e_ciede2000(
     lab1: Tuple[float, float, float], lab2: Tuple[float, float, float]
 ) -> float:
+    """
+    Calculate the CIEDE2000 color difference (ΔE_00) between two CIE LAB colors.
+    This is currently the most highly recommended formula for color difference 
+    by the CIE as it best matches human visual perception.
+    
+    Source: Sharma, G., Wu, W., & Dalal, E. N. (2005). 
+    "The CIEDE2000 color-difference formula: Implementation notes, 
+    supplementary test data, and mathematical observations."
+    """
     L1, a1, b1 = lab1
     L2, a2, b2 = lab2
 
+    # Calculate Chroma (C) for both colors
     C1 = math.hypot(a1, b1)
     C2 = math.hypot(a2, b2)
     C_bar = (C1 + C2) / 2
     
+    # Calculate G factor to adjust a* axis (improves performance for near-neutral colors)
     C_bar_7 = C_bar ** 7
-
     G = 0.5 * (1 - math.sqrt(C_bar_7 / (C_bar_7 + POW7_25)))
 
+    # Apply G factor to a* values
     a1_prime = (1 + G) * a1
     a2_prime = (1 + G) * a2
+    
+    # Calculate adjusted Chroma (C')
     C1_prime = math.hypot(a1_prime, b1)
     C2_prime = math.hypot(a2_prime, b2)
 
+    # Calculate Hue angles (h') in degrees
     h1_prime_rad = math.atan2(b1, a1_prime) % (2 * math.pi)
     h1_prime_deg = math.degrees(h1_prime_rad)
 
     h2_prime_rad = math.atan2(b2, a2_prime) % (2 * math.pi)
     h2_prime_deg = math.degrees(h2_prime_rad)
 
+    # Calculate differences in Lightness (ΔL') and Chroma (ΔC')
     delta_L_prime = L2 - L1
     delta_C_prime = C2_prime - C1_prime
     C_prime_bar = (C1_prime + C2_prime) / 2
 
+    # Calculate difference in Hue (Δh')
     if C1_prime * C2_prime == 0:
         delta_h_prime_deg = 0
     elif abs(h2_prime_deg - h1_prime_deg) <= 180:
@@ -42,10 +58,12 @@ def delta_e_ciede2000(
     else:
         delta_h_prime_deg = (h2_prime_deg - h1_prime_deg) + 360
 
+    # Calculate metric Hue difference (ΔH')
     delta_H_prime = 2 * math.sqrt(max(0.0, C1_prime * C2_prime)) * math.sin(
         math.radians(delta_h_prime_deg) / 2
     )
 
+    # Calculate mean Lightness (L') and Hue (h')
     L_prime_bar = (L1 + L2) / 2
 
     if C1_prime * C2_prime == 0:
@@ -57,6 +75,7 @@ def delta_e_ciede2000(
     else:
         h_prime_bar_deg = (h1_prime_deg + h2_prime_deg - 360) / 2
 
+    # Calculate T factor (adjusts for hue non-linearities)
     T = (
         1
         - 0.17 * math.cos(math.radians(h_prime_bar_deg - 30))
@@ -65,20 +84,24 @@ def delta_e_ciede2000(
         - 0.20 * math.cos(math.radians(4 * h_prime_bar_deg - 63))
     )
 
+    # Calculate Weighting Functions (S_L, S_C, S_H)
     S_L = 1 + (0.015 * (L_prime_bar - 50) ** 2) / math.sqrt(
         20 + (L_prime_bar - 50) ** 2 + EPS
     )
     S_C = 1 + 0.045 * C_prime_bar
     S_H = 1 + 0.015 * C_prime_bar * T
 
+    # Calculate Rotation Term (R_T) for the blue region
     delta_theta_deg = 30 * math.exp(-(((h_prime_bar_deg - 275) / 25) ** 2))
     C_prime_bar_7 = C_prime_bar ** 7
 
     R_C = 2 * math.sqrt(C_prime_bar_7 / (C_prime_bar_7 + POW7_25))
     R_T = -R_C * math.sin(math.radians(2 * delta_theta_deg))
 
+    # Parametric factors (typically set to 1:1:1 for graphic arts)
     k_L, k_C, k_H = 1, 1, 1
 
+    # Final CIEDE2000 formula combining all components
     delta_E = math.sqrt(
         (delta_L_prime / (k_L * S_L)) ** 2 +
         (delta_C_prime / (k_C * S_C)) ** 2 +
@@ -92,18 +115,31 @@ def delta_e_ciede2000(
 def delta_e_euclidean_rgb(
     rgb1: Tuple[int, int, int], rgb2: Tuple[int, int, int]
 ) -> float:
-
+    """
+    Calculate the standard 3D Euclidean distance between two RGB colors.
+    This is a basic, non-perceptual distance metric.
+    
+    Source: Standard Cartesian Geometry (3D Euclidean Distance).
+    """
     r1, g1, b1 = rgb1
     r2, g2, b2 = rgb2
 
+    # Using direct multiplication instead of ** 2 for better execution speed
     return math.sqrt((r1 - r2) * (r1 - r2) + (g1 - g2) * (g1 - g2) + (b1 - b2) * (b1 - b2))
 
 
 def delta_e_euclidean_oklab(
     oklab1: Tuple[float, float, float], oklab2: Tuple[float, float, float]
 ) -> float:
+    """
+    Calculate the Euclidean distance between two OKLab colors.
+    OKLab is designed so that a simple Euclidean distance closely 
+    matches human color perception (similar to CIEDE2000 but much faster).
+    
+    Source: Björn Ottosson (2020) - "A perceptual color space for image processing".
+    """
     l1, a1, b1 = oklab1
     l2, a2, b2 = oklab2
 
+    # Using direct multiplication for performance mapping
     return math.sqrt((l1 - l2) * (l1 - l2) + (a1 - a2) * (a1 - a2) + (b1 - b2) * (b1 - b2))
-
