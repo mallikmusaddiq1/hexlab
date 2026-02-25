@@ -1,4 +1,3 @@
-# File: input_handler.py
 #!/usr/bin/env python3
 
 import argparse
@@ -10,15 +9,26 @@ from .hexlab_logger import log
 
 
 def _sanitize_for_log(value) -> str:
+    """
+    Cleans up the input value for safe terminal logging by removing 
+    excessive whitespace and newlines.
+    """
     if value is None:
         return ""
     return " ".join(str(value).split())
 
 
 def normalize_hex(value: str) -> str:
+    """
+    Normalizes various formats of hex strings into a standard 6-character uppercase hex.
+    Handles shorthand formats (e.g., 'F', 'FF', 'FFF') by repeating characters appropriately.
+    """
     if value is None:
         return ""
+    # Remove hash symbol and spaces, convert to uppercase
     s = str(value).replace("#", "").replace(" ", "").upper()
+    
+    # Regex [0-9A-F] extracts only valid hexadecimal characters, ignoring any garbage input
     extracted = "".join(re.findall(r"[0-9A-F]", s))
 
     if not extracted:
@@ -28,24 +38,35 @@ def normalize_hex(value: str) -> str:
     if L == 6:
         return extracted
     if L == 3:
+        # e.g., 'ABC' becomes 'AABBCC'
         return "".join([c * 2 for c in extracted])
     if L == 1:
+        # e.g., 'A' becomes 'AAAAAA'
         return extracted * 6
     if L == 2:
+        # e.g., 'AB' becomes 'ABABAB'
         return extracted * 3
     if L == 4:
+        # e.g., 'ABCD' becomes 'ABCD00' (Appends zeros)
         return extracted + "00"
     if L == 5:
+        # e.g., 'ABCDE' becomes 'ABCDE0' (Appends a zero)
         return extracted + "0"
 
+    # If it's longer than 6, just truncate it to the first 6 characters
     return extracted[:6]
 
 
 def _extract_positive_only_int(value: str) -> int:
+    """
+    Extracts a strictly positive integer from a string by stripping out 
+    all non-numeric characters (including minus signs).
+    """
     if value is None:
         return None
     s = str(value)
 
+    # Regex [^0-9] matches anything that is NOT a digit (0-9) and removes it
     digits_only = re.sub(r"[^0-9]", "", s)
 
     if not digits_only:
@@ -58,13 +79,19 @@ def _extract_positive_only_int(value: str) -> int:
 
 
 def _extract_signed_int(value: str) -> int:
+    """
+    Extracts an integer from a string while preserving its mathematical sign (+ or -).
+    Ignores alphabetical characters mixed in the string.
+    """
     if value is None:
         return None
 
     s = str(value)
     
+    # Check if the original string explicitly starts with a negative sign
     is_negative = s.strip().startswith("-")
 
+    # Regex [0-9] extracts only the numeric digits
     digits_only = "".join(re.findall(r"[0-9]", s))
 
     if not digits_only:
@@ -72,6 +99,7 @@ def _extract_signed_int(value: str) -> int:
 
     try:
         val = int(digits_only)
+        # Re-apply the negative sign if it was present at the start
         if is_negative:
             val = -val
         return val
@@ -80,6 +108,10 @@ def _extract_signed_int(value: str) -> int:
 
 
 def _extract_signed_float(value: str) -> float:
+    """
+    Extracts a floating-point number from a string, preserving the sign and 
+    handling multiple decimal points by keeping only the first one encountered.
+    """
     if value is None:
         return None
 
@@ -87,7 +119,7 @@ def _extract_signed_float(value: str) -> float:
     
     is_negative = s.strip().startswith("-")
 
-    
+    # Regex [0-9\.] extracts only numeric digits and literal dot (.) characters
     raw_chars = re.findall(r"[0-9\.]", s)
     if not raw_chars:
         return None
@@ -95,6 +127,7 @@ def _extract_signed_float(value: str) -> float:
     clean_str = ""
     dot_seen = False
     
+    # Reconstruct the float string ensuring only a single decimal point is kept
     for char in raw_chars:
         if char == '.':
             if not dot_seen:
@@ -103,6 +136,7 @@ def _extract_signed_float(value: str) -> float:
         else:
             clean_str += char
             
+    # Return None if string is empty or just a lonely dot
     if not clean_str or clean_str == '.':
         return None
 
@@ -116,14 +150,25 @@ def _extract_signed_float(value: str) -> float:
 
 
 def _extract_alpha_only(value: str) -> str:
+    """
+    Extracts only alphabetical characters from a string, lowercasing them.
+    Useful for cleaning up color names or metric identifiers.
+    """
     if value is None:
         return ""
+    # Remove spaces and convert to lowercase
     s = str(value).replace(" ", "").lower()
+    # Regex [a-z] extracts strictly english alphabet characters
     extracted = "".join(re.findall(r"[a-z]", s))
     return extracted
 
 
+# ==========================================
+# CLI Argument Type Handlers (Validators)
+# ==========================================
+
 def handle_hex(v: str) -> str:
+    """Validator for hex string CLI arguments."""
     cleaned = normalize_hex(v)
     if not cleaned:
         raw = _sanitize_for_log(v)
@@ -132,6 +177,10 @@ def handle_hex(v: str) -> str:
 
 
 def handle_decimal_index(v: str) -> str:
+    """
+    Validator for decimal indices. Clamps the value between 0 and MAX_DEC, 
+    and returns it formatted as a 6-character hex string.
+    """
     val = _extract_positive_only_int(v)
 
     if val is None:
@@ -147,6 +196,7 @@ def handle_decimal_index(v: str) -> str:
 
 
 def handle_color_name(v: str) -> str:
+    """Validator for alphabetical color names."""
     cleaned = _extract_alpha_only(v)
     if not cleaned:
         raw = _sanitize_for_log(v)
@@ -155,6 +205,7 @@ def handle_color_name(v: str) -> str:
 
 
 def handle_string_clean(v: str) -> str:
+    """Validator for pure alphabetical string options (e.g., format names)."""
     cleaned = _extract_alpha_only(v)
     if not cleaned:
         raw = _sanitize_for_log(v)
@@ -163,6 +214,7 @@ def handle_string_clean(v: str) -> str:
 
 
 def handle_float_any(v: str) -> float:
+    """Validator for unbounded floating-point CLI arguments."""
     val = _extract_signed_float(v)
     if val is None:
         raw = _sanitize_for_log(v)
@@ -171,6 +223,10 @@ def handle_float_any(v: str) -> float:
 
 
 def handle_int_range(min_v: int, max_v: int):
+    """
+    Factory function returning a validator that ensures an integer 
+    is clamped within a specific [min_v, max_v] range.
+    """
     def validator(v: str) -> int:
         val = _extract_signed_int(v)
 
@@ -185,7 +241,12 @@ def handle_int_range(min_v: int, max_v: int):
         return val
     return validator
 
+
 def handle_positive_int(min_v: int, max_v: int):
+    """
+    Factory function returning a validator that specifically handles 
+    positive integers clamped within a given range.
+    """
     def validator(v: str) -> int:
         val = _extract_positive_only_int(v)
 
@@ -202,6 +263,10 @@ def handle_positive_int(min_v: int, max_v: int):
 
 
 def handle_float_range(min_v: float, max_v: float):
+    """
+    Factory function returning a validator that ensures a float 
+    is clamped within a specific [min_v, max_v] range.
+    """
     def validator(v: str) -> float:
         val = _extract_signed_float(v)
 
@@ -217,6 +282,10 @@ def handle_float_range(min_v: float, max_v: float):
     return validator
 
 
+# ==========================================
+# Central Mapping for Argparse types
+# ==========================================
+# This dictionary maps custom CLI argument types to their respective parsing functions.
 INPUT_HANDLERS = {
     "hex": handle_hex,
     "decimal_index": handle_decimal_index,
