@@ -27,7 +27,7 @@ from ..constants.constants import (
     MAX_DEC,
     MSG_BOLD_COLORS,
     RESET,
-    BOLD_WHITE
+    BOLD_WHITE,
 )
 from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
 from ..utils.hexlab_logger import log, HexlabArgumentParser
@@ -38,10 +38,32 @@ from ..utils.truecolor import ensure_truecolor
 CANDIDATES_PER_STEP = 500
 
 
+def _generate_random_rgb() -> Tuple[int, int, int]:
+    """Generate a random RGB color tuple.
+
+    Returns:
+        Tuple[int, int, int]: Random RGB values (0-255).
+    """
+    val = random.randint(0, MAX_DEC)
+    r = (val >> 16) & 0xFF
+    g = (val >> 8) & 0xFF
+    b = val & 0xFF
+    return r, g, b
+
+
 def _to_metric_space(rgb: Tuple[int, int, int], metric: str):
-    if metric == 'rgb':
+    """Convert RGB to the specified metric space.
+
+    Args:
+        rgb (Tuple[int, int, int]): RGB values.
+        metric (str): Metric type ('rgb', 'oklab', or 'lab').
+
+    Returns:
+        Tuple: Converted values in the metric space.
+    """
+    if metric == "rgb":
         return rgb
-    elif metric == 'oklab':
+    elif metric == "oklab":
         return rgb_to_oklab(*rgb)
     else:
         x, y, z = rgb_to_xyz(*rgb)
@@ -51,12 +73,24 @@ def _to_metric_space(rgb: Tuple[int, int, int], metric: str):
 def generate_similar_colors_streaming(
     base_rgb: Tuple[int, int, int],
     n: int = 5,
-    metric: str = 'lab',
-    dedup_val: float = 7.7
+    metric: str = "lab",
+    dedup_val: float = 7.7,
 ) -> Generator[Tuple[str, float], None, None]:
-    
+    """Generate similar colors by perturbing HSL values and checking distance.
+
+    Streams hex codes and distances for colors similar to the base.
+
+    Args:
+        base_rgb (Tuple[int, int, int]): Base RGB color.
+        n (int, optional): Number of similar colors to generate. Defaults to 5.
+        metric (str, optional): Distance metric ('lab', 'oklab', 'rgb'). Defaults to 'lab'.
+        dedup_val (float, optional): Minimum distance for deduplication. Defaults to 7.7.
+
+    Yields:
+        Generator[Tuple[str, float], None, None]: Hex code and distance for each similar color.
+    """
     base_metric_val = _to_metric_space(base_rgb, metric)
-    
+
     r, g, b = base_rgb
     h_base, s_base, l_base = rgb_to_hsl(r, g, b)
 
@@ -69,7 +103,8 @@ def generate_similar_colors_streaming(
 
     while count_found < n and attempts < max_attempts:
         attempts += 1
-        
+
+        # Perturb HSL values
         h_delta = random.uniform(-20, 20)
         s_delta = random.uniform(-0.15, 0.15)
         l_delta = random.uniform(-0.15, 0.15)
@@ -80,24 +115,26 @@ def generate_similar_colors_streaming(
 
         nr, ng, nb = hsl_to_rgb(new_h, new_s, new_l)
         nr_i, ng_i, nb_i = int(round(nr)), int(round(ng)), int(round(nb))
-        
+
         cand_hex = rgb_to_hex(nr_i, ng_i, nb_i)
-        
+
+        # Skip if already seen
         if cand_hex in seen_hex:
             continue
 
         cand_rgb = (nr_i, ng_i, nb_i)
-        
+
         diff = 0.0
-        if metric == 'lab':
-            cand_metric = _to_metric_space(cand_rgb, 'lab')
+        if metric == "lab":
+            cand_metric = _to_metric_space(cand_rgb, "lab")
             diff = delta_e_ciede2000(base_metric_val, cand_metric)
-        elif metric == 'oklab':
-            cand_metric = _to_metric_space(cand_rgb, 'oklab')
+        elif metric == "oklab":
+            cand_metric = _to_metric_space(cand_rgb, "oklab")
             diff = delta_e_euclidean_oklab(base_metric_val, cand_metric)
-        elif metric == 'rgb':
+        elif metric == "rgb":
             diff = delta_e_euclidean_rgb(base_rgb, cand_rgb)
 
+        # Yield if sufficiently distant
         if diff >= dedup_val:
             seen_hex.add(cand_hex)
             count_found += 1
@@ -105,6 +142,13 @@ def generate_similar_colors_streaming(
 
 
 def handle_similar_command(args: argparse.Namespace) -> None:
+    """Handle the similar command logic.
+
+    Processes input color, generates similar colors, and prints them with distances.
+
+    Args:
+        args (argparse.Namespace): Parsed command-line arguments.
+    """
     clean_hex = None
     title = "base color"
     if args.seed is not None:
@@ -136,9 +180,9 @@ def handle_similar_command(args: argparse.Namespace) -> None:
     if args.dedup_value is not None:
         dedup_val = args.dedup_value
     else:
-        if metric == 'rgb':
+        if metric == "rgb":
             dedup_val = DEDUP_DELTA_E_RGB
-        elif metric == 'oklab':
+        elif metric == "oklab":
             dedup_val = DEDUP_DELTA_E_OKLAB
         else:
             dedup_val = DEDUP_DELTA_E_LAB
@@ -149,90 +193,104 @@ def handle_similar_command(args: argparse.Namespace) -> None:
         base_rgb,
         n=num_results,
         metric=metric,
-        dedup_val=dedup_val
+        dedup_val=dedup_val,
     )
 
-    metric_map = {'lab': 'ΔE(2000)', 'oklab': 'ΔE(OKLAB)', 'rgb': 'ΔE(RGB)'}
-    metric_label = metric_map.get(metric, 'ΔE')
+    metric_map = {"lab": "ΔE(2000)", "oklab": "ΔE(OKLAB)", "rgb": "ΔE(RGB)"}
+    metric_label = metric_map.get(metric, "ΔE")
 
     found_any = False
 
     for i, (hex_val, diff) in enumerate(similar_gen):
         found_any = True
-   
+
         label = f"{MSG_BOLD_COLORS['info']}similar{f'{i + 1}':>9}{RESET}"
-        
+
         print_color_block(hex_val, label, end="")
-      
+
         print(f"  {MSG_BOLD_COLORS['info']}({metric_label}: {diff:5.2f}){RESET}")
         sys.stdout.flush()
 
     if not found_any:
-        log('info', "no similar colors found within parameters")
+        log("info", "no similar colors found within parameters")
 
     print()
 
 
 def get_similar_parser() -> argparse.ArgumentParser:
+    """Create argument parser for similar command.
+
+    Returns:
+        argparse.ArgumentParser: Configured parser.
+    """
     parser = HexlabArgumentParser(
         prog="hexlab similar",
         description="hexlab similar: find perceptually similar colors",
-        formatter_class=argparse.RawTextHelpFormatter
+        formatter_class=argparse.RawTextHelpFormatter,
     )
     input_group = parser.add_mutually_exclusive_group(required=True)
     input_group.add_argument(
-        "-H", "--hex",
+        "-H",
+        "--hex",
         dest="hex",
         type=INPUT_HANDLERS["hex"],
-        help="base hex code"
+        help="base hex code",
     )
     input_group.add_argument(
-        "-r", "--random",
+        "-r",
+        "--random",
         action="store_true",
-        help="use a random base"
+        help="use a random base",
     )
     input_group.add_argument(
-        "-cn", "--color-name",
+        "-cn",
+        "--color-name",
         type=INPUT_HANDLERS["color_name"],
-        help="base color name"
+        help="base color name",
     )
     input_group.add_argument(
-        "-di", "--decimal-index",
+        "-di",
+        "--decimal-index",
         type=INPUT_HANDLERS["decimal_index"],
-        help="base decimal index"
+        help="base decimal index",
     )
     parser.add_argument(
-        "-dm", "--distance-metric",
+        "-dm",
+        "--distance-metric",
         type=INPUT_HANDLERS["distance_metric"],
-        default='lab',
+        default="lab",
         help="distance metric: lab oklab rgb (default: lab)",
-        choices=['lab', 'oklab', 'rgb']
+        choices=["lab", "oklab", "rgb"],
     )
     parser.add_argument(
-        "-dv", "--dedup-value",
+        "-dv",
+        "--dedup-value",
         type=INPUT_HANDLERS["dedup_value"],
         default=None,
         help=(
             f"custom deduplication threshold (defaults: lab={DEDUP_DELTA_E_LAB}, "
             f"oklab={DEDUP_DELTA_E_OKLAB}, rgb={DEDUP_DELTA_E_RGB})"
-        )
+        ),
     )
     parser.add_argument(
-        "-c", "--count",
+        "-c",
+        "--count",
         type=INPUT_HANDLERS["count_similar"],
         default=10,
-        help="number of similar colors to find (min: 2, max: 250, default: 10)"
+        help="number of similar colors to find (min: 2, max: 250, default: 10)",
     )
     parser.add_argument(
-        "-s", "--seed",
+        "-s",
+        "--seed",
         type=INPUT_HANDLERS["seed"],
         default=None,
-        help="seed for reproducibility of random"
+        help="seed for reproducibility of random",
     )
     return parser
 
 
 def main() -> None:
+    """Main entry point for similar command."""
     parser = get_similar_parser()
     args = parser.parse_args(sys.argv[1:])
     ensure_truecolor()

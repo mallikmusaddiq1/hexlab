@@ -1,4 +1,3 @@
-# File: vision.py
 #!/usr/bin/env python3
 
 import argparse
@@ -19,7 +18,7 @@ from ..constants.constants import (
     SIMULATE_KEYS,
     MSG_BOLD_COLORS,
     BOLD_WHITE,
-    RESET
+    RESET,
 )
 from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
 from ..utils.hexlab_logger import log, HexlabArgumentParser
@@ -29,6 +28,14 @@ from ..utils.truecolor import ensure_truecolor
 
 
 def handle_vision_command(args: argparse.Namespace) -> None:
+    """Handle the vision command logic.
+
+    Processes input color, sets simulation options, computes and prints color blindness
+    simulations based on selected types and intensity.
+
+    Args:
+        args (argparse.Namespace): Parsed command-line arguments.
+    """
     if args.all_simulates:
         for key in SIMULATE_KEYS:
             setattr(args, key, True)
@@ -57,24 +64,40 @@ def handle_vision_command(args: argparse.Namespace) -> None:
     print()
     print_color_block(base_hex, f"{BOLD_WHITE}{title}{RESET}")
 
-    any_sim = any([
-        args.protanopia, 
-        args.deuteranopia, 
-        args.tritanopia, 
-        args.achromatopsia, 
-        args.all_simulates
-    ])
+    any_sim = any(
+        [
+            args.protanopia,
+            args.deuteranopia,
+            args.tritanopia,
+            args.achromatopsia,
+            args.all_simulates,
+        ]
+    )
 
     if any_sim:
         print()
 
     r, g, b = hex_to_rgb(base_hex)
-    
-    intensity = getattr(args, 'intensity', 100)
+
+    intensity = getattr(args, "intensity", 100)
     factor = max(0, min(100, intensity)) / 100.0
     perc_str = f"{intensity}%"
 
     def get_simulated_hex(r: int, g: int, b: int, matrix: List[List[float]], f: float) -> str:
+        """Compute simulated hex color using the given matrix and factor.
+
+        Applies color blindness simulation in linear sRGB space.
+
+        Args:
+            r (int): Original red.
+            g (int): Original green.
+            b (int): Original blue.
+            matrix (List[List[float]]): Simulation matrix.
+            f (float): Simulation factor (0.0 to 1.0).
+
+        Returns:
+            str: Simulated hex color.
+        """
         r_lin, g_lin, b_lin = _srgb_to_linear(r), _srgb_to_linear(g), _srgb_to_linear(b)
 
         rr_sim = r_lin * matrix[0][0] + g_lin * matrix[0][1] + b_lin * matrix[0][2]
@@ -88,7 +111,7 @@ def handle_vision_command(args: argparse.Namespace) -> None:
         return rgb_to_hex(
             _linear_to_srgb(rr_lin) * 255,
             _linear_to_srgb(gg_lin) * 255,
-            _linear_to_srgb(bb_lin) * 255
+            _linear_to_srgb(bb_lin) * 255,
         )
 
     if args.protanopia or args.all_simulates:
@@ -109,15 +132,15 @@ def handle_vision_command(args: argparse.Namespace) -> None:
     if args.achromatopsia or args.all_simulates:
         l_lin = get_luminance(r, g, b)
         r_lin, g_lin, b_lin = _srgb_to_linear(r), _srgb_to_linear(g), _srgb_to_linear(b)
-        
+
         rr_lin = (1 - factor) * r_lin + factor * l_lin
         gg_lin = (1 - factor) * g_lin + factor * l_lin
         bb_lin = (1 - factor) * b_lin + factor * l_lin
-        
+
         sim_hex = rgb_to_hex(
             _linear_to_srgb(rr_lin) * 255,
             _linear_to_srgb(gg_lin) * 255,
-            _linear_to_srgb(bb_lin) * 255
+            _linear_to_srgb(bb_lin) * 255,
         )
         label = f"{MSG_BOLD_COLORS['info']}achroma{perc_str:>9}{RESET}"
         print_color_block(sim_hex, label)
@@ -126,74 +149,91 @@ def handle_vision_command(args: argparse.Namespace) -> None:
 
 
 def get_vision_parser() -> argparse.ArgumentParser:
+    """Create argument parser for vision command.
+
+    Returns:
+        argparse.ArgumentParser: Configured parser.
+    """
     parser = HexlabArgumentParser(
         prog="hexlab vision",
         description="hexlab vision: simulate color blindness",
-        formatter_class=argparse.RawTextHelpFormatter
+        formatter_class=argparse.RawTextHelpFormatter,
     )
     input_group = parser.add_mutually_exclusive_group(required=True)
     input_group.add_argument(
-        "-H", "--hex",
+        "-H",
+        "--hex",
         type=INPUT_HANDLERS["hex"],
-        help="base hex code"
+        help="base hex code",
     )
     input_group.add_argument(
-        "-r", "--random",
+        "-r",
+        "--random",
         action="store_true",
-        help="use a random base"
+        help="use a random base",
     )
     input_group.add_argument(
-        "-cn", "--color-name",
+        "-cn",
+        "--color-name",
         type=INPUT_HANDLERS["color_name"],
-        help="base color name"
+        help="base color name",
     )
     input_group.add_argument(
-        "-di", "--decimal-index",
+        "-di",
+        "--decimal-index",
         type=INPUT_HANDLERS["decimal_index"],
-        help="base decimal index"
+        help="base decimal index",
     )
     parser.add_argument(
-        "-s", "--seed",
+        "-s",
+        "--seed",
         type=INPUT_HANDLERS["seed"],
         default=None,
-        help="seed for reproducibility of random"
+        help="seed for reproducibility of random",
     )
     parser.add_argument(
-        "-i", "--intensity",
+        "-i",
+        "--intensity",
         type=INPUT_HANDLERS["intensity"],
         default=100,
-        help="simulation intensity (0 to 100%%, default: 100%%)"
+        help="simulation intensity (0 to 100%%, default: 100%%)",
     )
     simulate_group = parser.add_argument_group("simulation types")
     simulate_group.add_argument(
-        '-all', '--all-simulates',
+        "-all",
+        "--all-simulates",
         action="store_true",
-        help="show all simulation types"
+        help="show all simulation types",
     )
     simulate_group.add_argument(
-        '-p', '--protanopia',
+        "-p",
+        "--protanopia",
         action="store_true",
-        help="simulate protanopia red-blind"
+        help="simulate protanopia red-blind",
     )
     simulate_group.add_argument(
-        '-d', '--deuteranopia',
+        "-d",
+        "--deuteranopia",
         action="store_true",
-        help="simulate deuteranopia green-blind"
+        help="simulate deuteranopia green-blind",
     )
     simulate_group.add_argument(
-        '-t', '--tritanopia',
+        "-t",
+        "--tritanopia",
         action="store_true",
-        help="simulate tritanopia blue-blind"
+        help="simulate tritanopia blue-blind",
     )
     simulate_group.add_argument(
-        '-a', '--achromatopsia',
+        "-a",
+        "--achromatopsia",
         action="store_true",
-        help="simulate achromatopsia total-blind"
+        help="simulate achromatopsia total-blind",
     )
     return parser
 
 
 def main() -> None:
+    """Main entry point for vision command."""
     parser = get_vision_parser()
     args = parser.parse_args(sys.argv[1:])
     ensure_truecolor()

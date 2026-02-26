@@ -27,7 +27,7 @@ from ..constants.constants import (
     MAX_COUNT,
     MAX_STEPS,
     MSG_BOLD_COLORS,
-    RESET
+    RESET,
 )
 from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
 from ..utils.hexlab_logger import log, HexlabArgumentParser
@@ -37,7 +37,18 @@ from ..utils.truecolor import ensure_truecolor
 
 
 def _get_interpolated_color(c1, c2, t: float, colorspace: str) -> Tuple[float, float, float]:
-    if colorspace == 'srgb':
+    """Interpolate between two colors in the specified colorspace.
+
+    Args:
+        c1: Starting color components.
+        c2: Ending color components.
+        t (float): Interpolation factor (0.0 to 1.0).
+        colorspace (str): Colorspace for interpolation.
+
+    Returns:
+        Tuple[float, float, float]: Interpolated RGB values.
+    """
+    if colorspace == "srgb":
         r1, g1, b1 = c1
         r2, g2, b2 = c2
         r_new = r1 + t * (r2 - r1)
@@ -45,7 +56,7 @@ def _get_interpolated_color(c1, c2, t: float, colorspace: str) -> Tuple[float, f
         b_new = b1 + t * (b2 - b1)
         return r_new, g_new, b_new
 
-    if colorspace == 'srgblinear':
+    if colorspace == "srgblinear":
         r_lin1, g_lin1, b_lin1 = c1
         r_lin2, g_lin2, b_lin2 = c2
         r_lin_new = r_lin1 + t * (r_lin2 - r_lin1)
@@ -56,7 +67,7 @@ def _get_interpolated_color(c1, c2, t: float, colorspace: str) -> Tuple[float, f
         b = _linear_to_srgb(b_lin_new) * 255
         return r, g, b
 
-    if colorspace == 'lab':
+    if colorspace == "lab":
         l1, a1, b1 = c1
         l2, a2, b2 = c2
         l_new = l1 + t * (l2 - l1)
@@ -64,7 +75,7 @@ def _get_interpolated_color(c1, c2, t: float, colorspace: str) -> Tuple[float, f
         b_new = b1 + t * (b2 - b1)
         return lab_to_rgb(l_new, a_new, b_new)
 
-    if colorspace == 'oklab':
+    if colorspace == "oklab":
         l1, a1, b1 = c1
         l2, a2, b2 = c2
         l_new = l1 + t * (l2 - l1)
@@ -72,7 +83,7 @@ def _get_interpolated_color(c1, c2, t: float, colorspace: str) -> Tuple[float, f
         b_new = b1 + t * (b2 - b1)
         return oklab_to_rgb(l_new, a_new, b_new)
 
-    if colorspace == 'lch':
+    if colorspace == "lch":
         l1, c1, h1 = c1
         l2, c2, h2 = c2
         h1, h2 = h1 % 360, h2 % 360
@@ -86,7 +97,7 @@ def _get_interpolated_color(c1, c2, t: float, colorspace: str) -> Tuple[float, f
         h_new = (h1 + t * (h2 - h1)) % 360
         return lch_to_rgb(l_new, c_new, h_new)
 
-    if colorspace == 'oklch':
+    if colorspace == "oklch":
         l1, c1, h1 = c1
         l2, c2, h2 = c2
         h1, h2 = h1 % 360, h2 % 360
@@ -100,7 +111,7 @@ def _get_interpolated_color(c1, c2, t: float, colorspace: str) -> Tuple[float, f
         h_new = (h1 + t * (h2 - h1)) % 360
         return oklch_to_rgb(l_new, c_new, h_new)
 
-    if colorspace == 'luv':
+    if colorspace == "luv":
         l1, u1, v1 = c1
         l2, u2, v2 = c2
         l_new = l1 + t * (l2 - l1)
@@ -112,24 +123,42 @@ def _get_interpolated_color(c1, c2, t: float, colorspace: str) -> Tuple[float, f
 
 
 def _convert_rgb_to_space(r: int, g: int, b: int, colorspace: str) -> Tuple[float, ...]:
-    if colorspace == 'srgb':
+    """Convert RGB to components in the specified colorspace.
+
+    Args:
+        r (int): Red component.
+        g (int): Green component.
+        b (int): Blue component.
+        colorspace (str): Target colorspace.
+
+    Returns:
+        Tuple[float, ...]: Components in the colorspace.
+    """
+    if colorspace == "srgb":
         return (r, g, b)
-    if colorspace == 'srgblinear':
+    if colorspace == "srgblinear":
         return (_srgb_to_linear(r), _srgb_to_linear(g), _srgb_to_linear(b))
-    if colorspace == 'lab':
+    if colorspace == "lab":
         return rgb_to_lab(r, g, b)
-    if colorspace == 'oklab':
+    if colorspace == "oklab":
         return rgb_to_oklab(r, g, b)
-    if colorspace == 'lch':
+    if colorspace == "lch":
         return rgb_to_lch(r, g, b)
-    if colorspace == 'oklch':
+    if colorspace == "oklch":
         return rgb_to_oklch(r, g, b)
-    if colorspace == 'luv':
+    if colorspace == "luv":
         return rgb_to_luv(r, g, b)
     return (r, g, b)
 
 
 def handle_gradient_command(args: argparse.Namespace) -> None:
+    """Handle the gradient command logic.
+
+    Generates and prints a color gradient between input colors.
+
+    Args:
+        args (argparse.Namespace): Parsed arguments.
+    """
     if args.seed is not None:
         random.seed(args.seed)
 
@@ -157,10 +186,10 @@ def handle_gradient_command(args: argparse.Namespace) -> None:
 
         if len(input_list) < 2:
             log(
-                'error',
-                "at least two hex codes, color names, decimal indexes are required for a gradient"
-               )
-            log('info', "use -H HEX, -cn NAME, -di INDEX multiple times or -r")
+                "error",
+                "at least two hex codes, color names, decimal indexes are required for a gradient",
+            )
+            log("info", "use -H HEX, -cn NAME, -di INDEX multiple times or -r")
             sys.exit(2)
 
         colors_hex = input_list
@@ -199,64 +228,79 @@ def handle_gradient_command(args: argparse.Namespace) -> None:
 
     print()
 
+
 def get_gradient_parser() -> argparse.ArgumentParser:
+    """Create argument parser for gradient command.
+
+    Returns:
+        argparse.ArgumentParser: Configured parser.
+    """
     parser = HexlabArgumentParser(
         prog="hexlab gradient",
         description="hexlab gradient: generate color gradients between multiple hex codes",
-        formatter_class=argparse.RawTextHelpFormatter
+        formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument(
-        "-H", "--hex",
+        "-H",
+        "--hex",
         action="append",
         type=INPUT_HANDLERS["hex"],
-        help="use -H HEX multiple times for inputs"
+        help="use -H HEX multiple times for inputs",
     )
     parser.add_argument(
-        "-r", "--random",
+        "-r",
+        "--random",
         action="store_true",
-        help="generate gradient from random colors"
+        help="generate gradient from random colors",
     )
     parser.add_argument(
-        "-cn", "--color-name",
+        "-cn",
+        "--color-name",
         action="append",
         type=INPUT_HANDLERS["color_name"],
-        help="use -cn NAME multiple times for inputs by name"
+        help="use -cn NAME multiple times for inputs by name",
     )
     parser.add_argument(
-        "-di", "--decimal-index",
+        "-di",
+        "--decimal-index",
         action="append",
         type=INPUT_HANDLERS["decimal_index"],
-        help="use -di INDEX multiple times for inputs by decimal index"
+        help="use -di INDEX multiple times for inputs by decimal index",
     )
     parser.add_argument(
-        "-S", "--steps",
+        "-S",
+        "--steps",
         type=INPUT_HANDLERS["steps"],
         default=10,
-        help=f"total steps in gradient (default: 10, max: {MAX_STEPS})"
+        help=f"total steps in gradient (default: 10, max: {MAX_STEPS})",
     )
     parser.add_argument(
-        "-cs", "--colorspace",
+        "-cs",
+        "--colorspace",
         default="lab",
         type=INPUT_HANDLERS["colorspace"],
-        choices=['srgb', 'srgblinear', 'lab', 'lch', 'oklab', 'oklch', 'luv'],
-        help="colorspace for interpolation (default: lab)"
+        choices=["srgb", "srgblinear", "lab", "lch", "oklab", "oklch", "luv"],
+        help="colorspace for interpolation (default: lab)",
     )
     parser.add_argument(
-        "-c", "--count",
+        "-c",
+        "--count",
         type=INPUT_HANDLERS["count"],
         default=0,
-        help=f"number of random colors for input (default: 2-3, max: {MAX_COUNT})"
+        help=f"number of random colors for input (default: 2-3, max: {MAX_COUNT})",
     )
     parser.add_argument(
-        "-s", "--seed",
+        "-s",
+        "--seed",
         type=INPUT_HANDLERS["seed"],
         default=None,
-        help="seed for reproducibility of random"
+        help="seed for reproducibility of random",
     )
     return parser
 
 
 def main() -> None:
+    """Main entry point for gradient command."""
     parser = get_gradient_parser()
     args = parser.parse_args(sys.argv[1:])
     ensure_truecolor()
