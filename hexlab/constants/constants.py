@@ -4,7 +4,7 @@ import re
 # Core Metadata & Precision
 # ==========================================
 
-__version__ = "v0.0.6"
+__version__ = "v0.0.7"
 
 # Floating-point precision and division-by-zero safety
 EPS = 1e-12
