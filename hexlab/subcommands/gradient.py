@@ -1,12 +1,13 @@
-# File: gradient.py
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# File: hexlab/subcommands/gradient.py
 
 import argparse
 import random
 import sys
 from typing import List, Tuple
 
-from ..color_math.conversions import (
+from hexlab.core.conversions import (
     _linear_to_srgb,
     _srgb_to_linear,
     hex_to_rgb,
@@ -22,18 +23,12 @@ from ..color_math.conversions import (
     rgb_to_oklab,
     rgb_to_oklch,
 )
-from ..constants.constants import (
-    MAX_DEC,
-    MAX_COUNT,
-    MAX_STEPS,
-    MSG_BOLD_COLORS,
-    RESET,
-)
-from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
-from ..utils.hexlab_logger import log, HexlabArgumentParser
-from ..utils.input_handler import INPUT_HANDLERS
-from ..utils.print_color_block import print_color_block
-from ..utils.truecolor import ensure_truecolor
+from hexlab.core import config as c
+from hexlab.shared.naming import get_title_for_hex, resolve_color_name_or_exit
+from hexlab.shared.logger import log, HexlabArgumentParser
+from hexlab.shared.sanitizer import INPUT_HANDLERS
+from hexlab.shared.preview import print_color_block
+from hexlab.shared.truecolor import ensure_truecolor
 
 
 def _get_interpolated_color(c1, c2, t: float, colorspace: str) -> Tuple[float, float, float]:
@@ -169,8 +164,8 @@ def handle_gradient_command(args: argparse.Namespace) -> None:
         num_hex = args.count
         if num_hex == 0:
             num_hex = random.randint(2, 3)
-        num_hex = max(2, min(MAX_COUNT, num_hex))
-        colors_hex = [f"{random.randint(0, MAX_DEC):06X}" for _ in range(num_hex)]
+        num_hex = max(2, min(c.MAX_COUNT, num_hex))
+        colors_hex = [f"{random.randint(0, c.MAX_DEC):06X}" for _ in range(num_hex)]
     else:
         input_list: List[str] = []
         if args.hex:
@@ -194,11 +189,11 @@ def handle_gradient_command(args: argparse.Namespace) -> None:
 
         colors_hex = input_list
 
-    num_steps = max(1, min(MAX_STEPS, args.steps))
+    num_steps = max(1, min(c.MAX_STEPS, args.steps))
 
     print()
     if num_steps == 1:
-        print_color_block(colors_hex[0], f"{MSG_BOLD_COLORS['info']}step{f'1':>11}{RESET}")
+        print_color_block(colors_hex[0], f"{c.MSG_BOLD_COLORS['info']}step{f'1':>11}{c.RESET}")
         return
 
     colors_rgb = [hex_to_rgb(h) for h in colors_hex]
@@ -224,7 +219,7 @@ def handle_gradient_command(args: argparse.Namespace) -> None:
         gradient_colors.append(rgb_to_hex(r_f, g_f, b_f))
 
     for i, hex_code in enumerate(gradient_colors):
-        print_color_block(hex_code, f"{MSG_BOLD_COLORS['info']}step{f'{i + 1}':>11}{RESET}")
+        print_color_block(hex_code, f"{c.MSG_BOLD_COLORS['info']}step{f'{i + 1}':>11}{c.RESET}")
 
     print()
 
@@ -272,7 +267,7 @@ def get_gradient_parser() -> argparse.ArgumentParser:
         "--steps",
         type=INPUT_HANDLERS["steps"],
         default=10,
-        help=f"total steps in gradient (default: 10, max: {MAX_STEPS})",
+        help=f"total steps in gradient (default: 10, max: {c.MAX_STEPS})",
     )
     parser.add_argument(
         "-cs",
@@ -287,7 +282,7 @@ def get_gradient_parser() -> argparse.ArgumentParser:
         "--count",
         type=INPUT_HANDLERS["count"],
         default=0,
-        help=f"number of random colors for input (default: 2-3, max: {MAX_COUNT})",
+        help=f"number of random colors for input (default: 2-3, max: {c.MAX_COUNT})",
     )
     parser.add_argument(
         "-s",

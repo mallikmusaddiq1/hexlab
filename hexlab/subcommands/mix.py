@@ -1,12 +1,13 @@
-# File: mix.py
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# File: hexlab/subcommands/mix.py
 
 import argparse
 import random
 import sys
 from typing import List, Tuple
 
-from ..color_math.conversions import (
+from hexlab.core.conversions import (
     _linear_to_srgb,
     _srgb_to_linear,
     hex_to_rgb,
@@ -18,17 +19,12 @@ from ..color_math.conversions import (
     rgb_to_luv,
     rgb_to_oklab,
 )
-from ..constants.constants import (
-    MAX_DEC,
-    MAX_COUNT,
-    MSG_BOLD_COLORS,
-    RESET,
-)
-from ..utils.color_names_handler import resolve_color_name_or_exit
-from ..utils.hexlab_logger import log, HexlabArgumentParser
-from ..utils.input_handler import INPUT_HANDLERS
-from ..utils.print_color_block import print_color_block
-from ..utils.truecolor import ensure_truecolor
+from hexlab.core import config as c
+from hexlab.shared.naming import resolve_color_name_or_exit
+from hexlab.shared.logger import log, HexlabArgumentParser
+from hexlab.shared.sanitizer import INPUT_HANDLERS
+from hexlab.shared.preview import print_color_block
+from hexlab.shared.truecolor import ensure_truecolor
 
 
 def _convert_rgb_to_space(r: int, g: int, b: int, colorspace: str) -> Tuple[float, ...]:
@@ -76,8 +72,8 @@ def handle_mix_command(args: argparse.Namespace) -> None:
         num_hex = args.count
         if num_hex == 0:
             num_hex = 2
-        num_hex = max(2, min(MAX_COUNT, num_hex))
-        colors_hex = [f"{random.randint(0, MAX_DEC):06X}" for _ in range(num_hex)]
+        num_hex = max(2, min(c.MAX_COUNT, num_hex))
+        colors_hex = [f"{random.randint(0, c.MAX_DEC):06X}" for _ in range(num_hex)]
     else:
         input_list: List[str] = []
         if args.hex:
@@ -149,7 +145,7 @@ def handle_mix_command(args: argparse.Namespace) -> None:
 
     print()
     for i, hex_code in enumerate(colors_hex):
-        print_color_block(hex_code, f"{MSG_BOLD_COLORS['info']}input{f'{i + 1}':>11}{RESET}")
+        print_color_block(hex_code, f"{c.MSG_BOLD_COLORS['info']}input{f'{i + 1}':>11}{c.RESET}")
 
     print()
 
@@ -158,7 +154,7 @@ def handle_mix_command(args: argparse.Namespace) -> None:
     if len(colors_hex) == 2:
         label_suffix = f" {amount:g}%"
 
-    print_color_block(mixed_hex, f"{MSG_BOLD_COLORS['info']}result{f'{label_suffix}':>10}{RESET}")
+    print_color_block(mixed_hex, f"{c.MSG_BOLD_COLORS['info']}result{f'{label_suffix}':>10}{c.RESET}")
     print()
 
 
@@ -220,7 +216,7 @@ def get_mix_parser() -> argparse.ArgumentParser:
         "--count",
         type=INPUT_HANDLERS["count"],
         default=2,
-        help=f"number of random colors for input (default: 2, max: {MAX_COUNT})",
+        help=f"number of random colors for input (default: 2, max: {c.MAX_COUNT})",
     )
     parser.add_argument(
         "-s",

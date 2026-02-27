@@ -1,5 +1,6 @@
-# File: distinct.py
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# File: hexlab/subcommands/distinct.py
 
 import argparse
 import random
@@ -7,27 +8,20 @@ import sys
 import math
 from typing import Generator, List, Tuple
 
-from ..color_math.conversions import (
+from hexlab.core.conversions import (
     hex_to_rgb,
     rgb_to_hex,
     rgb_to_oklab,
     rgb_to_xyz,
     xyz_to_lab,
 )
-from ..color_math.distance import (
-    delta_e_ciede2000,
-)
-from ..constants.constants import (
-    MAX_DEC,
-    MSG_BOLD_COLORS,
-    RESET,
-    BOLD_WHITE,
-)
-from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
-from ..utils.hexlab_logger import log, HexlabArgumentParser
-from ..utils.input_handler import INPUT_HANDLERS
-from ..utils.print_color_block import print_color_block
-from ..utils.truecolor import ensure_truecolor
+from hexlab.core.difference import delta_e_ciede2000
+from hexlab.core import config as c
+from hexlab.shared.naming import get_title_for_hex, resolve_color_name_or_exit
+from hexlab.shared.logger import log, HexlabArgumentParser
+from hexlab.shared.sanitizer import INPUT_HANDLERS
+from hexlab.shared.preview import print_color_block
+from hexlab.shared.truecolor import ensure_truecolor
 
 CANDIDATES_PER_STEP = 200
 
@@ -38,7 +32,7 @@ def _generate_random_rgb() -> Tuple[int, int, int]:
     Returns:
         Tuple[int, int, int]: Random RGB values.
     """
-    val = random.randint(0, MAX_DEC)
+    val = random.randint(0, c.MAX_DEC)
     r = (val >> 16) & 0xFF
     g = (val >> 8) & 0xFF
     b = val & 0xFF
@@ -157,7 +151,7 @@ def handle_distinct_command(args: argparse.Namespace) -> None:
         random.seed(args.seed)
 
     if args.random:
-        current_dec = random.randint(0, MAX_DEC)
+        current_dec = random.randint(0, c.MAX_DEC)
         clean_hex = f"{current_dec:06X}"
         title = "random"
     elif args.color_name:
@@ -172,7 +166,7 @@ def handle_distinct_command(args: argparse.Namespace) -> None:
         title = get_title_for_hex(clean_hex, f"index {idx}")
 
     print()
-    print_color_block(clean_hex, f"{BOLD_WHITE}{title}{RESET}")
+    print_color_block(clean_hex, f"{c.BOLD_WHITE}{title}{c.RESET}")
     print()
 
     base_rgb = hex_to_rgb(clean_hex)
@@ -189,11 +183,11 @@ def handle_distinct_command(args: argparse.Namespace) -> None:
     metric_label = metric_map.get(metric, "min-dist")
 
     for i, (hex_val, diff) in enumerate(distinct_gen):
-        label = f"{MSG_BOLD_COLORS['info']}distinct{f'{i + 1}':>8}{RESET}"
+        label = f"{c.MSG_BOLD_COLORS['info']}distinct{f'{i + 1}':>8}{c.RESET}"
 
         print_color_block(hex_val, label, end="")
 
-        print(f"  {MSG_BOLD_COLORS['info']}({metric_label}: {diff:5.2f}){RESET}")
+        print(f"  {c.MSG_BOLD_COLORS['info']}({metric_label}: {diff:5.2f}){c.RESET}")
         sys.stdout.flush()
 
     print()

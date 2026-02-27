@@ -1,31 +1,25 @@
-# File: vision.py
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# File: hexlab/subcommands/vision.py
 
 import argparse
 import random
 import sys
 from typing import List
 
-from ..color_math.conversions import (
+from hexlab.core.conversions import (
     _linear_to_srgb,
     _srgb_to_linear,
     hex_to_rgb,
     rgb_to_hex,
 )
-from ..color_math.luminance import get_luminance
-from ..constants.constants import (
-    CB_MATRICES,
-    MAX_DEC,
-    SIMULATE_KEYS,
-    MSG_BOLD_COLORS,
-    BOLD_WHITE,
-    RESET,
-)
-from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
-from ..utils.hexlab_logger import log, HexlabArgumentParser
-from ..utils.input_handler import INPUT_HANDLERS
-from ..utils.print_color_block import print_color_block
-from ..utils.truecolor import ensure_truecolor
+from hexlab.core.luminance import get_luminance
+from hexlab.core import config as c
+from hexlab.shared.naming import get_title_for_hex, resolve_color_name_or_exit
+from hexlab.shared.logger import log, HexlabArgumentParser
+from hexlab.shared.sanitizer import INPUT_HANDLERS
+from hexlab.shared.preview import print_color_block
+from hexlab.shared.truecolor import ensure_truecolor
 
 
 def handle_vision_command(args: argparse.Namespace) -> None:
@@ -38,7 +32,7 @@ def handle_vision_command(args: argparse.Namespace) -> None:
         args (argparse.Namespace): Parsed command-line arguments.
     """
     if args.all_simulates:
-        for key in SIMULATE_KEYS:
+        for key in c.SIMULATE_KEYS:
             setattr(args, key, True)
     if args.seed is not None:
         random.seed(args.seed)
@@ -47,7 +41,7 @@ def handle_vision_command(args: argparse.Namespace) -> None:
     title = "base color"
 
     if args.random:
-        base_hex = f"{random.randint(0, MAX_DEC):06X}"
+        base_hex = f"{random.randint(0, c.MAX_DEC):06X}"
         title = "random"
     elif args.color_name:
         base_hex = resolve_color_name_or_exit(args.color_name)
@@ -63,7 +57,7 @@ def handle_vision_command(args: argparse.Namespace) -> None:
         title = get_title_for_hex(base_hex, f"index {idx}")
 
     print()
-    print_color_block(base_hex, f"{BOLD_WHITE}{title}{RESET}")
+    print_color_block(base_hex, f"{c.BOLD_WHITE}{title}{c.RESET}")
 
     any_sim = any(
         [
@@ -116,18 +110,18 @@ def handle_vision_command(args: argparse.Namespace) -> None:
         )
 
     if args.protanopia or args.all_simulates:
-        sim_hex = get_simulated_hex(r, g, b, CB_MATRICES["Protanopia"], factor)
-        label = f"{MSG_BOLD_COLORS['info']}protan{perc_str:>10}{RESET}"
+        sim_hex = get_simulated_hex(r, g, b, c.CB_MATRICES["Protanopia"], factor)
+        label = f"{c.MSG_BOLD_COLORS['info']}protan{perc_str:>10}{c.RESET}"
         print_color_block(sim_hex, label)
 
     if args.deuteranopia or args.all_simulates:
-        sim_hex = get_simulated_hex(r, g, b, CB_MATRICES["Deuteranopia"], factor)
-        label = f"{MSG_BOLD_COLORS['info']}deuter{perc_str:>10}{RESET}"
+        sim_hex = get_simulated_hex(r, g, b, c.CB_MATRICES["Deuteranopia"], factor)
+        label = f"{c.MSG_BOLD_COLORS['info']}deuter{perc_str:>10}{c.RESET}"
         print_color_block(sim_hex, label)
 
     if args.tritanopia or args.all_simulates:
-        sim_hex = get_simulated_hex(r, g, b, CB_MATRICES["Tritanopia"], factor)
-        label = f"{MSG_BOLD_COLORS['info']}tritan{perc_str:>10}{RESET}"
+        sim_hex = get_simulated_hex(r, g, b, c.CB_MATRICES["Tritanopia"], factor)
+        label = f"{c.MSG_BOLD_COLORS['info']}tritan{perc_str:>10}{c.RESET}"
         print_color_block(sim_hex, label)
 
     if args.achromatopsia or args.all_simulates:
@@ -143,7 +137,7 @@ def handle_vision_command(args: argparse.Namespace) -> None:
             _linear_to_srgb(gg_lin) * 255,
             _linear_to_srgb(bb_lin) * 255,
         )
-        label = f"{MSG_BOLD_COLORS['info']}achroma{perc_str:>9}{RESET}"
+        label = f"{c.MSG_BOLD_COLORS['info']}achroma{perc_str:>9}{c.RESET}"
         print_color_block(sim_hex, label)
 
     print()

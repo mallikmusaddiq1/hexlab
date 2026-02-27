@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# File: hexlab/core/color_names.py
+
 COLOR_NAMES = {
  'acidgreen': '8FFE09',
  'adobe': 'BD6C48',

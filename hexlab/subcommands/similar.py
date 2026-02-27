@@ -1,12 +1,13 @@
-# File: similar.py
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# File: hexlab/subcommands/similar.py
 
 import argparse
 import random
 import sys
 from typing import Generator, Tuple, Set
 
-from ..color_math.conversions import (
+from hexlab.core.conversions import (
     hex_to_rgb,
     hsl_to_rgb,
     rgb_to_hex,
@@ -15,25 +16,17 @@ from ..color_math.conversions import (
     rgb_to_xyz,
     xyz_to_lab,
 )
-from ..color_math.distance import (
+from hexlab.core.difference import (
     delta_e_ciede2000,
     delta_e_euclidean_oklab,
     delta_e_euclidean_rgb,
 )
-from ..constants.constants import (
-    DEDUP_DELTA_E_LAB,
-    DEDUP_DELTA_E_OKLAB,
-    DEDUP_DELTA_E_RGB,
-    MAX_DEC,
-    MSG_BOLD_COLORS,
-    RESET,
-    BOLD_WHITE,
-)
-from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
-from ..utils.hexlab_logger import log, HexlabArgumentParser
-from ..utils.input_handler import INPUT_HANDLERS
-from ..utils.print_color_block import print_color_block
-from ..utils.truecolor import ensure_truecolor
+from hexlab.core import config as c
+from hexlab.shared.naming import get_title_for_hex, resolve_color_name_or_exit
+from hexlab.shared.logger import log, HexlabArgumentParser
+from hexlab.shared.sanitizer import INPUT_HANDLERS
+from hexlab.shared.preview import print_color_block
+from hexlab.shared.truecolor import ensure_truecolor
 
 CANDIDATES_PER_STEP = 500
 
@@ -44,7 +37,7 @@ def _generate_random_rgb() -> Tuple[int, int, int]:
     Returns:
         Tuple[int, int, int]: Random RGB values (0-255).
     """
-    val = random.randint(0, MAX_DEC)
+    val = random.randint(0, c.MAX_DEC)
     r = (val >> 16) & 0xFF
     g = (val >> 8) & 0xFF
     b = val & 0xFF
@@ -155,7 +148,7 @@ def handle_similar_command(args: argparse.Namespace) -> None:
         random.seed(args.seed)
 
     if args.random:
-        current_dec = random.randint(0, MAX_DEC)
+        current_dec = random.randint(0, c.MAX_DEC)
         clean_hex = f"{current_dec:06X}"
         title = "random"
     elif args.color_name:
@@ -170,7 +163,7 @@ def handle_similar_command(args: argparse.Namespace) -> None:
         title = get_title_for_hex(clean_hex, f"index {idx}")
 
     print()
-    print_color_block(clean_hex, f"{BOLD_WHITE}{title}{RESET}")
+    print_color_block(clean_hex, f"{c.BOLD_WHITE}{title}{c.RESET}")
     print()
 
     base_rgb = hex_to_rgb(clean_hex)
@@ -181,11 +174,11 @@ def handle_similar_command(args: argparse.Namespace) -> None:
         dedup_val = args.dedup_value
     else:
         if metric == "rgb":
-            dedup_val = DEDUP_DELTA_E_RGB
+            dedup_val = c.DEDUP_DELTA_E_RGB
         elif metric == "oklab":
-            dedup_val = DEDUP_DELTA_E_OKLAB
+            dedup_val = c.DEDUP_DELTA_E_OKLAB
         else:
-            dedup_val = DEDUP_DELTA_E_LAB
+            dedup_val = c.DEDUP_DELTA_E_LAB
 
     num_results = args.count
 
@@ -204,11 +197,11 @@ def handle_similar_command(args: argparse.Namespace) -> None:
     for i, (hex_val, diff) in enumerate(similar_gen):
         found_any = True
 
-        label = f"{MSG_BOLD_COLORS['info']}similar{f'{i + 1}':>9}{RESET}"
+        label = f"{c.MSG_BOLD_COLORS['info']}similar{f'{i + 1}':>9}{c.RESET}"
 
         print_color_block(hex_val, label, end="")
 
-        print(f"  {MSG_BOLD_COLORS['info']}({metric_label}: {diff:5.2f}){RESET}")
+        print(f"  {c.MSG_BOLD_COLORS['info']}({metric_label}: {diff:5.2f}){c.RESET}")
         sys.stdout.flush()
 
     if not found_any:
@@ -268,8 +261,8 @@ def get_similar_parser() -> argparse.ArgumentParser:
         type=INPUT_HANDLERS["dedup_value"],
         default=None,
         help=(
-            f"custom deduplication threshold (defaults: lab={DEDUP_DELTA_E_LAB}, "
-            f"oklab={DEDUP_DELTA_E_OKLAB}, rgb={DEDUP_DELTA_E_RGB})"
+            f"custom deduplication threshold (defaults: lab={c.DEDUP_DELTA_E_LAB}, "
+            f"oklab={c.DEDUP_DELTA_E_OKLAB}, rgb={c.DEDUP_DELTA_E_RGB})"
         ),
     )
     parser.add_argument(

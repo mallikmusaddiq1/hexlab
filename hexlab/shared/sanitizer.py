@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# File: hexlab/shared/sanitizer.py
 
 import argparse
 import re
 import sys
 
-from ..constants.constants import MAX_DEC, MAX_COUNT, MAX_STEPS
-from .hexlab_logger import log
+from hexlab.core import config as c
+from .logger import log
 
 
 def _sanitize_for_log(value) -> str:
@@ -189,8 +191,8 @@ def handle_decimal_index(v: str) -> str:
 
     if val < 0:
         val = 0
-    if val > MAX_DEC:
-        val = MAX_DEC
+    if val > c.MAX_DEC:
+        val = c.MAX_DEC
 
     return f"{val:06X}"
 
@@ -285,6 +287,7 @@ def handle_float_range(min_v: float, max_v: float):
 # ==========================================
 # Central Mapping for Argparse types
 # ==========================================
+
 # This dictionary maps custom CLI argument types to their respective parsing functions.
 INPUT_HANDLERS = {
     "hex": handle_hex,
@@ -303,11 +306,11 @@ INPUT_HANDLERS = {
     "float_signed_100": handle_float_range(-100.0, 100.0),
     "float_signed_360": handle_float_range(-360.0, 360.0),
 
-    "count": handle_int_range(2, MAX_COUNT),
+    "count": handle_int_range(2, c.MAX_COUNT),
     "count_similar": handle_int_range(2, 250),
     "count_distinct": handle_int_range(2, 250),
     "seed": handle_int_range(0, 999_999_999_999_999_999),
-    "steps": handle_int_range(1, MAX_STEPS),
+    "steps": handle_int_range(1, c.MAX_STEPS),
     "int_channel": handle_int_range(-255, 255),
     "custom_scheme": handle_int_range(-360, 360),
     "intensity": handle_positive_int(0, 100)

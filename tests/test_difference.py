@@ -1,7 +1,10 @@
-# File: test_distance.py
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# File: tests/test_distance.py
+
 import math
 
-from hexlab.color_math.distance import delta_e_ciede2000
+from hexlab.core.difference import delta_e_ciede2000
 
 
 cases = [

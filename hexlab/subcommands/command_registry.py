@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# File: hexlab/subcommands/registry.py
+
 from . import (
     gradient,
     mix,

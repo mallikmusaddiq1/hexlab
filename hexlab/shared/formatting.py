@@ -1,18 +1,11 @@
-# File: formatting.py
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# File: hexlab/shared/formatting.py
+
 from typing import Tuple
 
 
 def format_colorspace(fmt: str, *args) -> str:
-    """
-    Format color values into standard CSS-like string representations.
-    
-    Args:
-        fmt (str): The target colorspace format (e.g., 'rgb', 'hsl', 'oklab').
-        *args: The numeric values corresponding to the colorspace channels.
-        
-    Returns:
-        str: A formatted string ready for CLI output or display.
-    """
     if fmt == 'rgb':
         return f"rgb({args[0]}, {args[1]}, {args[2]})"
     elif fmt == 'hsl':

@@ -1,11 +1,12 @@
-# File: scheme.py
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# File: hexlab/subcommands/scheme.py
 
 import argparse
 import random
 import sys
 
-from ..color_math.conversions import (
+from hexlab.core.conversions import (
     hex_to_rgb,
     hsl_to_rgb,
     lab_to_lch,
@@ -17,18 +18,12 @@ from ..color_math.conversions import (
     rgb_to_xyz,
     xyz_to_lab,
 )
-from ..constants.constants import (
-    MAX_DEC,
-    SCHEME_KEYS,
-    MSG_BOLD_COLORS,
-    BOLD_WHITE,
-    RESET,
-)
-from ..utils.color_names_handler import get_title_for_hex, resolve_color_name_or_exit
-from ..utils.hexlab_logger import log, HexlabArgumentParser
-from ..utils.input_handler import INPUT_HANDLERS
-from ..utils.print_color_block import print_color_block
-from ..utils.truecolor import ensure_truecolor
+from hexlab.core import config as c
+from hexlab.shared.naming import get_title_for_hex, resolve_color_name_or_exit
+from hexlab.shared.logger import log, HexlabArgumentParser
+from hexlab.shared.sanitizer import INPUT_HANDLERS
+from hexlab.shared.preview import print_color_block
+from hexlab.shared.truecolor import ensure_truecolor
 
 
 def handle_scheme_command(args: argparse.Namespace) -> None:
@@ -41,7 +36,7 @@ def handle_scheme_command(args: argparse.Namespace) -> None:
         args (argparse.Namespace): Parsed command-line arguments.
     """
     if args.all_schemes:
-        for key in SCHEME_KEYS:
+        for key in c.SCHEME_KEYS:
             if key == "custom_scheme":
                 if getattr(args, "custom_scheme", None) is None:
                     setattr(args, key, [])
@@ -54,7 +49,7 @@ def handle_scheme_command(args: argparse.Namespace) -> None:
     title = "base color"
 
     if args.random:
-        base_hex = f"{random.randint(0, MAX_DEC):06X}"
+        base_hex = f"{random.randint(0, c.MAX_DEC):06X}"
         title = "random"
     elif args.color_name:
         base_hex = resolve_color_name_or_exit(args.color_name)
@@ -70,7 +65,7 @@ def handle_scheme_command(args: argparse.Namespace) -> None:
         title = get_title_for_hex(base_hex, f"index {idx}")
 
     print()
-    print_color_block(base_hex, f"{BOLD_WHITE}{title}{RESET}")
+    print_color_block(base_hex, f"{c.BOLD_WHITE}{title}{c.RESET}")
 
     def _has_custom_scheme(val):
         """Check if custom scheme is provided and non-empty.
@@ -169,62 +164,62 @@ def handle_scheme_command(args: argparse.Namespace) -> None:
     if any_specific_flag:
         if args.complementary:
             print_color_block(
-                get_scheme_hex(180), f"{MSG_BOLD_COLORS['info']}comp        180°{RESET}"
+                get_scheme_hex(180), f"{c.MSG_BOLD_COLORS['info']}comp        180°{c.RESET}"
             )
         if args.split_complementary:
             print_color_block(
-                get_scheme_hex(150), f"{MSG_BOLD_COLORS['info']}split comp  150°{RESET}"
+                get_scheme_hex(150), f"{c.MSG_BOLD_COLORS['info']}split comp  150°{c.RESET}"
             )
             print_color_block(
-                get_scheme_hex(210), f"{MSG_BOLD_COLORS['info']}split comp  210°{RESET}"
+                get_scheme_hex(210), f"{c.MSG_BOLD_COLORS['info']}split comp  210°{c.RESET}"
             )
         if args.analogous:
             print_color_block(
-                get_scheme_hex(-30), f"{MSG_BOLD_COLORS['info']}analog      -30°{RESET}"
+                get_scheme_hex(-30), f"{c.MSG_BOLD_COLORS['info']}analog      -30°{c.RESET}"
             )
             print_color_block(
-                get_scheme_hex(30), f"{MSG_BOLD_COLORS['info']}analog       30°{RESET}"
+                get_scheme_hex(30), f"{c.MSG_BOLD_COLORS['info']}analog       30°{c.RESET}"
             )
         if args.triadic:
             print_color_block(
-                get_scheme_hex(120), f"{MSG_BOLD_COLORS['info']}tria        120°{RESET}"
+                get_scheme_hex(120), f"{c.MSG_BOLD_COLORS['info']}tria        120°{c.RESET}"
             )
             print_color_block(
-                get_scheme_hex(240), f"{MSG_BOLD_COLORS['info']}tria        240°{RESET}"
+                get_scheme_hex(240), f"{c.MSG_BOLD_COLORS['info']}tria        240°{c.RESET}"
             )
         if args.tetradic_square:
             print_color_block(
-                get_scheme_hex(90), f"{MSG_BOLD_COLORS['info']}tetra sq     90°{RESET}"
+                get_scheme_hex(90), f"{c.MSG_BOLD_COLORS['info']}tetra sq     90°{c.RESET}"
             )
             print_color_block(
-                get_scheme_hex(180), f"{MSG_BOLD_COLORS['info']}tetra sq    180°{RESET}"
+                get_scheme_hex(180), f"{c.MSG_BOLD_COLORS['info']}tetra sq    180°{c.RESET}"
             )
             print_color_block(
-                get_scheme_hex(270), f"{MSG_BOLD_COLORS['info']}tetra sq    270°{RESET}"
+                get_scheme_hex(270), f"{c.MSG_BOLD_COLORS['info']}tetra sq    270°{c.RESET}"
             )
         if args.tetradic_rectangular:
             print_color_block(
-                get_scheme_hex(60), f"{MSG_BOLD_COLORS['info']}tetra rec    60°{RESET}"
+                get_scheme_hex(60), f"{c.MSG_BOLD_COLORS['info']}tetra rec    60°{c.RESET}"
             )
             print_color_block(
-                get_scheme_hex(180), f"{MSG_BOLD_COLORS['info']}tetra rec   180°{RESET}"
+                get_scheme_hex(180), f"{c.MSG_BOLD_COLORS['info']}tetra rec   180°{c.RESET}"
             )
             print_color_block(
-                get_scheme_hex(240), f"{MSG_BOLD_COLORS['info']}tetra rec   240°{RESET}"
+                get_scheme_hex(240), f"{c.MSG_BOLD_COLORS['info']}tetra rec   240°{c.RESET}"
             )
         if args.monochromatic:
             print_color_block(
-                get_mono_hex(-0.2), f"{MSG_BOLD_COLORS['info']}mono       -20%L{RESET}"
+                get_mono_hex(-0.2), f"{c.MSG_BOLD_COLORS['info']}mono       -20%L{c.RESET}"
             )
             print_color_block(
-                get_mono_hex(0.2), f"{MSG_BOLD_COLORS['info']}mono       +20%L{RESET}"
+                get_mono_hex(0.2), f"{c.MSG_BOLD_COLORS['info']}mono       +20%L{c.RESET}"
             )
 
         if _has_custom_scheme(args.custom_scheme):
             for angle in args.custom_scheme:
                 print_color_block(
                     get_scheme_hex(angle),
-                    f"{MSG_BOLD_COLORS['info']}custom{f'{angle}°':>10}{RESET}",
+                    f"{c.MSG_BOLD_COLORS['info']}custom{f'{angle}°':>10}{c.RESET}",
                 )
 
     print()

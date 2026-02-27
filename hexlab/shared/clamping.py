@@ -1,4 +1,8 @@
-# File: clamping.py
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# File: hexlab/shared/clamping.py
+
+
 def _clamp01(v: float) -> float:
     """Clamp value to range [0.0, 1.0]."""
     # Handle NaN

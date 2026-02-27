@@ -1,4 +1,7 @@
-# File: truecolor.py
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# File: hexlab/shared/truecolor.py
+
 import os
 import sys
 

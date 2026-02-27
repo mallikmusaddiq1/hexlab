@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# File: hexlab/shared/naming.py
 
 import json
 import re
 import sys
 from typing import Optional
 
-from .hexlab_logger import log
-from .input_handler import normalize_hex
-from ..constants.color_names import COLOR_NAMES 
+from .logger import log
+from .sanitizer import normalize_hex
+from hexlab.core.color_names import COLOR_NAMES 
 
 
 def _norm_name_key(s: str) -> str:

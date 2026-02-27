@@ -1,12 +1,14 @@
-# File: string_parser.py
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# File: hexlab/shared/parser.py
+
 import math
 import re
 import sys
 from typing import List, Tuple
 
-from ..constants.constants import EPS
 from .clamping import _clamp01
-from .hexlab_logger import log
+from .logger import log
 
 
 def _normalize_value_string(s: str) -> str:

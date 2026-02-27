@@ -1,362 +1,17 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# File: hexlab/main.py
 
 import argparse
-import random
 import sys
 
-from .color_math.conversions import (
-    hex_to_rgb,
-    lab_to_lch,
-    oklab_to_oklch,
-    rgb_to_cmyk,
-    rgb_to_hsl,
-    rgb_to_hsv,
-    rgb_to_hwb,
-    rgb_to_luv,
-    rgb_to_oklab,
-    rgb_to_xyz,
-    xyz_to_lab,
-)
-from .color_math.luminance import get_luminance
-from .color_math.wcag_contrast import get_wcag_contrast
-from .constants.constants import (
-    __version__,
-    MAX_DEC,
-
-    # Standard ANSI Escape Codes for UI
-    MSG_BOLD_COLORS,
-    BOLD_WHITE,
-    RESET,
-
-    TECH_INFO_KEYS,
-)
-from .subcommands.registry import SUBCOMMANDS
-from .utils.color_names_handler import (
-    get_title_for_hex,
-    handle_list_color_names_action,
-    resolve_color_name_or_exit,
-)
-from .utils.formatting import format_colorspace
-from .utils.hexlab_logger import log, HexlabArgumentParser
-from .utils.input_handler import INPUT_HANDLERS
-from .utils.print_color_block import print_color_block
-from .utils.truecolor import ensure_truecolor
-
-
-def _zero_small(v: float, threshold: float = 1e-4) -> float:
-    """Zero out small floating-point values below a threshold.
-
-    This helps in cleaning up near-zero values for display purposes.
-
-    Args:
-        v (float): The value to check.
-        threshold (float, optional): The threshold below which to zero. Defaults to 1e-4.
-
-    Returns:
-        float: Zero if absolute value is <= threshold, else the original value.
-    """
-    return 0.0 if abs(v) <= threshold else v
-
-
-def _draw_bar(val: float, max_val: float, r_c: int, g_c: int, b_c: int) -> str:
-    """Draw a ANSI-colored bar representation of a value.
-
-    Args:
-        val (float): The value to represent.
-        max_val (float): The maximum value for scaling.
-        r_c (int): Red component for bar color.
-        g_c (int): Green component for bar color.
-        b_c (int): Blue component for bar color.
-
-    Returns:
-        str: ANSI string representing the bar.
-    """
-    total_len = 16
-    abs_val = min(abs(val), max_val)
-    percent = abs_val / max_val
-    filled = max(0, min(total_len, int(total_len * percent)))
-    empty = total_len - filled
-
-    color_ansi = f"\033[38;2;{r_c};{g_c};{b_c}m"
-    reset_ansi = "\033[0m"
-    empty_ansi = "\033[90m"
-
-    block_char = "█"
-    empty_char = "░"
-
-    if val < 0:
-        bar_str = (
-            f"{empty_ansi}{empty_char * empty}{reset_ansi}"
-            f"{color_ansi}{block_char * filled}{reset_ansi}"
-        )
-    else:
-        bar_str = (
-            f"{color_ansi}{block_char * filled}{reset_ansi}"
-            f"{empty_ansi}{empty_char * empty}{reset_ansi}"
-        )
-
-    return bar_str
-
-
-def print_color_and_info(
-    hex_code: str,
-    title: str,
-    args: argparse.Namespace,
-    *,
-    neighbors=None,
-) -> None:
-    """Print color block and technical information based on arguments.
-
-    This function displays the color block and selected color space information,
-    optionally with visual bars unless hidden.
-
-    Args:
-        hex_code (str): The hex color code.
-        title (str): Title for the color block.
-        args (argparse.Namespace): Parsed command-line arguments.
-        neighbors (dict, optional): Dictionary of neighbor colors (next, previous, negative).
-    """
-    print()
-    print_color_block(hex_code, f"{BOLD_WHITE}{title}{RESET}")
-
-    hide_bars = getattr(args, "hide_bars", False)
-
-    if neighbors:
-        print()
-        for key in ["next", "previous", "negative"]:
-            val = neighbors.get(key)
-            if val is not None:
-                colored_title = f"{MSG_BOLD_COLORS['info']}{key}{RESET}"
-                print_color_block(val, colored_title)
-
-    r, g, b = hex_to_rgb(hex_code)
-
-    x, y, z, l_lab, a_lab, b_lab = (0.0,) * 6
-    l_ok, a_ok, b_ok = (0.0,) * 3
-
-    arg_xyz = getattr(args, "xyz", False)
-    arg_lab = getattr(args, "lab", False)
-    arg_lch = getattr(args, "lch", False)
-    arg_cieluv = getattr(args, "cieluv", False)
-    arg_oklab = getattr(args, "oklab", False)
-    arg_oklch = getattr(args, "oklch", False)
-
-    needs_xyz = arg_xyz or arg_lab or arg_lch or arg_cieluv
-    needs_lab = arg_lab or arg_lch
-    needs_oklab = arg_oklab or arg_oklch
-
-    if needs_xyz:
-        x, y, z = rgb_to_xyz(r, g, b)
-    if needs_lab:
-        l_lab, a_lab, b_lab = xyz_to_lab(x, y, z)
-    if needs_oklab:
-        l_ok, a_ok, b_ok = rgb_to_oklab(r, g, b)
-
-    if arg_cieluv:
-        l_uv, u_uv, v_uv = rgb_to_luv(r, g, b)
-        u_comp_luv = _zero_small(u_uv)
-        v_comp_luv = _zero_small(v_uv)
-
-    arg_lum = getattr(args, "luminance", False)
-    arg_contrast = getattr(args, "contrast", False)
-
-    if getattr(args, "index", False):
-        print(
-            f"\n{MSG_BOLD_COLORS['info']}index{RESET}             {BOLD_WHITE}: {int(hex_code, 16)} / {MAX_DEC}{RESET}"
-        )
-
-    if getattr(args, "name", False):
-        name_or_hex = get_title_for_hex(hex_code)
-        if not name_or_hex.startswith("#") and name_or_hex.lower() != "unknown":
-            print(f"\n{MSG_BOLD_COLORS['info']}name{RESET}              {BOLD_WHITE}: {name_or_hex}{RESET}")
-
-    if arg_lum or arg_contrast:
-        l_rel = get_luminance(r, g, b)
-        if arg_lum:
-            print(f"\n{MSG_BOLD_COLORS['info']}luminance{RESET}         {BOLD_WHITE}: {l_rel:.6f}{RESET}")
-            if not hide_bars:
-                print(f"                    {BOLD_WHITE}L{RESET} {_draw_bar(l_rel, 1.0, 200, 200, 200)}")
-
-    if getattr(args, "rgb", False):
-        print(f"\n{MSG_BOLD_COLORS['info']}rgb{RESET}               {BOLD_WHITE}: {format_colorspace('rgb', r, g, b)}{RESET}")
-        if not hide_bars:
-            print(f"                    {BOLD_WHITE}R{RESET} {_draw_bar(r, 255, 255, 60, 60)} {BOLD_WHITE}{(r / 255) * 100:6.2f}%{RESET}")
-            print(f"                    {BOLD_WHITE}G{RESET} {_draw_bar(g, 255, 60, 255, 60)} {BOLD_WHITE}{(g / 255) * 100:6.2f}%{RESET}")
-            print(f"                    {BOLD_WHITE}B{RESET} {_draw_bar(b, 255, 60, 80, 255)} {BOLD_WHITE}{(b / 255) * 100:6.2f}%{RESET}")
-
-    if getattr(args, "hsl", False):
-        h, s, l_hsl = rgb_to_hsl(r, g, b)
-        print(f"\n{MSG_BOLD_COLORS['info']}hsl{RESET}               {BOLD_WHITE}: {format_colorspace('hsl', h, s, l_hsl)}{RESET}")
-        if not hide_bars:
-            print(f"                    {BOLD_WHITE}H{RESET} {_draw_bar(h, 360, 255, 200, 0)}")
-            print(f"                    {BOLD_WHITE}S{RESET} {_draw_bar(s, 1.0, 0, 200, 255)}")
-            print(f"                    {BOLD_WHITE}L{RESET} {_draw_bar(l_hsl, 1.0, 200, 200, 200)}")
-
-    if getattr(args, "hsv", False):
-        h, s, v = rgb_to_hsv(r, g, b)
-        print(f"\n{MSG_BOLD_COLORS['info']}hsv{RESET}               {BOLD_WHITE}: {format_colorspace('hsv', h, s, v)}{RESET}")
-        if not hide_bars:
-            print(f"                    {BOLD_WHITE}H{RESET} {_draw_bar(h, 360, 255, 200, 0)}")
-            print(f"                    {BOLD_WHITE}S{RESET} {_draw_bar(s, 1.0, 0, 200, 255)}")
-            print(f"                    {BOLD_WHITE}V{RESET} {_draw_bar(v, 1.0, 200, 200, 200)}")
-
-    if getattr(args, "hwb", False):
-        h, w, b_hwb = rgb_to_hwb(r, g, b)
-        print(f"\n{MSG_BOLD_COLORS['info']}hwb{RESET}               {BOLD_WHITE}: {format_colorspace('hwb', h, w, b_hwb)}{RESET}")
-        if not hide_bars:
-            print(f"                    {BOLD_WHITE}H{RESET} {_draw_bar(h, 360, 255, 200, 0)}")
-            print(f"                    {BOLD_WHITE}W{RESET} {_draw_bar(w, 1.0, 200, 200, 200)}")
-            print(f"                    {BOLD_WHITE}B{RESET} {_draw_bar(b_hwb, 1.0, 100, 100, 100)}")
-
-    if getattr(args, "cmyk", False):
-        c, m, y_cmyk, k = rgb_to_cmyk(r, g, b)
-        print(f"\n{MSG_BOLD_COLORS['info']}cmyk{RESET}              {BOLD_WHITE}: {format_colorspace('cmyk', c, m, y_cmyk, k)}{RESET}")
-        if not hide_bars:
-            print(f"                    {BOLD_WHITE}C{RESET} {_draw_bar(c, 1.0, 0, 255, 255)}")
-            print(f"                    {BOLD_WHITE}M{RESET} {_draw_bar(m, 1.0, 255, 0, 255)}")
-            print(f"                    {BOLD_WHITE}Y{RESET} {_draw_bar(y_cmyk, 1.0, 255, 255, 0)}")
-            print(f"                    {BOLD_WHITE}K{RESET} {_draw_bar(k, 1.0, 100, 100, 100)}")
-
-    if arg_xyz:
-        print(f"\n{MSG_BOLD_COLORS['info']}xyz{RESET}               {BOLD_WHITE}: {format_colorspace('xyz', x, y, z)}{RESET}")
-        if not hide_bars:
-            print(f"                    {BOLD_WHITE}X{RESET} {_draw_bar(x / 100.0, 1.0, 255, 60, 60)}")
-            print(f"                    {BOLD_WHITE}Y{RESET} {_draw_bar(y / 100.0, 1.0, 60, 255, 60)}")
-            print(f"                    {BOLD_WHITE}Z{RESET} {_draw_bar(z / 100.0, 1.0, 60, 80, 255)}")
-
-    if arg_lab:
-        a_comp_lab, b_comp_lab = _zero_small(a_lab), _zero_small(b_lab)
-        print(f"\n{MSG_BOLD_COLORS['info']}lab{RESET}               {BOLD_WHITE}: {format_colorspace('lab', l_lab, a_comp_lab, b_comp_lab)}{RESET}")
-        if not hide_bars:
-            print(f"                    {BOLD_WHITE}L{RESET} {_draw_bar(l_lab / 100.0, 1.0, 200, 200, 200)}")
-            print(f"                    {BOLD_WHITE}A{RESET} {_draw_bar(a_comp_lab, 128.0, 60, 255, 60)}")
-            print(f"                    {BOLD_WHITE}B{RESET} {_draw_bar(b_comp_lab, 128.0, 60, 60, 255)}")
-
-    if arg_lch:
-        l_lch, c_lch, h_lch = lab_to_lch(l_lab, a_lab, b_lab)
-        print(f"\n{MSG_BOLD_COLORS['info']}lch{RESET}               {BOLD_WHITE}: {format_colorspace('lch', l_lch, c_lch, h_lch)}{RESET}")
-        if not hide_bars:
-            print(f"                    {BOLD_WHITE}L{RESET} {_draw_bar(l_lch / 100.0, 1.0, 200, 200, 200)}")
-            print(f"                    {BOLD_WHITE}C{RESET} {_draw_bar(c_lch / 150.0, 1.0, 255, 60, 255)}")
-            print(f"                    {BOLD_WHITE}H{RESET} {_draw_bar(h_lch, 360, 255, 200, 0)}")
-
-    if arg_cieluv:
-        print(f"\n{MSG_BOLD_COLORS['info']}luv{RESET}               {BOLD_WHITE}: {format_colorspace('luv', l_uv, u_comp_luv, v_comp_luv)}{RESET}")
-        if not hide_bars:
-            print(f"                    {BOLD_WHITE}L{RESET} {_draw_bar(l_uv / 100.0, 1.0, 200, 200, 200)}")
-            print(f"                    {BOLD_WHITE}U{RESET} {_draw_bar(u_comp_luv, 100.0, 60, 255, 60)}")
-            print(f"                    {BOLD_WHITE}V{RESET} {_draw_bar(v_comp_luv, 100.0, 60, 60, 255)}")
-
-    if arg_oklab:
-        a_comp_ok, b_comp_ok = _zero_small(a_ok), _zero_small(b_ok)
-        print(f"\n{MSG_BOLD_COLORS['info']}oklab{RESET}             {BOLD_WHITE}: {format_colorspace('oklab', l_ok, a_comp_ok, b_comp_ok)}{RESET}")
-        if not hide_bars:
-            print(f"                    {BOLD_WHITE}L{RESET} {_draw_bar(l_ok, 1.0, 200, 200, 200)}")
-            print(f"                    {BOLD_WHITE}A{RESET} {_draw_bar(a_comp_ok, 0.4, 60, 255, 60)}")
-            print(f"                    {BOLD_WHITE}B{RESET} {_draw_bar(b_comp_ok, 0.4, 60, 60, 255)}")
-
-    if arg_oklch:
-        l_oklch, c_oklch, h_oklch = oklab_to_oklch(l_ok, a_ok, b_ok)
-        print(f"\n{MSG_BOLD_COLORS['info']}oklch{RESET}             {BOLD_WHITE}: {format_colorspace('oklch', l_oklch, c_oklch, h_oklch)}{RESET}")
-        if not hide_bars:
-            print(f"                    {BOLD_WHITE}L{RESET} {_draw_bar(l_oklch, 1.0, 200, 200, 200)}")
-            print(f"                    {BOLD_WHITE}C{RESET} {_draw_bar(c_oklch / 0.4, 1.0, 255, 60, 255)}")
-            print(f"                    {BOLD_WHITE}H{RESET} {_draw_bar(h_oklch, 360, 255, 200, 0)}")
-
-    if arg_contrast:
-        wcag = get_wcag_contrast(l_rel)
-        bg_ansi = f"\033[48;2;{r};{g};{b}m"
-        reset = "\033[0m"
-        info_c = MSG_BOLD_COLORS["info"]
-        succ_c = MSG_BOLD_COLORS["success"]
-        err_c = MSG_BOLD_COLORS["error"]
-
-        line_1_block = f"{bg_ansi}\033[1;38;2;255;255;255m{f'white':^16}{reset}"
-        line_2_block = f"{bg_ansi}{'ㅤ' * 8}{reset}"
-        line_3_block = f"{bg_ansi}\033[1;38;2;0;0;0m{f'black':^16}{reset}"
-
-        def fmt_status(status: str) -> str:
-            if status == "Pass":
-                return f"{succ_c}Pass{info_c}"
-            return f"{err_c}Fail{info_c}"
-
-        w_aa = fmt_status(wcag["white"]["levels"]["AA"])
-        w_aaa = fmt_status(wcag["white"]["levels"]["AAA"])
-        b_aa = fmt_status(wcag["black"]["levels"]["AA"])
-        b_aaa = fmt_status(wcag["black"]["levels"]["AAA"])
-
-        s_white = f"{wcag['white']['ratio']:5.2f}:1 {info_c}(AA:{w_aa}, AAA:{w_aaa}){RESET}"
-        s_black = f"{wcag['black']['ratio']:5.2f}:1 {info_c}(AA:{b_aa}, AAA:{b_aaa}){RESET}"
-
-        print(f"\n                      {line_1_block}  {BOLD_WHITE}{s_white}{RESET}")
-        print(f"{MSG_BOLD_COLORS['info']}contrast{RESET}          {BOLD_WHITE}:{RESET}   {line_2_block}")
-        print(f"                      {line_3_block}  {BOLD_WHITE}{s_black}{RESET}")
-
-    print()
-
-
-def handle_color_command(args: argparse.Namespace) -> None:
-    """Handle the core color command logic.
-
-    Processes input color source, sets display options, computes neighbors if requested,
-    and calls the print function.
-
-    Args:
-        args (argparse.Namespace): Parsed arguments.
-    """
-    if args.all_tech_infos:
-        for key in TECH_INFO_KEYS:
-            setattr(args, key, True)
-
-    if getattr(args, "mods", False):
-        args.next = True
-        args.previous = True
-        args.negative = True
-
-    clean_hex = None
-    title = "current"
-    if args.seed is not None:
-        random.seed(args.seed)
-
-    if args.random:
-        current_dec = random.randint(0, MAX_DEC)
-        clean_hex = f"{current_dec:06X}"
-        title = "random"
-    elif args.color_name:
-        clean_hex = resolve_color_name_or_exit(args.color_name)
-        title = get_title_for_hex(clean_hex)
-    elif args.hex:
-        clean_hex = args.hex
-        title = get_title_for_hex(clean_hex)
-    elif getattr(args, "decimal_index", None) is not None:
-        clean_hex = args.decimal_index
-        idx = int(clean_hex, 16)
-        title = get_title_for_hex(clean_hex, f"index {idx}")
-    else:
-        log(
-            "error",
-            "one of the arguments -H/--hex -r/--random -cn/--color-name -di/--decimal-index is required",
-        )
-        log("info", "use 'hexlab --help' for more information")
-        sys.exit(2)
-
-    current_dec = int(clean_hex, 16)
-
-    neighbors = {}
-    if args.next:
-        next_dec = (current_dec + 1) % (MAX_DEC + 1)
-        neighbors["next"] = f"{next_dec:06X}"
-    if args.previous:
-        prev_dec = (current_dec - 1) % (MAX_DEC + 1)
-        neighbors["previous"] = f"{prev_dec:06X}"
-    if args.negative:
-        neg_dec = MAX_DEC - current_dec
-        neighbors["negative"] = f"{neg_dec:06X}"
-
-    if not neighbors:
-        neighbors = None
-
-    print_color_and_info(clean_hex, title, args, neighbors=neighbors)
+from hexlab.core import config as c
+from hexlab.logic.inspector.handler import handle_color_command
+from hexlab.subcommands.command_registry import SUBCOMMANDS
+from hexlab.shared.naming import handle_list_color_names_action
+from hexlab.shared.logger import log, HexlabArgumentParser
+from hexlab.shared.sanitizer import INPUT_HANDLERS
+from hexlab.shared.truecolor import ensure_truecolor
 
 
 def main() -> None:
@@ -364,6 +19,7 @@ def main() -> None:
 
     Handles subcommand routing, argument parsing, and core command execution.
     """
+    # 1. Subcommand Routing
     if len(sys.argv) > 1:
         cmd = sys.argv[1].lower()
         if cmd in SUBCOMMANDS:
@@ -372,6 +28,7 @@ def main() -> None:
             SUBCOMMANDS[cmd].main()
             sys.exit(0)
 
+    # 2. Argument Parser Setup
     parser = HexlabArgumentParser(
         prog="hexlab",
         description="hexlab: a feature-rich color exploration and manipulation tool",
@@ -390,7 +47,7 @@ def main() -> None:
         "-v",
         "--version",
         action="version",
-        version=f"hexlab {__version__}",
+        version=f"hexlab {c.__version__}",
         help="show program version and exit",
     )
     parser.add_argument(
@@ -410,6 +67,7 @@ def main() -> None:
         help="list available color names and exit",
     )
 
+    # Color Input Group
     color_input_group = parser.add_mutually_exclusive_group()
     color_input_group.add_argument(
         "-H",
@@ -435,7 +93,7 @@ def main() -> None:
         "--decimal-index",
         dest="decimal_index",
         type=INPUT_HANDLERS["decimal_index"],
-        help=f"decimal index of the color (0 to {MAX_DEC})",
+        help=f"decimal index of the color (0 to {c.MAX_DEC})",
     )
     parser.add_argument(
         "-s",
@@ -445,8 +103,8 @@ def main() -> None:
         help="seed for reproducibility of random",
     )
 
+    # Color Modifications Group
     mod_group = parser.add_argument_group("color modifications")
-
     mod_group.add_argument(
         "-m",
         "--mods",
@@ -472,6 +130,7 @@ def main() -> None:
         help="show the inverse color",
     )
 
+    # Technical Information Flags
     info_group = parser.add_argument_group("technical information flags")
     info_group.add_argument(
         "-all",
@@ -485,7 +144,6 @@ def main() -> None:
         action="store_true",
         help="hide visual color bars",
     )
-
     info_group.add_argument(
         "-i",
         "--index",
@@ -587,6 +245,7 @@ def main() -> None:
 
     parser.add_argument("command", nargs="?", help=argparse.SUPPRESS)
 
+    # 3. Handle Special Actions
     args = parser.parse_args()
 
     if args.list_color_names:
@@ -603,6 +262,7 @@ def main() -> None:
                 log("info", f"help for '{name}' not available")
         sys.exit(0)
 
+    # 4. Routing Validation
     if args.command:
         if args.command.lower() in SUBCOMMANDS:
             log("error", f"the '{args.command}' command must be the first argument")
@@ -610,6 +270,7 @@ def main() -> None:
             log("error", f"unrecognized command or argument: '{args.command}'")
         sys.exit(2)
 
+    # 5. Core Execution
     ensure_truecolor()
     handle_color_command(args)
 
