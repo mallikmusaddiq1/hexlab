@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# File: hexlab/logic/convert/composer.py
+# File: hexlab/logic/convert/renderer.py
 
 from hexlab.core import config as c
 from hexlab.core import conversions as conv
 from hexlab.shared.naming import get_title_for_hex
 from hexlab.shared.formatting import format_colorspace
 
-def to_string(r: int, g: int, b: int, fmt: str) -> str:
+def render_convert_info(r: int, g: int, b: int, fmt: str) -> str:
     """Composes RGB into a formatted output string."""
     def bold(t): return f"{c.BOLD_WHITE}{t}{c.RESET}"
     hx = conv.rgb_to_hex(r, g, b)

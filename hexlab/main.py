@@ -5,8 +5,9 @@
 import argparse
 import sys
 
+from hexlab import __version__
 from hexlab.core import config as c
-from hexlab.logic.inspector.handler import handle_color_command
+from hexlab.logic.color import engine
 from hexlab.subcommands.command_registry import SUBCOMMANDS
 from hexlab.shared.naming import handle_list_color_names_action
 from hexlab.shared.logger import log, HexlabArgumentParser
@@ -14,21 +15,8 @@ from hexlab.shared.sanitizer import INPUT_HANDLERS
 from hexlab.shared.truecolor import ensure_truecolor
 
 
-def main() -> None:
-    """Main entry point for hexlab CLI.
-
-    Handles subcommand routing, argument parsing, and core command execution.
-    """
-    # 1. Subcommand Routing
-    if len(sys.argv) > 1:
-        cmd = sys.argv[1].lower()
-        if cmd in SUBCOMMANDS:
-            sys.argv.pop(1)
-            ensure_truecolor()
-            SUBCOMMANDS[cmd].main()
-            sys.exit(0)
-
-    # 2. Argument Parser Setup
+def get_color_parser() -> argparse.ArgumentParser:
+    """Create argument parser for the main color (inspector) command."""
     parser = HexlabArgumentParser(
         prog="hexlab",
         description="hexlab: a feature-rich color exploration and manipulation tool",
@@ -47,7 +35,7 @@ def main() -> None:
         "-v",
         "--version",
         action="version",
-        version=f"hexlab {c.__version__}",
+        version=f"hexlab {__version__}",
         help="show program version and exit",
     )
     parser.add_argument(
@@ -56,7 +44,6 @@ def main() -> None:
         action="store_true",
         help="show full help message including subcommands",
     )
-
     parser.add_argument(
         "--list-color-names",
         nargs="?",
@@ -240,16 +227,24 @@ def main() -> None:
     info_group.add_argument(
         "--name",
         action="store_true",
-        help="show color name if available in --list-color-names",
+        help="show color name if available",
     )
 
-    parser.add_argument("command", nargs="?", help=argparse.SUPPRESS)
+    parser.add_argument(
+        "command",
+        nargs="?",
+        help=argparse.SUPPRESS,
+    )
+    return parser
 
-    # 3. Handle Special Actions
-    args = parser.parse_args()
+
+def handle_color_command(args: argparse.Namespace) -> None:
+    """Entry point for the core color command."""
+    parser = get_color_parser()
 
     if args.list_color_names:
         handle_list_color_names_action(args.list_color_names)
+        sys.exit(0)
 
     if args.help_full:
         parser.print_help()
@@ -262,7 +257,7 @@ def main() -> None:
                 log("info", f"help for '{name}' not available")
         sys.exit(0)
 
-    # 4. Routing Validation
+    # Routing Validation (if a command was passed in the wrong place)
     if args.command:
         if args.command.lower() in SUBCOMMANDS:
             log("error", f"the '{args.command}' command must be the first argument")
@@ -270,7 +265,23 @@ def main() -> None:
             log("error", f"unrecognized command or argument: '{args.command}'")
         sys.exit(2)
 
-    # 5. Core Execution
+    # Execution
+    engine.run(args, parser)
+
+
+def main() -> None:
+    """Main entry point for hexlab CLI"""
+    # Subcommand Routing (Global behavior)
+    if len(sys.argv) > 1:
+        cmd = sys.argv[1].lower()
+        if cmd in SUBCOMMANDS:
+            sys.argv.pop(1)
+            ensure_truecolor()
+            SUBCOMMANDS[cmd].main()
+            sys.exit(0)
+
+    parser = get_color_parser()
+    args = parser.parse_args()
     ensure_truecolor()
     handle_color_command(args)
 

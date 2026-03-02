@@ -3,15 +3,6 @@
 # File: hexlab/core/config.py
 
 # ==========================================
-# Core Metadata & Precision
-# ==========================================
-
-PROJECT_NAME = "hexlab"
-AUTHOR = "Mallik Mohammad Musaddiq"
-GITHUB_URL = "https://github.com/mallikmusaddiq1/hexlab"
-__version__ = "v0.0.8"
-
-# ==========================================
 # Color Science Constants & Coefficients
 # ==========================================
 
@@ -42,8 +33,6 @@ RGB_MAX = 255.0                    # 8-bit color depth limit
 HUE_MAX = 360.0                    # Full circle degrees
 HUE_SECTOR = 60.0                  # Degrees per HSL/HSV sector
 HSL_HUE_MOD = 6.0                  # Hue sector divisor for HSL/HSV
-DEG_180 = 180.0
-DEG_360 = 360.0
 EXP_2 = 2                          # Square power
 EXP_7 = 7                          # Power for CIEDE2000 chroma calculation
 
@@ -78,7 +67,6 @@ LAB_L_MULT = 116.0                 # Multiplier for Lightness (L*) calculation
 LAB_L_SUB = 16.0                   # Subtraction constant for Lightness (L*) calculation
 LAB_A_MULT = 500.0                 # Multiplier for 'a*' (green-red) channel calculation
 LAB_B_MULT = 200.0                 # Multiplier for 'b*' (blue-yellow) channel calculation
-LAB_POW = 1.0 / 3.0                # Cube root exponent for perceptual uniform scaling
 LAB_INV_THR = 0.20689655           # Threshold for inverse conversion (Lab to XYZ)
 
 # CIEDE2000 Constants (Source: Sharma, G., Wu, W., & Dalal, E. N. (2005))
@@ -101,19 +89,6 @@ RT_D30 = 30.0                      # Degree factor for rotation term (R_T) calcu
 RT_H_OFFSET = 275.0                # Hue offset for blue region in R_T calculation
 RT_DIV = 25.0                      # Hue divisor for blue region in R_T calculation
 K_FACTORS = (1.0, 1.0, 1.0)        # Parametric weighting factors (k_L, k_C, k_H)
-
-# OKLab Matrices (Source: Björn Ottosson, 2020)
-M1_OKLAB = [
-    (0.4122214708, 0.5363325363, 0.0514459929),  # Coefficients for Long (L) cone response
-    (0.2119034982, 0.6806995451, 0.1073969566),  # Coefficients for Medium (M) cone response
-    (0.0883024619, 0.2817188376, 0.6299787005),  # Coefficients for Short (S) cone response
-]
-
-M2_OKLAB = [
-    (0.2104542553, 0.7936177850, -0.0040720468), # Coefficients for OKLab Lightness (L)
-    (1.9779984951, -2.4285922050, 0.4505937099), # Coefficients for OKLab 'a' (green-red)
-    (0.0259040371, 0.7827717662, -0.8086757660), # Coefficients for OKLab 'b' (blue-yellow)
-]
 
 # Color Blindness Simulation Matrices (Source: Machado et al., 2009)
 CB_MATRICES = {
@@ -145,12 +120,13 @@ LUV_Z_CONST = 12.0                  # Constant used in the Z coordinate derivati
 LUV_L_THR = 8.0                     # Lightness threshold for switching between L* calculation methods
 LUV_Z_U_MULT = 3.0                  # Z-axis multiplier for LUV to XYZ conversion
 LUV_Z_V_MULT = 20.0                 # Z-axis offset multiplier for LUV to XYZ conversion
+
 # Constants for OKLab color space conversions (Source: https://bottosson.github.io/posts/oklab/)
 OKLAB_D65_MID_GRAY = 0.18           # sRGB reflectance value for standard 18% mid-gray
 OKLAB_CUBE_ROOT_EXP = 1.0 / 3.0     # Power exponent for perceptual LMS non-linearity
 XYZ_SCALING = 100.0                 # Factor for normalizing/scaling XYZ coordinates
 
-# XYZ to LMS matrix coefficients (LMS cone response)
+# XYZ to LMS matrix coefficients (Source: Björn Ottosson, 2020)
 OKLAB_XYZ_TO_LMS_RR = 0.4122214708  # Contribution of X to Long-wavelength (L) response
 OKLAB_XYZ_TO_LMS_RG = 0.5363325363  # Contribution of Y to Long-wavelength (L) response
 OKLAB_XYZ_TO_LMS_RB = 0.0514459929  # Contribution of Z to Long-wavelength (L) response
@@ -165,6 +141,12 @@ OKLAB_XYZ_TO_LMS_BB = 0.6299787005  # Contribution of Z to Short-wavelength (S) 
 OKLAB_LMS_TO_LAB_LL = 0.2104542553         # Weight for Lightness (L) component
 OKLAB_LMS_TO_LAB_LM = 0.7936177850         # Weight for L-M difference in Lightness
 OKLAB_LMS_TO_LAB_LS = -0.0040720468        # Weight for S component in Lightness
+OKLAB_LMS_TO_LAB_AL = 1.9779984951         # Weight for Lightness (L) in 'a' (green-red) component
+OKLAB_LMS_TO_LAB_AM = -2.4285922050        # Weight for M in 'a' (green-red) component
+OKLAB_LMS_TO_LAB_AS = 0.4505937099         # Weight for S in 'a' (green-red) component
+OKLAB_LMS_TO_LAB_BL = 0.0259040371         # Weight for Lightness (L) in 'b' (blue-yellow) component
+OKLAB_LMS_TO_LAB_BM = 0.7827717662         # Weight for M in 'b' (blue-yellow) component
+OKLAB_LMS_TO_LAB_BS = -0.8086757660        # Weight for S in 'b' (blue-yellow)
 
 # OKLab to LMS' matrix coefficients (Inverse stage part 1)
 OKLAB_TO_LMS_PRIME_LA = 0.3963377774       # Contribution of 'a' to L' channel
@@ -240,20 +222,34 @@ WCAG_LUMINANCE_OFFSET = 0.05             # Standard offset constant in the (L + 
 # CLI UI & Data Structures
 # ==========================================
 
-# Technical display keys for 'info' command
+# Keys used to extract and format technical color data
 TECH_INFO_KEYS = [
-    'index', 'rgb', 'luminance', 'hsl', 'hsv', 'cmyk',
-    'contrast', 'xyz', 'lab', 'hwb', 'oklab', 'oklch',
-    'cieluv', 'name', 'lch'
-]                                        # Keys used to extract and format technical color data
+    'index',
+    'rgb',
+    'luminance',
+    'hsl',
+    'hsv',
+    'cmyk',
+    'contrast',
+    'xyz', 'lab',
+    'hwb',
+    'oklab',
+    'oklch',
+    'cieluv',
+    'name',
+    'lch'
+]
 
 # Supported color harmony schemes
 SCHEME_KEYS = [
-    'complementary', 'split_complementary', 'analogous',
-    'triadic', 'tetradic_square', 'tetradic_rectangular',
+    'complementary',
+    'split_complementary',
+    'analogous',
+    'triadic',
+    'tetradic_square',
+    'tetradic_rectangular',
     'monochromatic'
-]                                        # Mathematical relationships used for palette generation
-
+]
 
 # Image processing pipeline order
 PIPELINE = [
@@ -288,6 +284,24 @@ PIPELINE = [
     "min_contrast",
     "opacity"
 ]
+
+# Format aliases for 'convert' command
+FORMAT_ALIASES = {
+    'hex': 'hex',
+    'rgb': 'rgb',
+    'hsl': 'hsl',
+    'hsv': 'hsv',
+    'hwb': 'hwb',
+    'cmyk': 'cmyk',
+    'xyz': 'xyz',
+    'lab': 'lab',
+    'lch': 'lch',
+    'luv': 'luv',
+    'oklab': 'oklab',
+    'oklch': 'oklch',
+    'index': 'index',
+    'name': 'name',
+}
 
 # ANSI Terminal Styling
 MSG_BOLD_COLORS = {

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# File: hexlab/logic/adjust/actions.py
+# File: hexlab/logic/adjust/filters.py
 
 import math
 from typing import Tuple
 
-from hexlab.core import conversions as conv
 from hexlab.core import config as c
+from hexlab.core import conversions as conv
 from hexlab.core.luminance import get_luminance
 from hexlab.core.contrast import get_contrast_ratio_rgb
 from hexlab.shared.clamping import _clamp01, _clamp255

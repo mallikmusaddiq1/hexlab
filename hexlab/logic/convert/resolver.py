@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# File: hexlab/logic/convert/resolve.py
+# File: hexlab/logic/convert/resolver.py
 
 import re
 import sys
 from typing import Tuple
 
-from hexlab.core import conversions as conv
 from hexlab.core import config as c
+from hexlab.core import conversions as conv
 from hexlab.shared.naming import resolve_color_name_or_exit
-from hexlab.shared.parser import STRING_PARSERS
 from hexlab.shared.logger import log
+from .parser import STRING_PARSERS
 
-def to_rgb(val: str, fmt: str) -> Tuple[int, int, int]:
+def resolve_convert_input(val: str, fmt: str) -> Tuple[int, int, int]:
     """Resolves any input format into an RGB tuple."""
     if fmt == "hex":
         return conv.hex_to_rgb(val)

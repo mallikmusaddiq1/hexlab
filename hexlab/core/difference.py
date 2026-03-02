@@ -42,12 +42,12 @@ def delta_e_ciede2000(
 
     if C1_prime * C2_prime == 0:
         delta_h_prime_deg = 0
-    elif abs(h2_prime_deg - h1_prime_deg) <= c.DEG_180:
+    elif abs(h2_prime_deg - h1_prime_deg) <= c.HUE_MAX / 2:
         delta_h_prime_deg = h2_prime_deg - h1_prime_deg
-    elif h2_prime_deg - h1_prime_deg > c.DEG_180:
-        delta_h_prime_deg = (h2_prime_deg - h1_prime_deg) - c.DEG_360
+    elif h2_prime_deg - h1_prime_deg > c.HUE_MAX / 2:
+        delta_h_prime_deg = (h2_prime_deg - h1_prime_deg) - c.HUE_MAX
     else:
-        delta_h_prime_deg = (h2_prime_deg - h1_prime_deg) + c.DEG_360
+        delta_h_prime_deg = (h2_prime_deg - h1_prime_deg) + c.HUE_MAX
 
     delta_H_prime = c.DIV_2 * math.sqrt(max(0.0, C1_prime * C2_prime)) * math.sin(
         math.radians(delta_h_prime_deg) / c.DIV_2
@@ -57,12 +57,12 @@ def delta_e_ciede2000(
 
     if C1_prime * C2_prime == 0:
         h_prime_bar_deg = h1_prime_deg + h2_prime_deg
-    elif abs(h2_prime_deg - h1_prime_deg) <= c.DEG_180:
+    elif abs(h2_prime_deg - h1_prime_deg) <= c.HUE_MAX / 2:
         h_prime_bar_deg = (h1_prime_deg + h2_prime_deg) / c.DIV_2
-    elif (h1_prime_deg + h2_prime_deg) < c.DEG_360:
-        h_prime_bar_deg = (h1_prime_deg + h2_prime_deg + c.DEG_360) / c.DIV_2
+    elif (h1_prime_deg + h2_prime_deg) < c.HUE_MAX:
+        h_prime_bar_deg = (h1_prime_deg + h2_prime_deg + c.HUE_MAX) / c.DIV_2
     else:
-        h_prime_bar_deg = (h1_prime_deg + h2_prime_deg - c.DEG_360) / c.DIV_2
+        h_prime_bar_deg = (h1_prime_deg + h2_prime_deg - c.HUE_MAX) / c.DIV_2
 
     T = (
         c.UNIT

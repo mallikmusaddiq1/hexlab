@@ -1,23 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# File: hexlab/logic/adjust/pipeline.py
+# File: hexlab/logic/adjust/engine.py
 
 import argparse
 import random
 import sys
 
-from hexlab.core import conversions as conv
-from hexlab.logic.adjust import actions as op
-from hexlab.core.luminance import get_luminance
 from hexlab.core import config as c
+from hexlab.core import conversions as conv
+from . import filters as op
+from .resolver import resolve_adjust_input
+from .renderer import render_adjust_info
+from hexlab.core.luminance import get_luminance
 from hexlab.shared.clamping import _clamp01, _clamp255
-from hexlab.shared.naming import (
-    get_title_for_hex,
-    resolve_color_name_or_exit,
-)
 from hexlab.shared.logger import log
-from hexlab.shared.preview import print_color_block
-
 
 def _get_custom_pipeline_order(parser) -> list:
     """Determine the order of operations based on the user's CLI arguments."""
@@ -77,45 +73,10 @@ def _get_custom_pipeline_order(parser) -> list:
 
     return order
 
+def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    """Main execution logic for the adjust command pipeline."""
+    base_hex, title = resolve_adjust_input(args)
 
-def _print_results(base_hex, res_hex, title, mods, args):
-    """Handle the final terminal output and step logging."""
-    base_hex_upper = base_hex.upper()
-    is_hex_title = (
-        isinstance(title, str)
-        and title.startswith("#")
-        and title[1:].upper() == base_hex_upper
-    )
-
-    print()
-    label = "original" if is_hex_title else title
-    print_color_block(base_hex, f"{c.BOLD_WHITE}{label}{c.RESET}")
-    
-    if mods:
-        print()
-        print_color_block(res_hex, f"{c.MSG_BOLD_COLORS['info']}adjusted{c.RESET}")
-
-    if getattr(args, "verbose", False):
-        print()
-        if not mods:
-            log("info", "steps: no adjustments applied yet")
-        else:
-            log("info", "steps:")
-            for i, (label, val) in enumerate(mods, 1):
-                if getattr(args, "steps_compact", False):
-                    print(f"{c.MSG_COLORS['info']}    {i}. {label}")
-                else:
-                    detail = f" {val}" if val else ""
-                    print(f"{c.MSG_COLORS['info']}    {i}. {label}{detail}")
-    print()
-
-
-def handle_adjust_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
-    """Main execution logic for the adjust command."""
-    if args.seed is not None:
-        random.seed(args.seed)
-
-    # Luminance Lock Conflict Checks
     locks = sum([
         getattr(args, "lock_luminance", False),
         getattr(args, "lock_rel_luminance", False),
@@ -129,7 +90,6 @@ def handle_adjust_command(args: argparse.Namespace, parser: argparse.ArgumentPar
     if getattr(args, "min_contrast_with", None) and locks > 0:
         log("warning", "--min-contrast-with will override previous luminance locks")
 
-    # Pipeline Determination
     pipeline = c.PIPELINE
     if getattr(args, "list_fixed_pipeline", False):
         for step in pipeline: print(step)
@@ -139,41 +99,19 @@ def handle_adjust_command(args: argparse.Namespace, parser: argparse.ArgumentPar
         custom_order = _get_custom_pipeline_order(parser)
         if custom_order: pipeline = custom_order
 
-    # Input Resolution
-    base_hex, title = None, "original"
-    if args.random:
-        base_hex, title = f"{random.randint(0, c.MAX_DEC):06X}", "random"
-    elif args.color_name:
-        base_hex = resolve_color_name_or_exit(args.color_name)
-        title = get_title_for_hex(base_hex)
-        if title.lower() == "unknown": title = args.color_name
-    elif args.hex:
-        base_hex, title = args.hex, get_title_for_hex(args.hex)
-    elif getattr(args, "decimal_index", None):
-        base_hex, title = args.decimal_index, f"index {int(args.decimal_index, 16)}"
-
-    if not base_hex:
-        log("error", "one of the arguments -H/--hex -r/--random -cn/--color-name -di/--decimal-index is required")
-        sys.exit(2)
-
-    # Validate Contrast Arguments
     mc_with = getattr(args, "min_contrast_with", None)
     mc_val = getattr(args, "min_contrast", None)
     if (mc_with and mc_val is None) or (mc_with is None and mc_val is not None):
         log("error", "--min-contrast-with and --min-contrast must be used together")
         sys.exit(2)
 
-    # Initial RGB state
     r, g, b = conv.hex_to_rgb(base_hex)
     fr, fg, fb = op.sanitize_rgb(float(r), float(g), float(b))
-    
-    # Store base metrics for locks
     base_l_oklab, _, _ = conv.rgb_to_oklab(fr, fg, fb)
     base_rel_lum = get_luminance(r, g, b)
 
     mods = []
 
-    # Processing Loop
     for op_name in pipeline:
         curr_hex = conv.rgb_to_hex(fr, fg, fb)
         src_info = f"from #{curr_hex}"
@@ -241,7 +179,7 @@ def handle_adjust_command(args: argparse.Namespace, parser: argparse.ArgumentPar
 
         elif op_name == "saturate" and args.saturate is not None:
             h, s, l_hsl = conv.rgb_to_hsl(fr, fg, fb)
-            if s > c.SAT_EPS:
+            if s > c.EPS:
                 s_new = _clamp01(s + (1.0 - s) * (args.saturate / c.PERCENT_TO_FACTOR))
                 fr, fg, fb = conv.hsl_to_rgb(h, s_new, l_hsl)
             mods.append(("saturate", f"+{args.saturate:.2f}% {src_info}"))
@@ -290,7 +228,7 @@ def handle_adjust_command(args: argparse.Namespace, parser: argparse.ArgumentPar
 
         elif op_name == "threshold" and getattr(args, "threshold", None) is not None:
             y = get_luminance(int(round(fr)), int(round(fg)), int(round(fb)))
-            use_hex = (getattr(args, "threshold_low", None) or c.THRESHOLD_DEFAULT_LOW) if y < (args.threshold / c.PERCENT_TO_FACTOR) else (getattr(args, "threshold_high", None) or c.THRESHOLD_DEFAULT_HIGH)
+            use_hex = "000000" if y < (args.threshold / c.PERCENT_TO_FACTOR) else "FFFFFF"
             tr, tg, tb = conv.hex_to_rgb(use_hex)
             fr, fg, fb = float(tr), float(tg), float(tb)
             mods.append(("threshold-luminance", f"{args.threshold:.2f}% (result: #{use_hex.upper()}) {src_info}"))
@@ -300,7 +238,7 @@ def handle_adjust_command(args: argparse.Namespace, parser: argparse.ArgumentPar
             mods.append(("solarize", f"{args.solarize:.2f}% {src_info}"))
 
         elif op_name == "tint" and getattr(args, "tint", None) is not None:
-            strength = getattr(args, "tint_strength", None) or c.TINT_DEFAULT_STRENGTH
+            strength = getattr(args, "tint_strength", 20.0)
             fr, fg, fb = op.tint_oklab(fr, fg, fb, args.tint, strength)
             mods.append(("tint-oklab", f"{strength:.2f}% from #{curr_hex} to #{args.tint.upper()}"))
 
@@ -338,8 +276,7 @@ def handle_adjust_command(args: argparse.Namespace, parser: argparse.ArgumentPar
             fr, fg, fb, changed = op.ensure_min_contrast_with(fr, fg, fb, args.min_contrast_with, args.min_contrast)
             if changed: mods.append(("min-contrast", f">={float(args.min_contrast):.2f} vs #{args.min_contrast_with.upper()} {src_info}"))
 
-    # Finalization
     ri, gi, bi = op.finalize_rgb(fr, fg, fb)
     res_hex = conv.rgb_to_hex(ri, gi, bi)
     
-    _print_results(base_hex, res_hex, title, mods, args)
+    render_adjust_info(base_hex, res_hex, title, mods, args)

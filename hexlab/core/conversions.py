@@ -166,7 +166,7 @@ def rgb_to_xyz(r: int, g: int, b: int) -> Tuple[float, float, float]:
 
 def _xyz_f(t: float) -> float:
     """Helper function for XYZ to LAB."""
-    return t**c.LAB_POW if t > c.LAB_E else (c.LAB_K * t) + c.LAB_OFFSET
+    return t**c.OKLAB_CUBE_ROOT_EXP if t > c.LAB_E else (c.LAB_K * t) + c.LAB_OFFSET
 
 
 def _xyz_f_inv(t: float) -> float:
@@ -269,10 +269,8 @@ def rgb_to_oklab(r: int, g: int, b: int) -> Tuple[float, float, float]:
     s_ = (abs(s)) ** c.OKLAB_CUBE_ROOT_EXP if s >= 0 else -((abs(s)) ** c.OKLAB_CUBE_ROOT_EXP)
 
     ok_l = c.OKLAB_LMS_TO_LAB_LL * l_ + c.OKLAB_LMS_TO_LAB_LM * m_ + c.OKLAB_LMS_TO_LAB_LS * s_
-    # Note: ok_a and ok_b coefficients would ideally be defined in config as M2_OKLAB for full mapping
-    # but using existing config pattern for consistency
-    ok_a = c.M2_OKLAB[1][0] * l_ + c.M2_OKLAB[1][1] * m_ + c.M2_OKLAB[1][2] * s_
-    ok_b = c.M2_OKLAB[2][0] * l_ + c.M2_OKLAB[2][1] * m_ + c.M2_OKLAB[2][2] * s_
+    ok_a = c.OKLAB_LMS_TO_LAB_AL * l_ + c.OKLAB_LMS_TO_LAB_AM * m_ + c.OKLAB_LMS_TO_LAB_AS * s_
+    ok_b = c.OKLAB_LMS_TO_LAB_BL * l_ + c.OKLAB_LMS_TO_LAB_BM * m_ + c.OKLAB_LMS_TO_LAB_BS * s_
 
     return ok_l, ok_a, ok_b
 
@@ -366,7 +364,7 @@ def rgb_to_luv(r: int, g: int, b: int) -> Tuple[float, float, float]:
 
     y_r = Y / c.D65_Y
     if y_r > c.LAB_E:
-        L = (c.LAB_L_MULT * (y_r**c.LAB_POW)) - c.LAB_L_SUB
+        L = (c.LAB_L_MULT * (y_r**c.OKLAB_CUBE_ROOT_EXP)) - c.LAB_L_SUB
     else:
         L = c.LUV_KAPPA * y_r
 

@@ -7,8 +7,8 @@ import re
 import sys
 from typing import List, Tuple
 
-from .clamping import _clamp01
-from .logger import log
+from hexlab.shared.clamping import _clamp01
+from hexlab.shared.logger import log
 
 
 def _normalize_value_string(s: str) -> str:

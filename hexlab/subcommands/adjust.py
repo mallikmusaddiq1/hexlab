@@ -5,7 +5,7 @@
 import argparse
 import sys
 
-from hexlab.logic.adjust import pipeline
+from hexlab.logic.adjust import engine
 from hexlab.shared.logger import HexlabArgumentParser
 from hexlab.shared.sanitizer import INPUT_HANDLERS
 from hexlab.shared.truecolor import ensure_truecolor
@@ -379,7 +379,8 @@ def get_adjust_parser() -> argparse.ArgumentParser:
 def handle_adjust_command(args: argparse.Namespace) -> None:
     """Entry point for the adjust subcommand."""
     parser = get_adjust_parser()
-    pipeline.handle_adjust_command(args, parser)
+
+    engine.run(args, parser)
 
 
 def main() -> None:
