@@ -9,6 +9,7 @@ from . import (
     vision,
     similar,
     distinct,
+    unicode,
     convert,
     adjust
 )
@@ -20,6 +21,7 @@ SUBCOMMANDS = {
     'vision': vision,
     'similar': similar,
     'distinct': distinct,
+    'unicode': unicode,
     'convert': convert,
     'adjust': adjust
 }

@@ -180,6 +180,11 @@ DEDUP_DELTA_E_LAB = 7.7            # Delta-E threshold in CIELAB space
 DEDUP_DELTA_E_OKLAB = 0.077        # Delta-E threshold in OKLab space
 DEDUP_DELTA_E_RGB = 27             # Euclidean distance threshold in RGB space
 
+# Deduplication thresholds strictly for Unicode Emoji matching (Semantic Tolerance)
+# Emojis have outlines, shadows, and anti-aliasing, requiring more generous visual limits.
+DEDUP_DELTA_E_LAB_UNICODE = 18.0     # Ideal threshold for LAB (CIEDE2000)
+DEDUP_DELTA_E_OKLAB_UNICODE = 0.18   # Ideal threshold for OKLab
+DEDUP_DELTA_E_RGB_UNICODE = 60.0     # Ideal threshold for RGB Euclidean Space
 
 # ==========================================
 # Adjustment & Pipeline Constants

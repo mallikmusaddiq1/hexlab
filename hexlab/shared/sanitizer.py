@@ -19,6 +19,26 @@ def _sanitize_for_log(value) -> str:
         return ""
     return " ".join(str(value).split())
 
+def sanitize_unicode_seq(value: str) -> str:
+    """Parses a string like 'U+1F600', '1F600', or '\\u1F600' into the actual unicode character."""
+    val = value.strip().upper()
+    if val.startswith("U+"):
+        val = val[2:]
+    elif val.startswith("\\U"):
+        val = val[2:]
+    
+    try:
+        return chr(int(val, 16))
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid unicode sequence: '{value}'")
+
+
+def sanitize_decimal_seq(value: str) -> str:
+    """Parses a decimal index into the actual unicode character."""
+    try:
+        return chr(int(value.strip()))
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid decimal sequence index: '{value}'")
 
 def normalize_hex(value: str) -> str:
     """
@@ -294,6 +314,8 @@ INPUT_HANDLERS = {
     "decimal_index": handle_decimal_index,
     "color_name": handle_color_name,
     "colorspace": handle_string_clean,
+    "unicode_seq": sanitize_unicode_seq,
+    "decimal_seq": sanitize_decimal_seq,
     "distance_metric": handle_string_clean,
     "harmony_model": handle_string_clean,
     "from_format": handle_string_clean,
